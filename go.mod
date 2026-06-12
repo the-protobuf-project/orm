@@ -1,6 +1,6 @@
 module github.com/oh-tarnished/protorm
 
-go 1.26.0
+go 1.26.4
 
 require (
 	github.com/bufbuild/protocompile v0.14.1

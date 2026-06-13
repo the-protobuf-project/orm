@@ -30,7 +30,7 @@ type Account struct {
 	// select is a reserved word.
 	Select *string `gorm:"column:select" json:"select,omitempty"`
 	// state exercises a quoted, schema-qualified enum type reference.
-	State State `gorm:"column:state;not null" json:"state" validate:"required"`
+	State *State `gorm:"column:state" json:"state,omitempty"`
 }
 
 func (*Account) TableName() string { return "public.user" }

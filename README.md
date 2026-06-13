@@ -212,7 +212,7 @@ All options live in `protorm/v1/annotations.proto`.
 | --- | --- |
 | `table` | Explicit table name. Defaults to the snake_case plural of the resource. |
 | `skip` | Exclude the message from all output. |
-| `indexes` | Composite indexes: `{ columns: [...], unique: bool, index_name: "..." }`. |
+| `indexes` | Composite indexes: `{ columns: [...], unique: bool, index: "..." }`. |
 | `id` | `ID_STRATEGY_ULID` / `ID_STRATEGY_UUID` — synthesize a generated `id` PK and demote the `IDENTIFIER` field to `UNIQUE`. |
 | `timestamps` | Add `created_at` / `updated_at` (`@updatedAt` / GORM `autoUpdateTime`). |
 

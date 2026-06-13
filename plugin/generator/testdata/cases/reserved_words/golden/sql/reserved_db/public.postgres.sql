@@ -23,6 +23,6 @@ CREATE TABLE "public"."user" (
     -- select is a reserved word.
     "select"  VARCHAR(255),
     -- state exercises a quoted, schema-qualified enum type reference.
-    "state"  "public"."state"  NOT NULL
+    "state"  "public"."state"
 );
 CREATE UNIQUE INDEX "idx_user_order_select" ON "public"."user" ("order", "select");

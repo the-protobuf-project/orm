@@ -38,7 +38,7 @@ model Account {
   select String? @map("select")
 
   /// state exercises a quoted, schema-qualified enum type reference.
-  state State @map("state")
+  state State? @map("state")
 
   /// Unique constraint on [order, select].
   @@unique([order, select])

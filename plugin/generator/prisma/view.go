@@ -118,7 +118,7 @@ func fieldDecl(col *schema.Column, provider types.Provider) string {
 	var b strings.Builder
 	b.WriteString(naming.Camel(col.Name))
 	b.WriteByte(' ')
-	typeName := col.SQLType
+	var typeName string
 	if col.Enum != nil {
 		typeName = col.Enum.Name
 	} else {

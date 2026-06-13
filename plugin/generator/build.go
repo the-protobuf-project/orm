@@ -207,7 +207,7 @@ func buildTable(s *schema.Schema, msg *protogen.Message, name, src, srcPath stri
 
 	for _, idx := range tOpts.GetIndexes() {
 		t.Indexes = append(t.Indexes, &schema.Index{
-			Name: idx.GetIndexName(), Columns: idx.GetColumns(), Unique: idx.GetUnique(),
+			Name: idx.GetIndex(), Columns: idx.GetColumns(), Unique: idx.GetUnique(),
 		})
 	}
 	return t

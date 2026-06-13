@@ -9,6 +9,9 @@ import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
 import "protorm/v1/annotations.proto";
 
+option java_multiple_files = true;
+option java_outer_classname = "ReservedWordsProto";
+option java_package = "com.reserved.v1";
 option (protorm.v1.datasource) = {
   database: "reserved_db"
   provider: "postgres"
@@ -46,13 +49,18 @@ message Account {
   // select is a reserved word.
   string select = 3;
 
-  // status exercises a quoted, schema-qualified enum type reference.
-  Status status = 4 [(google.api.field_behavior) = REQUIRED];
+  // state exercises a quoted, schema-qualified enum type reference.
+  State state = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
-// Status is the account state.
-enum Status {
-  STATUS_UNSPECIFIED = 0;
-  STATUS_ACTIVE = 1;
-  STATUS_CLOSED = 2;
+// State is the account lifecycle state.
+enum State {
+  // STATE_UNSPECIFIED is the zero value; the account state is unset.
+  STATE_UNSPECIFIED = 0;
+
+  // STATE_ACTIVE marks an open, usable account.
+  STATE_ACTIVE = 1;
+
+  // STATE_CLOSED marks a deactivated account.
+  STATE_CLOSED = 2;
 }

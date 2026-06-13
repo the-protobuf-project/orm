@@ -86,9 +86,9 @@ type IndexDef struct {
 	Columns []string `protobuf:"bytes,1,rep,name=columns,proto3" json:"columns,omitempty"`
 	// unique makes this a UNIQUE index.
 	Unique bool `protobuf:"varint,2,opt,name=unique,proto3" json:"unique,omitempty"`
-	// index_name is an optional explicit index name.
+	// index is an optional explicit index name.
 	// Auto-generated as idx_<table>_<cols> when empty.
-	IndexName     string `protobuf:"bytes,3,opt,name=index_name,json=indexName,proto3" json:"index_name,omitempty"`
+	Index         string `protobuf:"bytes,3,opt,name=index,proto3" json:"index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,9 +137,9 @@ func (x *IndexDef) GetUnique() bool {
 	return false
 }
 
-func (x *IndexDef) GetIndexName() string {
+func (x *IndexDef) GetIndex() string {
 	if x != nil {
-		return x.IndexName
+		return x.Index
 	}
 	return ""
 }
@@ -244,12 +244,11 @@ var File_protorm_v1_table_proto protoreflect.FileDescriptor
 const file_protorm_v1_table_proto_rawDesc = "" +
 	"\n" +
 	"\x16protorm/v1/table.proto\x12\n" +
-	"protorm.v1\"[\n" +
+	"protorm.v1\"R\n" +
 	"\bIndexDef\x12\x18\n" +
 	"\acolumns\x18\x01 \x03(\tR\acolumns\x12\x16\n" +
-	"\x06unique\x18\x02 \x01(\bR\x06unique\x12\x1d\n" +
-	"\n" +
-	"index_name\x18\x03 \x01(\tR\tindexName\"\xb0\x01\n" +
+	"\x06unique\x18\x02 \x01(\bR\x06unique\x12\x14\n" +
+	"\x05index\x18\x03 \x01(\tR\x05index\"\xb0\x01\n" +
 	"\fTableOptions\x12\x14\n" +
 	"\x05table\x18\x01 \x01(\tR\x05table\x12\x12\n" +
 	"\x04skip\x18\x02 \x01(\bR\x04skip\x12.\n" +

@@ -11,8 +11,8 @@
 
 CREATE SCHEMA IF NOT EXISTS "public";
 
--- Status is the account state.
-CREATE TYPE "public"."status" AS ENUM ('unspecified', 'active', 'closed');
+-- State is the account lifecycle state.
+CREATE TYPE "public"."state" AS ENUM ('unspecified', 'active', 'closed');
 
 -- Account is forced onto the reserved table name "user" via a table override, with reserved-word columns and a composite UNIQUE index over them.
 CREATE TABLE "public"."user" (
@@ -22,7 +22,7 @@ CREATE TABLE "public"."user" (
     "order"  VARCHAR(255),
     -- select is a reserved word.
     "select"  VARCHAR(255),
-    -- status exercises a quoted, schema-qualified enum type reference.
-    "status"  "public"."status"  NOT NULL
+    -- state exercises a quoted, schema-qualified enum type reference.
+    "state"  "public"."state"  NOT NULL
 );
 CREATE UNIQUE INDEX "idx_user_order_select" ON "public"."user" ("order", "select");

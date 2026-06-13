@@ -11,14 +11,14 @@
 
 package public
 
-// Status is the account state.
-type Status string
+// State is the account lifecycle state.
+type State string
 
-// Status values as stored in the database.
+// State values as stored in the database.
 const (
-	StatusUnspecified Status = "unspecified"
-	StatusActive      Status = "active"
-	StatusClosed      Status = "closed"
+	StateUnspecified State = "unspecified"
+	StateActive      State = "active"
+	StateClosed      State = "closed"
 )
 
 // Account is forced onto the reserved table name "user" via a table override, with reserved-word columns and a composite UNIQUE index over them.
@@ -29,8 +29,8 @@ type Account struct {
 	Order *string `gorm:"column:order;index" json:"order,omitempty"`
 	// select is a reserved word.
 	Select *string `gorm:"column:select" json:"select,omitempty"`
-	// status exercises a quoted, schema-qualified enum type reference.
-	Status Status `gorm:"column:status;not null" json:"status" validate:"required"`
+	// state exercises a quoted, schema-qualified enum type reference.
+	State State `gorm:"column:state;not null" json:"state" validate:"required"`
 }
 
 func (*Account) TableName() string { return "public.user" }

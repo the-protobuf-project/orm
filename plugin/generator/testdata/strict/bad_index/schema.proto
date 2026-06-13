@@ -8,12 +8,16 @@ import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
 import "protorm/v1/annotations.proto";
 
+option java_multiple_files = true;
+option java_outer_classname = "SchemaProto";
+option java_package = "com.strictidx.v1";
 option (protorm.v1.datasource) = {
   database: "strictidx_db"
   provider: "postgres"
   schema: "public"
 };
 
+// Gadget declares an index over a column that does not exist.
 message Gadget {
   option (google.api.resource) = {
     type: "strictidx.v1/Gadget"
@@ -29,7 +33,9 @@ message Gadget {
     ]
   };
 
+  // name: IDENTIFIER → PRIMARY KEY.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
+  // label is an ordinary string column.
   string label = 2;
 }

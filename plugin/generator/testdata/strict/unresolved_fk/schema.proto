@@ -8,12 +8,16 @@ import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
 import "protorm/v1/annotations.proto";
 
+option java_multiple_files = true;
+option java_outer_classname = "SchemaProto";
+option java_package = "com.strictfk.v1";
 option (protorm.v1.datasource) = {
   database: "strictfk_db"
   provider: "postgres"
   schema: "public"
 };
 
+// Widget references a model that is never defined, producing an unresolved FK.
 message Widget {
   option (google.api.resource) = {
     type: "strictfk.v1/Widget"
@@ -22,6 +26,7 @@ message Widget {
     plural: "widgets"
   };
 
+  // name: IDENTIFIER → PRIMARY KEY.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
   // ghost_id references a model that is never defined → unresolved FK.

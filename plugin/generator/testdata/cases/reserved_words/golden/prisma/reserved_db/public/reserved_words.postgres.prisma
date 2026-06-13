@@ -9,19 +9,19 @@
 //
 // protorm — https://github.com/oh-tarnished/protorm
 
-/// Status is the account state.
-enum Status {
-  /// Represents the unspecified value.
+/// State is the account lifecycle state.
+enum State {
+  /// STATE_UNSPECIFIED is the zero value; the account state is unset.
   UNSPECIFIED @map("unspecified")
 
-  /// Represents the active value.
+  /// STATE_ACTIVE marks an open, usable account.
   ACTIVE @map("active")
 
-  /// Represents the closed value.
+  /// STATE_CLOSED marks a deactivated account.
   CLOSED @map("closed")
 
-  /// Maps the enum to the "status" type in the database.
-  @@map("status")
+  /// Maps the enum to the "state" type in the database.
+  @@map("state")
   /// Maps the enum to the "public" schema in the database.
   @@schema("public")
 }
@@ -37,8 +37,8 @@ model Account {
   /// select is a reserved word.
   select String? @map("select")
 
-  /// status exercises a quoted, schema-qualified enum type reference.
-  status Status @map("status")
+  /// state exercises a quoted, schema-qualified enum type reference.
+  state State @map("state")
 
   /// Unique constraint on [order, select].
   @@unique([order, select])

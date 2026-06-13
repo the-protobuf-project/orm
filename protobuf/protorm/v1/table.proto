@@ -16,9 +16,9 @@ message IndexDef {
   // unique makes this a UNIQUE index.
   bool unique = 2;
 
-  // index_name is an optional explicit index name.
+  // index is an optional explicit index name.
   // Auto-generated as idx_<table>_<cols> when empty.
-  string index_name = 3;
+  string index = 3;
 }
 
 // TableOptions overrides table-level generation for a message.

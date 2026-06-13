@@ -62,7 +62,7 @@ message Book {
           "author_id",
           "published_year"
         ]
-        index_name: "idx_books_author_year"
+        index: "idx_books_author_year"
       }
     ]
   };

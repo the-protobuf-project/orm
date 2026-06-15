@@ -32,13 +32,20 @@ type Options struct {
 	// Accepted values: "prisma", "gorm", "sql", "csv".
 	Target string
 
-	// Strict promotes recoverable schema warnings (unresolved resource_references,
-	// index columns that don't exist) into hard errors that fail generation.
-	Strict bool
+	// Strict is the per-rule severity spec for recoverable schema problems.
+	// "" warns on everything (default); "true" makes every rule a hard error;
+	// "ref:error,collision:warn,index:error,lint:warn" sets severity per rule.
+	// Rules: ref, collision, index, lint.
+	Strict string
 
 	// Version is the protoc-gen-protorm build version, written into the
 	// generated-file banner. Empty renders as "(unknown)".
 	Version string
+
+	// ConfigPath is the optional protorm.yaml layout config (passed via the
+	// config=<path> plugin option) mapping proto packages to databases/schemas.
+	// Empty means no config: package-path defaults apply.
+	ConfigPath string
 }
 
 // registry maps target names to their backend implementations.
@@ -72,11 +79,17 @@ func Generate(p *protogen.Plugin, opts Options) error {
 		)
 	}
 
+	layout, err := loadLayoutConfig(opts.ConfigPath)
+	if err != nil {
+		return fmt.Errorf("protorm: %w", err)
+	}
+
 	diags := &diagnostics{}
-	dbs, err := buildDatabases(p, diags)
+	dbs, err := buildDatabases(p, diags, layout)
 	if err != nil {
 		return fmt.Errorf("protorm: schema inference failed: %w", err)
 	}
+	lint(p, diags)
 	if err := diags.resolve(opts.Strict); err != nil {
 		return err
 	}

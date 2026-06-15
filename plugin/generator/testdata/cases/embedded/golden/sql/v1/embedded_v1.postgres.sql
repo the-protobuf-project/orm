@@ -13,30 +13,43 @@ CREATE SCHEMA IF NOT EXISTS "embedded_v1";
 
 -- Event exercises nested-message normalization: a singular message field becomes a belongs-to relation, a repeated message field becomes a has-many, while well-known and map fields stay scalar / JSONB.
 CREATE TABLE "embedded_v1"."events" (
+    -- Unique identifier for the record.
+    "id"  CHAR(26)  NOT NULL  PRIMARY KEY,
     -- Resource name; the AIP identifier.
-    "name"  VARCHAR(255)  NOT NULL  PRIMARY KEY,
+    "name"  VARCHAR(255)  NOT NULL  UNIQUE,
     -- Repeated attendee resource names.
-    "attendees"  VARCHAR(255),
+    "attendees"  CHAR(26),
     -- Well-known type stays a scalar column, not a relation.
-    "create_time"  TIMESTAMPTZ,
+    "create_time"  TIMESTAMPTZ  NOT NULL  DEFAULT now(),
     -- Map fields stay JSONB.
     "labels"  JSONB,
+    -- storage=json inlines this message as a single JSONB column instead of relationalizing it into a child table (P1.6 embed-vs-relation control).
+    "metadata"  JSONB,
     -- Foreign key to Location.
     "location_id"  VARCHAR(255)  NOT NULL,
     -- Foreign key to Location.
     "billing_id"  VARCHAR(255),
-    CONSTRAINT "fk_events_attendees" FOREIGN KEY ("attendees") REFERENCES "embedded_v1"."attendees"("name"),
-    CONSTRAINT "fk_events_location_id" FOREIGN KEY ("location_id") REFERENCES "embedded_v1"."locations"("id"),
-    CONSTRAINT "fk_events_billing_id" FOREIGN KEY ("billing_id") REFERENCES "embedded_v1"."locations"("id")
+    CONSTRAINT "fk_events_attendees" FOREIGN KEY ("attendees") REFERENCES "embedded_v1"."attendees"("id"),
+    CONSTRAINT "fk_events_location_id" FOREIGN KEY ("location_id") REFERENCES "embedded_v1"."locations"("id") ON DELETE CASCADE,
+    CONSTRAINT "fk_events_billing_id" FOREIGN KEY ("billing_id") REFERENCES "embedded_v1"."locations"("id") ON DELETE SET NULL
 );
+CREATE INDEX "idx_events_attendees" ON "embedded_v1"."events" ("attendees");
+CREATE INDEX "idx_events_location_id" ON "embedded_v1"."events" ("location_id");
+CREATE INDEX "idx_events_billing_id" ON "embedded_v1"."events" ("billing_id");
 
 -- Attendee carries an IDENTIFIER, so that field is its primary key.
 CREATE TABLE "embedded_v1"."attendees" (
+    -- Unique identifier for the record.
+    "id"  CHAR(26)  NOT NULL  PRIMARY KEY,
     -- Resource name; the AIP identifier.
-    "name"  VARCHAR(255)  NOT NULL  PRIMARY KEY,
+    "name"  VARCHAR(255)  NOT NULL  UNIQUE,
     -- Email address of the attendee.
-    "email"  VARCHAR(255)  NOT NULL
+    "email"  VARCHAR(255)  NOT NULL,
+    -- Parent reference to Event (from the AIP resource pattern).
+    "event_id"  CHAR(26)  NOT NULL,
+    CONSTRAINT "fk_attendees_event_id" FOREIGN KEY ("event_id") REFERENCES "embedded_v1"."events"("id") ON DELETE CASCADE
 );
+CREATE INDEX "idx_attendees_event_id" ON "embedded_v1"."attendees" ("event_id");
 
 -- Location is reachable from Event and so becomes its own table; its existing `id` field is promoted to the primary key.
 CREATE TABLE "embedded_v1"."locations" (

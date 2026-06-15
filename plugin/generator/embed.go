@@ -33,6 +33,7 @@ import (
 type buildCtx struct {
 	msgIndex map[string]*protogen.Message
 	embeds   []*embedReq
+	layout   *layoutConfig // optional protorm.yaml db/schema mapping; may be nil
 }
 
 // embedReq is one message-typed field that must become a relation.
@@ -50,7 +51,7 @@ type embedReq struct {
 
 // newBuildCtx indexes every message (including nested) in the generate-flagged
 // files so embedded children can be located regardless of which file defines them.
-func newBuildCtx(p *protogen.Plugin) *buildCtx {
+func newBuildCtx(p *protogen.Plugin, layout *layoutConfig) *buildCtx {
 	idx := map[string]*protogen.Message{}
 	var walk func(msgs []*protogen.Message)
 	walk = func(msgs []*protogen.Message) {
@@ -64,7 +65,7 @@ func newBuildCtx(p *protogen.Plugin) *buildCtx {
 			walk(f.Messages)
 		}
 	}
-	return &buildCtx{msgIndex: idx}
+	return &buildCtx{msgIndex: idx, layout: layout}
 }
 
 // normalizableMessage returns the referenced message's full name when field f is
@@ -102,7 +103,7 @@ func (ctx *buildCtx) normalizeEmbeds(diags *diagnostics) {
 		req := ctx.embeds[i]
 		msg := ctx.msgIndex[req.targetMsg]
 		if msg == nil {
-			diags.warnf("table %q field %q references message %q which is not in the "+
+			diags.warnf("ref", "table %q field %q references message %q which is not in the "+
 				"generate set; left unmapped", req.parent.Name, req.field.Desc.Name(), req.targetMsg)
 			continue
 		}
@@ -111,11 +112,11 @@ func (ctx *buildCtx) normalizeEmbeds(diags *diagnostics) {
 		if req.repeated {
 			// has-many: the child carries a FK back to the parent.
 			fkCol := naming.SnakeCase(req.parent.ModelName) + "_id"
-			addFKColumn(child, fkCol, req.parent.ModelName, req.parent.ProtoMessage, true, req.onDelete, req.onUpdate)
+			addFKColumn(child, fkCol, req.parent.ModelName, req.parent.ProtoMessage, true, embedAction(req.onDelete, true), req.onUpdate)
 		} else {
 			// belongs-to: the parent carries the FK to the child.
 			fkCol := string(req.field.Desc.Name()) + "_id"
-			addFKColumn(req.parent, fkCol, child.ModelName, child.ProtoMessage, !req.optional, req.onDelete, req.onUpdate)
+			addFKColumn(req.parent, fkCol, child.ModelName, child.ProtoMessage, !req.optional, embedAction(req.onDelete, !req.optional), req.onUpdate)
 		}
 	}
 }
@@ -152,57 +153,9 @@ func (ctx *buildCtx) materialize(db *schema.Database, schemaName string, msg *pr
 	// Append before populating columns so a self/cyclic reference finds the table.
 	s.Tables = append(s.Tables, t)
 	ctx.populateColumns(db, s, t, msg)
+	applyAIPSystemFields(t)
 	applyIDStrategy(t, tOpts.GetId())
 	applyTimestamps(t, tOpts.GetTimestamps())
 	ensurePK(t)
 	return t
-}
-
-// ensurePK guarantees the table has a primary key so FK references resolve:
-// an existing IDENTIFIER PK is kept; otherwise an existing "id" column is
-// promoted; otherwise a ULID `id` column is synthesized.
-func ensurePK(t *schema.Table) {
-	if t.PKColumn != "" {
-		return
-	}
-	for _, c := range t.Columns {
-		if c.Name == "id" {
-			c.PrimaryKey, c.NotNull, c.Optional = true, true, false
-			t.PKColumn = "id"
-			return
-		}
-	}
-	id := &schema.Column{
-		Name: "id", Comment: "Unique identifier for the record.",
-		PrimaryKey: true, NotNull: true, SQLType: "CHAR(26)", Generated: "ulid",
-	}
-	t.Columns = append([]*schema.Column{id}, t.Columns...)
-	t.PKColumn = "id"
-}
-
-// addFKColumn appends a synthesized scalar FK column and its ForeignKey to t,
-// unless the column already exists (idempotent for multi-parent children).
-// refProto pins the exact target message so resolution survives same-named
-// models. ReferencedColumn/type are finalized by resolveRelations.
-func addFKColumn(t *schema.Table, col, refModel, refProto string, notNull bool, onDelete, onUpdate string) {
-	for _, c := range t.Columns {
-		if c.Name == col {
-			return
-		}
-	}
-	t.Columns = append(t.Columns, &schema.Column{
-		Name:     col,
-		Comment:  "Foreign key to " + refModel + ".",
-		SQLType:  "CHAR(26)",
-		NotNull:  notNull,
-		Optional: !notNull,
-		FKModel:  refModel,
-	})
-	t.ForeignKeys = append(t.ForeignKeys, &schema.ForeignKey{
-		Column:          col,
-		ReferencedModel: refModel,
-		ReferencedProto: refProto,
-		OnDelete:        onDelete,
-		OnUpdate:        onUpdate,
-	})
 }

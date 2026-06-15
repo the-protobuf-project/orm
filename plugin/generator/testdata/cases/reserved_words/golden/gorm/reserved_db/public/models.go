@@ -16,15 +16,16 @@ type State string
 
 // State values as stored in the database.
 const (
-	StateUnspecified State = "UNSPECIFIED"
-	StateActive      State = "ACTIVE"
-	StateClosed      State = "CLOSED"
+	StateActive State = "ACTIVE"
+	StateClosed State = "CLOSED"
 )
 
 // Account is forced onto the reserved table name "user" via a table override, with reserved-word columns and a composite UNIQUE index over them.
 type Account struct {
+	// Unique identifier for the record.
+	ID string `gorm:"column:id;primaryKey;not null" json:"id"`
 	// name: IDENTIFIER → PRIMARY KEY.
-	Name string `gorm:"column:name;primaryKey;not null" json:"name"`
+	Name string `gorm:"column:name;not null;uniqueIndex" json:"name" validate:"required"`
 	// order is a reserved word; also carries a single-column index.
 	Order *string `gorm:"column:order;index" json:"order,omitempty"`
 	// select is a reserved word.

@@ -143,6 +143,9 @@ func colDef(s *schema.Schema, col *schema.Column) string {
 	case col.Generated == "ulid":
 		// PostgreSQL has no native ulid(); the value is generated client-side
 		// (Prisma @default(ulid()) or application code).
+	case col.Enum != nil && col.Default != "":
+		// An enum default is a label, not an expression: quote it as a literal.
+		def += "  DEFAULT " + quoteLiteral(col.Default)
 	case col.Default != "":
 		def += "  DEFAULT " + col.Default
 	}

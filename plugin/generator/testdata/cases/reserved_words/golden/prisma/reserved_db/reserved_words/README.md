@@ -14,7 +14,7 @@ Generated from Protobuf by protoc-gen-protorm. Source of truth is the `.proto` f
 erDiagram
     direction LR
     Account {
-        string name PK
+        string id PK
     }
 ```
 
@@ -26,6 +26,7 @@ Account is forced onto the reserved table name "user" via a table override, with
 
 | Column | Type | Null |
 | --- | --- | --- |
+| `id` | `CHAR(26)` | not null |
 | `name` | `VARCHAR(255)` | not null |
 | `order` | `VARCHAR(255)` | nullable |
 | `select` | `VARCHAR(255)` | nullable |
@@ -33,4 +34,4 @@ Account is forced onto the reserved table name "user" via a table override, with
 
 ### Enums
 
-- `State`: UNSPECIFIED, ACTIVE, CLOSED
+- `State`: ACTIVE, CLOSED

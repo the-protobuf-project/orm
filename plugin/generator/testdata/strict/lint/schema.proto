@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+// Package lintcase.v1 trips both validate-on-generate (P3.2) lint checks:
+// the resource type host disagrees with the package, and the message declares
+// no IDENTIFIER field. Output is still valid (a surrogate id is synthesized), so
+// these surface as "lint" diagnostics, not build failures — unless strict makes
+// the lint rule an error.
+package lintcase.v1;
+
+import "google/api/resource.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "SchemaProto";
+option java_package = "com.lintcase.v1";
+option (protorm.v1.datasource) = {
+  database: "lint_db"
+  provider: "postgres"
+  schema: "public"
+};
+
+import "protorm/v1/annotations.proto";
+
+// Gizmo's resource type host (other.v1) disagrees with the package, and it has
+// no IDENTIFIER field.
+message Gizmo {
+  option (google.api.resource) = {
+    type: "other.v1/Gizmo"
+    pattern: "gizmos/{gizmo}"
+    singular: "gizmo"
+    plural: "gizmos"
+  };
+
+  // label is an ordinary field; the message has no IDENTIFIER.
+  string label = 1;
+}

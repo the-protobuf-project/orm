@@ -55,6 +55,25 @@ message ColOptions {
   // on_update sets the FK ON UPDATE referential action for a field carrying
   // google.api.resource_reference. Ignored on non-reference fields.
   ReferentialAction on_update = 11;
+
+  // storage selects how a message-typed field is persisted: as a related table
+  // (default) or inlined as a single JSON column for value objects / metadata
+  // blobs. Ignored on scalar and enum fields.
+  StorageMode storage = 12;
+}
+
+// StorageMode selects how a message-typed field is persisted.
+enum StorageMode {
+  // Default: the message field becomes its own related table + foreign key
+  // (lossless relationalization).
+  STORAGE_MODE_UNSPECIFIED = 0;
+
+  // The message field becomes its own related table + foreign key.
+  STORAGE_MODE_RELATION = 1;
+
+  // The message field is inlined as a single JSONB column rather than
+  // relationalized — for value objects and free-form metadata.
+  STORAGE_MODE_JSON = 2;
 }
 
 // ReferentialAction is the ON DELETE / ON UPDATE behavior of a foreign key

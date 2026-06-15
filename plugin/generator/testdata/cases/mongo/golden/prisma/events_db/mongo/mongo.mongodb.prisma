@@ -11,8 +11,11 @@
 
 /// Event is a document in the events collection.
 model Event {
+  /// Unique identifier for the record.
+  id String @id @default(ulid()) @map("_id")
+
   /// name: IDENTIFIER → primary key, mapped to _id.
-  name String @id @map("_id")
+  name String @unique @map("name")
 
   /// kind: REQUIRED string.
   kind String @map("kind")

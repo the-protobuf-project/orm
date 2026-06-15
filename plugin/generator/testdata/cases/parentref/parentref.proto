@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package parentref.v1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+option go_package = "example.com/test/gen;parentrefv1";
+option java_multiple_files = true;
+option java_outer_classname = "ParentrefProto";
+option java_package = "com.parentref.v1";
+
+// User is the parent resource.
+message User {
+  option (google.api.resource) = {
+    type: "parentref.v1/User"
+    pattern: "users/{user}"
+    singular: "user"
+    plural: "users"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // display_name is shown in UIs.
+  string display_name = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Note is owned by a User. Its pattern carries a {user} parent segment with no
+// corresponding field, so protorm materializes a user_id FK → User from the
+// pattern alone.
+message Note {
+  option (google.api.resource) = {
+    type: "parentref.v1/Note"
+    pattern: "users/{user}/notes/{note}"
+    singular: "note"
+    plural: "notes"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // body is the note's text.
+  string body = 2 [(google.api.field_behavior) = REQUIRED];
+}

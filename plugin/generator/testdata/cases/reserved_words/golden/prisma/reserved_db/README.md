@@ -14,7 +14,7 @@ Generated from Protobuf by protoc-gen-protorm. Source of truth is the `.proto` f
 erDiagram
     direction LR
     Account {
-        string name PK
+        string id PK
     }
 ```
 

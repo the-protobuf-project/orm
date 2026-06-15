@@ -7,12 +7,11 @@
 package protormpbv1
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -265,8 +264,8 @@ const file_protorm_v1_column_proto_rawDesc = "" +
 	"\x1bREFERENTIAL_ACTION_RESTRICT\x10\x02\x12\x1f\n" +
 	"\x1bREFERENTIAL_ACTION_SET_NULL\x10\x03\x12\"\n" +
 	"\x1eREFERENTIAL_ACTION_SET_DEFAULT\x10\x04\x12 \n" +
-	"\x1cREFERENTIAL_ACTION_NO_ACTION\x10\x05B`\n" +
-	"\x0ecom.protorm.v1B\vColumnProtoP\x01Z?github.com/the-protobuf-project/protorm/protorm/protormpbv1;protormpbv1b\x06proto3"
+	"\x1cREFERENTIAL_ACTION_NO_ACTION\x10\x05Bh\n" +
+	"\x0ecom.protorm.v1B\vColumnProtoP\x01ZGgithub.com/the-protobuf-project/protorm/protorm/protormpbv1;protormpbv1b\x06proto3"
 
 var (
 	file_protorm_v1_column_proto_rawDescOnce sync.Once

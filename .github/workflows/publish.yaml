@@ -1,0 +1,40 @@
+name: Publish (BSR)
+
+# Publishes the protobuf/ module to the Buf Schema Registry
+# (https://buf.build/the-protobuf-project/protorm) on every push to main and on
+# version tags. Proto lint / format / breaking-change checks are handled by
+# lint.yaml, so this workflow only runs `buf push`.
+#
+# Requires a BUF_TOKEN secret: a BSR API token with write access to the
+# the-protobuf-project organization. Add it under
+# Settings → Secrets and variables → Actions → New repository secret.
+# The action auto-creates the BSR repository on first push.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    name: buf push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Full history + tags so the pushed label carries correct git metadata.
+          fetch-depth: 0
+
+      - name: Push to BSR
+        uses: bufbuild/buf-action@v1
+        with:
+          token: ${{ secrets.BUF_TOKEN }}
+          # Lint, format, and breaking-change checks live in lint.yaml; this
+          # workflow's sole job is to publish, so disable the rest.
+          lint: false
+          format: false
+          breaking: false

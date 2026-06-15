@@ -74,12 +74,18 @@ build-examples:
 # Regenerate every committed artifact: stubs, goldens, examples.
 regen: stubs update-goldens examples
 
-# Verify everything CI cares about, mutating nothing: lint, build, test.
-ci: lint build test
+# Mirror CI's stub gate: regenerate stubs, fail if they differ from committed.
+verify-stubs:
+    buf generate
+    @git diff --exit-code -- protorm/ || { echo "protorm/ stubs are stale — commit the regenerated stubs"; exit 1; }
 
-# End-to-end "test the dev build": install+build the plugin, test, regen examples.
-dev: install build test examples build-examples
-    @echo "dev plugin installed, tests passed, examples regenerated with the dev build"
+# Verify everything CI checks: lint, stubs current, build, race tests.
+ci: lint verify-stubs build
+    go test -race ./...
+
+# Regen stubs, install+build the dev plugin, test, regen+compile examples with it.
+dev: stubs install build test examples build-examples
+    @echo "dev plugin installed, stubs + examples regenerated with the dev build, tests passed"
 
 # Remove build artifacts.
 clean:

@@ -59,7 +59,7 @@ type Table struct {
 
 // Column maps one proto field to one database column.
 type Column struct {
-	// Name is the column identifier (snake_case). Overridable via protorm.v1.col.name.
+	// Name is the column identifier (snake_case). Overridable via protorm.v1.column.name.
 	Name string
 
 	// Comment is the proto field's leading comment, normalized for embedding.
@@ -67,7 +67,7 @@ type Column struct {
 
 	// SQLType is the normalized PostgreSQL type (e.g. "VARCHAR(255)", "TIMESTAMPTZ").
 	// Canonical across targets: each backend maps it to its own type system.
-	// Overridable via protorm.v1.col.type. Empty when Enum is set.
+	// Overridable via protorm.v1.column.type. Empty when Enum is set.
 	SQLType string
 
 	// Enum points to the enum definition when the proto field is an enum kind.
@@ -84,13 +84,13 @@ type Column struct {
 	// types (*string, *int32, …) so the zero value is distinguishable from absence.
 	Optional bool
 
-	// Unique is true when protorm.v1.col.unique = true.
+	// Unique is true when protorm.v1.column.unique = true.
 	Unique bool
 
-	// Default is the SQL default expression from protorm.v1.col.default_value.
+	// Default is the SQL default expression from protorm.v1.column.default_value.
 	Default string
 
-	// Index is true when protorm.v1.col.index = true (single-column index).
+	// Index is true when protorm.v1.column.index = true (single-column index).
 	Index bool
 
 	// TypeOverridden is true when the user pinned the type via col.type,
@@ -159,7 +159,7 @@ type ForeignKey struct {
 	ReferencedProto string
 
 	// OnDelete / OnUpdate are SQL referential actions ("CASCADE", "SET NULL", …)
-	// from protorm.v1.col.on_delete / on_update. Empty means database default.
+	// from protorm.v1.column.on_delete / on_update. Empty means database default.
 	OnDelete string
 	OnUpdate string
 

@@ -2,17 +2,17 @@ syntax = "proto3";
 
 package protorm.v1;
 
-option go_package = "github.com/the-protobuf-project/protorm/protorm/protormpbv1;protormpbv1";
+option go_package = "github.com/the-protobuf-project/protorm/plugin/pb/protormpbv1;protormpbv1";
 option java_multiple_files = true;
 option java_outer_classname = "ColumnProto";
 option java_package = "com.protorm.v1";
 
-// ColOptions overrides column-level generation for a single field.
+// ColumnOptions overrides column-level generation for a single field.
 //
 // Applied via:
 //
-//	string title = 2 [(protorm.v1.col) = { max_length: 500 }];
-message ColOptions {
+//	string title = 2 [(protorm.v1.column) = { max_length: 500 }];
+message ColumnOptions {
   // column is an explicit column name.
   // Defaults to the proto field name, which is already snake_case.
   string column = 1;

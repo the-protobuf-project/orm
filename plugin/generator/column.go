@@ -2,7 +2,7 @@ package generator
 
 // column.go maps a single proto field to a *schema.Column and builds the IR
 // enum a field references. Type inference proper lives in the types package;
-// here we apply protorm.v1.col overrides, field_behavior, and the AIP enum
+// here we apply protorm.v1.column overrides, field_behavior, and the AIP enum
 // defaulting rules.
 
 import (
@@ -18,7 +18,7 @@ import (
 )
 
 // buildColumn maps one proto field to a *schema.Column.
-// Returns nil when the field carries protorm.v1.col.skip = true.
+// Returns nil when the field carries protorm.v1.column.skip = true.
 func buildColumn(s *schema.Schema, f *protogen.Field) *schema.Column {
 	cOpts := colOpts(f)
 	if cOpts.GetSkip() {
@@ -57,7 +57,7 @@ func buildColumn(s *schema.Schema, f *protogen.Field) *schema.Column {
 	// With the UNSPECIFIED sentinel dropped, a required enum column has no implicit
 	// "unset" value, so default it to the first declared variant — mirroring the
 	// hand-written `status … @default(ACTIVE)` pattern. An explicit
-	// protorm.v1.col.default_value always wins.
+	// protorm.v1.column.default_value always wins.
 	if col.Enum != nil && col.NotNull && col.Default == "" && len(col.Enum.Values) > 0 {
 		col.Default = col.Enum.Values[0].Name
 	}

@@ -40,10 +40,10 @@ var file_protorm_v1_annotations_proto_extTypes = []protoimpl.ExtensionInfo{
 	},
 	{
 		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
-		ExtensionType: (*ColOptions)(nil),
+		ExtensionType: (*ColumnOptions)(nil),
 		Field:         50002,
-		Name:          "protorm.v1.col",
-		Tag:           "bytes,50002,opt,name=col",
+		Name:          "protorm.v1.column",
+		Tag:           "bytes,50002,opt,name=column",
 		Filename:      "protorm/v1/annotations.proto",
 	},
 }
@@ -66,10 +66,10 @@ var (
 
 // Extension fields to descriptorpb.FieldOptions.
 var (
-	// col overrides column-level generation: type, sizing, FK actions.
+	// column overrides column-level generation: type, sizing, FK actions.
 	//
-	// optional protorm.v1.ColOptions col = 50002;
-	E_Col = &file_protorm_v1_annotations_proto_extTypes[2]
+	// optional protorm.v1.ColumnOptions column = 50002;
+	E_Column = &file_protorm_v1_annotations_proto_extTypes[2]
 )
 
 var File_protorm_v1_annotations_proto protoreflect.FileDescriptor
@@ -81,9 +81,9 @@ const file_protorm_v1_annotations_proto_rawDesc = "" +
 	"\n" +
 	"datasource\x12\x1c.google.protobuf.FileOptions\x18І\x03 \x01(\v2\x1d.protorm.v1.DatasourceOptionsR\n" +
 	"datasource:Q\n" +
-	"\x05table\x12\x1f.google.protobuf.MessageOptions\x18ц\x03 \x01(\v2\x18.protorm.v1.TableOptionsR\x05table:I\n" +
-	"\x03col\x12\x1d.google.protobuf.FieldOptions\x18҆\x03 \x01(\v2\x16.protorm.v1.ColOptionsR\x03colBm\n" +
-	"\x0ecom.protorm.v1B\x10AnnotationsProtoP\x01ZGgithub.com/the-protobuf-project/protorm/protorm/protormpbv1;protormpbv1b\x06proto3"
+	"\x05table\x12\x1f.google.protobuf.MessageOptions\x18ц\x03 \x01(\v2\x18.protorm.v1.TableOptionsR\x05table:R\n" +
+	"\x06column\x12\x1d.google.protobuf.FieldOptions\x18҆\x03 \x01(\v2\x19.protorm.v1.ColumnOptionsR\x06columnBo\n" +
+	"\x0ecom.protorm.v1B\x10AnnotationsProtoP\x01ZIgithub.com/the-protobuf-project/protorm/plugin/pb/protormpbv1;protormpbv1b\x06proto3"
 
 var file_protorm_v1_annotations_proto_goTypes = []any{
 	(*descriptorpb.FileOptions)(nil),    // 0: google.protobuf.FileOptions
@@ -91,15 +91,15 @@ var file_protorm_v1_annotations_proto_goTypes = []any{
 	(*descriptorpb.FieldOptions)(nil),   // 2: google.protobuf.FieldOptions
 	(*DatasourceOptions)(nil),           // 3: protorm.v1.DatasourceOptions
 	(*TableOptions)(nil),                // 4: protorm.v1.TableOptions
-	(*ColOptions)(nil),                  // 5: protorm.v1.ColOptions
+	(*ColumnOptions)(nil),               // 5: protorm.v1.ColumnOptions
 }
 var file_protorm_v1_annotations_proto_depIdxs = []int32{
 	0, // 0: protorm.v1.datasource:extendee -> google.protobuf.FileOptions
 	1, // 1: protorm.v1.table:extendee -> google.protobuf.MessageOptions
-	2, // 2: protorm.v1.col:extendee -> google.protobuf.FieldOptions
+	2, // 2: protorm.v1.column:extendee -> google.protobuf.FieldOptions
 	3, // 3: protorm.v1.datasource:type_name -> protorm.v1.DatasourceOptions
 	4, // 4: protorm.v1.table:type_name -> protorm.v1.TableOptions
-	5, // 5: protorm.v1.col:type_name -> protorm.v1.ColOptions
+	5, // 5: protorm.v1.column:type_name -> protorm.v1.ColumnOptions
 	6, // [6:6] is the sub-list for method output_type
 	6, // [6:6] is the sub-list for method input_type
 	3, // [3:6] is the sub-list for extension type_name

@@ -39,7 +39,7 @@ install:
 which:
     @for p in $(which -a protoc-gen-protorm 2>/dev/null); do printf '%s\t' "$p"; "$p" --version; done || echo "none on PATH (run: just install)"
 
-# Regenerate the protorm option Go stubs (protorm/protormpbv1/*.pb.go).
+# Regenerate the protorm option Go stubs (plugin/pb/protormpbv1/*.pb.go).
 stubs:
     buf generate
 
@@ -77,7 +77,7 @@ regen: stubs update-goldens examples
 # Mirror CI's stub gate: regenerate stubs, fail if they differ from committed.
 verify-stubs:
     buf generate
-    @git diff --exit-code -- protorm/ || { echo "protorm/ stubs are stale — commit the regenerated stubs"; exit 1; }
+    @git diff --exit-code -- plugin/pb/ || { echo "plugin/pb/ stubs are stale — commit the regenerated stubs"; exit 1; }
 
 # Verify everything CI checks: lint, stubs current, build, race tests.
 ci: lint verify-stubs build

@@ -3,9 +3,9 @@ version: v2
 # Generates pre-compiled Go stubs from the protorm custom option protos.
 #
 # Run:  buf generate
-# Out:  protorm/protormpbv1/*.pb.go
+# Out:  plugin/pb/protormpbv1/*.pb.go
 #
-# Consumers go get github.com/the-protobuf-project/protorm/protorm/protormpbv1 to import
+# Consumers go get github.com/the-protobuf-project/protorm/plugin/pb/protormpbv1 to import
 # the annotation types at runtime — no local codegen step required.
 #
 # The Go plugin is pinned to match google.golang.org/protobuf in go.mod so CI's

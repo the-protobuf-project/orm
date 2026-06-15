@@ -37,5 +37,5 @@ jobs:
       - name: Generated stubs up to date
         run: |
           buf generate
-          git diff --exit-code -- protorm/ \
-            || (echo "::error::protorm/ stubs are stale — run 'buf generate' and commit" && exit 1)
+          git diff --exit-code -- plugin/pb/ \
+            || (echo "::error::plugin/pb/ stubs are stale — run 'buf generate' and commit" && exit 1)

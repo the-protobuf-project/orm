@@ -100,7 +100,7 @@ message Author {
   string display_name = 2 [(google.api.field_behavior) = REQUIRED];
 
   // Override the default for a free-form column.
-  string bio = 3 [(protorm.v1.col) = { type: "TEXT" }];
+  string bio = 3 [(protorm.v1.column) = { type: "TEXT" }];
 }
 ```
 
@@ -222,7 +222,7 @@ All options live in `protorm/v1/annotations.proto`.
 | `id` | `ID_STRATEGY_ULID` / `ID_STRATEGY_UUID` — synthesize a generated `id` PK and demote the `IDENTIFIER` field to `UNIQUE`. |
 | `timestamps` | Add `created_at` / `updated_at` (`@updatedAt` / GORM `autoUpdateTime`). |
 
-### `(protorm.v1.col)` — field level
+### `(protorm.v1.column)` — field level
 
 | Field | Description |
 | --- | --- |
@@ -256,10 +256,10 @@ common case needs **no annotations**. Each is overridable.
 | AIP system fields | `create_time`/`update_time` → auto-managed `NOT NULL` timestamps; `delete_time` → nullable indexed soft-delete marker; `uid` → `UNIQUE`. (AIP-148/164) | rename the field |
 | Parent materialization | Each parent segment of the AIP resource `pattern` (`users/{user}/…`) becomes a FK column (`user_id` → `User`) with `onDelete: Cascade`. | declare the field explicitly |
 | FK indexing | Every foreign-key column gets a single-column `@@index` (Postgres does not auto-index FKs). | already indexed columns are skipped |
-| Enum hygiene | The AIP `*_UNSPECIFIED = 0` sentinel is dropped; a required enum column defaults to its first value. | `(protorm.v1.col).default_value` |
+| Enum hygiene | The AIP `*_UNSPECIFIED = 0` sentinel is dropped; a required enum column defaults to its first value. | `(protorm.v1.column).default_value` |
 | `oneof` integrity | A `oneof` adds a `<oneof>_case` discriminator enum recording which member is set. | — |
 | Soft FK | A `resource_reference` to a model outside the generation set is kept as an indexed scalar column with a `TODO` note, not dropped. | provide the referenced resource |
-| Relationalized nesting | Every user-defined nested message becomes its own child table with a primary key + foreign key — never an opaque `JSONB` blob — so the structure stays queryable. Required links cascade on delete, optional links null. (`map` fields and `google.*` well-known types stay `JSONB`: they can't become tables.) | `(protorm.v1.col).on_delete` |
+| Relationalized nesting | Every user-defined nested message becomes its own child table with a primary key + foreign key — never an opaque `JSONB` blob — so the structure stays queryable. Required links cascade on delete, optional links null. (`map` fields and `google.*` well-known types stay `JSONB`: they can't become tables.) | `(protorm.v1.column).on_delete` |
 
 ---
 

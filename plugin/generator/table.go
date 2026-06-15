@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/compiler/protogen"
 
 	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/protorm/protormpbv1"
+	"github.com/the-protobuf-project/protorm/plugin/pb/protormpbv1"
 )
 
 // buildTable maps one resource-annotated message to a *schema.Table.

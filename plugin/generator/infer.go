@@ -6,15 +6,14 @@ package generator
 import (
 	"strings"
 
+	"github.com/the-protobuf-project/protorm/plugin/pb/protormpbv1"
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/the-protobuf-project/protorm/protorm/protormpbv1"
 )
 
 // colName returns cOpts.name if set, otherwise the proto field name (already snake_case).
-func colName(f *protogen.Field, opts *protormpbv1.ColOptions) string {
+func colName(f *protogen.Field, opts *protormpbv1.ColumnOptions) string {
 	if n := opts.GetColumn(); n != "" {
 		return n
 	}
@@ -37,11 +36,11 @@ func tableOpts(msg *protogen.Message) *protormpbv1.TableOptions {
 	return proto.GetExtension(msg.Desc.Options(), protormpbv1.E_Table).(*protormpbv1.TableOptions)
 }
 
-func colOpts(f *protogen.Field) *protormpbv1.ColOptions {
-	if !proto.HasExtension(f.Desc.Options(), protormpbv1.E_Col) {
-		return &protormpbv1.ColOptions{}
+func colOpts(f *protogen.Field) *protormpbv1.ColumnOptions {
+	if !proto.HasExtension(f.Desc.Options(), protormpbv1.E_Column) {
+		return &protormpbv1.ColumnOptions{}
 	}
-	return proto.GetExtension(f.Desc.Options(), protormpbv1.E_Col).(*protormpbv1.ColOptions)
+	return proto.GetExtension(f.Desc.Options(), protormpbv1.E_Column).(*protormpbv1.ColumnOptions)
 }
 
 func resourceOf(msg *protogen.Message) *annotations.ResourceDescriptor {

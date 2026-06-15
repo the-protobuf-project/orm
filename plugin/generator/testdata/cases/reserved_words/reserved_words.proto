@@ -44,7 +44,7 @@ message Account {
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
   // order is a reserved word; also carries a single-column index.
-  string order = 2 [(protorm.v1.col) = {index: true}];
+  string order = 2 [(protorm.v1.column) = {index: true}];
 
   // select is a reserved word.
   string select = 3;

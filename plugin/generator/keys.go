@@ -7,7 +7,7 @@ package generator
 
 import (
 	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/protorm/protormpbv1"
+	"github.com/the-protobuf-project/protorm/plugin/pb/protormpbv1"
 )
 
 // applyAIPSystemFields gives the AIP-148/164 standard fields their conventional

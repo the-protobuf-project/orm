@@ -10,7 +10,7 @@ import "github.com/the-protobuf-project/protorm/plugin/generator/schema"
 // embedAction picks the default ON DELETE for a synthesized embed relation when
 // the proto sets none. An embedded message is a value object owned by its
 // parent, so a required link cascades (deleting the owner removes the owned row)
-// and an optional one nulls out. An explicit protorm.v1.col.on_delete wins.
+// and an optional one nulls out. An explicit protorm.v1.column.on_delete wins.
 func embedAction(explicit string, required bool) string {
 	if explicit != "" {
 		return explicit

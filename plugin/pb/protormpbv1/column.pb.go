@@ -87,12 +87,12 @@ func (ReferentialAction) EnumDescriptor() ([]byte, []int) {
 	return file_protorm_v1_column_proto_rawDescGZIP(), []int{0}
 }
 
-// ColOptions overrides column-level generation for a single field.
+// ColumnOptions overrides column-level generation for a single field.
 //
 // Applied via:
 //
-//	string title = 2 [(protorm.v1.col) = { max_length: 500 }];
-type ColOptions struct {
+//	string title = 2 [(protorm.v1.column) = { max_length: 500 }];
+type ColumnOptions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// column is an explicit column name.
 	// Defaults to the proto field name, which is already snake_case.
@@ -130,20 +130,20 @@ type ColOptions struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ColOptions) Reset() {
-	*x = ColOptions{}
+func (x *ColumnOptions) Reset() {
+	*x = ColumnOptions{}
 	mi := &file_protorm_v1_column_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ColOptions) String() string {
+func (x *ColumnOptions) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ColOptions) ProtoMessage() {}
+func (*ColumnOptions) ProtoMessage() {}
 
-func (x *ColOptions) ProtoReflect() protoreflect.Message {
+func (x *ColumnOptions) ProtoReflect() protoreflect.Message {
 	mi := &file_protorm_v1_column_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -155,82 +155,82 @@ func (x *ColOptions) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ColOptions.ProtoReflect.Descriptor instead.
-func (*ColOptions) Descriptor() ([]byte, []int) {
+// Deprecated: Use ColumnOptions.ProtoReflect.Descriptor instead.
+func (*ColumnOptions) Descriptor() ([]byte, []int) {
 	return file_protorm_v1_column_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ColOptions) GetColumn() string {
+func (x *ColumnOptions) GetColumn() string {
 	if x != nil {
 		return x.Column
 	}
 	return ""
 }
 
-func (x *ColOptions) GetType() string {
+func (x *ColumnOptions) GetType() string {
 	if x != nil {
 		return x.Type
 	}
 	return ""
 }
 
-func (x *ColOptions) GetDefaultValue() string {
+func (x *ColumnOptions) GetDefaultValue() string {
 	if x != nil {
 		return x.DefaultValue
 	}
 	return ""
 }
 
-func (x *ColOptions) GetUnique() bool {
+func (x *ColumnOptions) GetUnique() bool {
 	if x != nil {
 		return x.Unique
 	}
 	return false
 }
 
-func (x *ColOptions) GetIndex() bool {
+func (x *ColumnOptions) GetIndex() bool {
 	if x != nil {
 		return x.Index
 	}
 	return false
 }
 
-func (x *ColOptions) GetSkip() bool {
+func (x *ColumnOptions) GetSkip() bool {
 	if x != nil {
 		return x.Skip
 	}
 	return false
 }
 
-func (x *ColOptions) GetMaxLength() int32 {
+func (x *ColumnOptions) GetMaxLength() int32 {
 	if x != nil {
 		return x.MaxLength
 	}
 	return 0
 }
 
-func (x *ColOptions) GetPrecision() int32 {
+func (x *ColumnOptions) GetPrecision() int32 {
 	if x != nil {
 		return x.Precision
 	}
 	return 0
 }
 
-func (x *ColOptions) GetScale() int32 {
+func (x *ColumnOptions) GetScale() int32 {
 	if x != nil {
 		return x.Scale
 	}
 	return 0
 }
 
-func (x *ColOptions) GetOnDelete() ReferentialAction {
+func (x *ColumnOptions) GetOnDelete() ReferentialAction {
 	if x != nil {
 		return x.OnDelete
 	}
 	return ReferentialAction_REFERENTIAL_ACTION_UNSPECIFIED
 }
 
-func (x *ColOptions) GetOnUpdate() ReferentialAction {
+func (x *ColumnOptions) GetOnUpdate() ReferentialAction {
 	if x != nil {
 		return x.OnUpdate
 	}
@@ -242,9 +242,8 @@ var File_protorm_v1_column_proto protoreflect.FileDescriptor
 const file_protorm_v1_column_proto_rawDesc = "" +
 	"\n" +
 	"\x17protorm/v1/column.proto\x12\n" +
-	"protorm.v1\"\xf9\x02\n" +
-	"\n" +
-	"ColOptions\x12\x16\n" +
+	"protorm.v1\"\xfc\x02\n" +
+	"\rColumnOptions\x12\x16\n" +
 	"\x06column\x18\x01 \x01(\tR\x06column\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12#\n" +
 	"\rdefault_value\x18\x03 \x01(\tR\fdefaultValue\x12\x16\n" +
@@ -264,8 +263,8 @@ const file_protorm_v1_column_proto_rawDesc = "" +
 	"\x1bREFERENTIAL_ACTION_RESTRICT\x10\x02\x12\x1f\n" +
 	"\x1bREFERENTIAL_ACTION_SET_NULL\x10\x03\x12\"\n" +
 	"\x1eREFERENTIAL_ACTION_SET_DEFAULT\x10\x04\x12 \n" +
-	"\x1cREFERENTIAL_ACTION_NO_ACTION\x10\x05Bh\n" +
-	"\x0ecom.protorm.v1B\vColumnProtoP\x01ZGgithub.com/the-protobuf-project/protorm/protorm/protormpbv1;protormpbv1b\x06proto3"
+	"\x1cREFERENTIAL_ACTION_NO_ACTION\x10\x05Bj\n" +
+	"\x0ecom.protorm.v1B\vColumnProtoP\x01ZIgithub.com/the-protobuf-project/protorm/plugin/pb/protormpbv1;protormpbv1b\x06proto3"
 
 var (
 	file_protorm_v1_column_proto_rawDescOnce sync.Once
@@ -283,11 +282,11 @@ var file_protorm_v1_column_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_protorm_v1_column_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_protorm_v1_column_proto_goTypes = []any{
 	(ReferentialAction)(0), // 0: protorm.v1.ReferentialAction
-	(*ColOptions)(nil),     // 1: protorm.v1.ColOptions
+	(*ColumnOptions)(nil),  // 1: protorm.v1.ColumnOptions
 }
 var file_protorm_v1_column_proto_depIdxs = []int32{
-	0, // 0: protorm.v1.ColOptions.on_delete:type_name -> protorm.v1.ReferentialAction
-	0, // 1: protorm.v1.ColOptions.on_update:type_name -> protorm.v1.ReferentialAction
+	0, // 0: protorm.v1.ColumnOptions.on_delete:type_name -> protorm.v1.ReferentialAction
+	0, // 1: protorm.v1.ColumnOptions.on_update:type_name -> protorm.v1.ReferentialAction
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

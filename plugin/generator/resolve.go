@@ -49,7 +49,7 @@ func resolveRelations(db *schema.Database, diags *diagnostics) {
 			resolved := t.ForeignKeys[:0]
 			for _, fk := range t.ForeignKeys {
 				if !hasColumn(t, fk.Column) {
-					diags.warnf("table %q FK names missing column %q; relation dropped",
+					diags.warnf("ref", "table %q FK names missing column %q; relation dropped",
 						t.Name, fk.Column)
 					continue
 				}
@@ -60,9 +60,10 @@ func resolveRelations(db *schema.Database, diags *diagnostics) {
 					ref, ok = byModel[fk.ReferencedModel]
 				}
 				if !ok {
-					diags.warnf("table %q column %q references unknown model %q; "+
-						"relation dropped (the scalar column is kept)",
+					diags.warnf("ref", "table %q column %q references unknown model %q; "+
+						"kept as a soft FK (scalar column + index, no relation)",
 						t.Name, fk.Column, fk.ReferencedModel)
+					softFK(t, fk.Column, fk.ReferencedModel)
 					continue
 				}
 				// Reflect any model-name qualification onto the FK and its column.

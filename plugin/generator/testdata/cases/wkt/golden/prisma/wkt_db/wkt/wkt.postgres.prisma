@@ -11,8 +11,11 @@
 
 /// Sink is one table holding every interesting type mapping.
 model Sink {
+  /// Unique identifier for the record.
+  id String @id @default(ulid()) @map("id")
+
   /// name: IDENTIFIER → PRIMARY KEY.
-  name String @id @map("name")
+  name String @unique @map("name")
 
   /// bool → BOOLEAN.
   flag Boolean? @map("flag")

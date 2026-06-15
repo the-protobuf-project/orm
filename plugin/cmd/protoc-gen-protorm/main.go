@@ -25,6 +25,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/oh-tarnished/protorm/plugin/generator"
 	"google.golang.org/protobuf/compiler/protogen"
@@ -38,11 +39,38 @@ var (
 	date    = "unknown"
 )
 
+// resolveVersion returns the build version to stamp into generated files.
+// A release sets `version` via ldflags and wins outright. Otherwise we recover
+// it from the build info the Go toolchain embeds: `go install …@v0.1.2` records
+// the tag as the main module version, and when protorm is consumed as a
+// dependency its module entry carries the version. Only genuine local builds
+// (`go build`/`go run`, which report "(devel)") fall back to "dev".
+func resolveVersion() string {
+	if version != "dev" {
+		return version
+	}
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return version
+	}
+	if v := bi.Main.Version; v != "" && v != "(devel)" {
+		return v
+	}
+	for _, dep := range bi.Deps {
+		if dep.Path == "github.com/oh-tarnished/protorm" && dep.Version != "" {
+			return dep.Version
+		}
+	}
+	return version
+}
+
 func main() {
+	ver := resolveVersion()
+
 	// When invoked directly with -version (not by protoc), print and exit before
 	// protogen tries to read a CodeGeneratorRequest from stdin.
 	if len(os.Args) == 2 && (os.Args[1] == "-version" || os.Args[1] == "--version") {
-		fmt.Printf("protoc-gen-protorm %s (commit %s, built %s)\n", version, commit, date)
+		fmt.Printf("protoc-gen-protorm %s (commit %s, built %s)\n", ver, commit, date)
 		return
 	}
 
@@ -54,9 +82,14 @@ func main() {
 		"target", "",
 		"output backend: prisma | gorm | sql | csv",
 	)
-	strict := flags.Bool(
-		"strict", false,
-		"treat schema warnings (unresolved resource_references, unknown index columns) as errors",
+	strict := flags.String(
+		"strict", "",
+		"per-rule severity for schema problems: \"\"=all warn, \"true\"=all error, "+
+			"or \"ref:error,collision:warn,index:error,lint:warn\"",
+	)
+	config := flags.String(
+		"config", "",
+		"path to a protorm.yaml mapping proto packages to databases/schemas",
 	)
 
 	protogen.Options{
@@ -69,9 +102,10 @@ func main() {
 		return generator.Generate(p, generator.Options{
 			// *target/*strict are dereferenced inside the closure so that
 			// ParamFunc has already populated them before we read the values.
-			Target:  *target,
-			Strict:  *strict,
-			Version: version,
+			Target:     *target,
+			Strict:     *strict,
+			Version:    ver,
+			ConfigPath: *config,
 		})
 	})
 }

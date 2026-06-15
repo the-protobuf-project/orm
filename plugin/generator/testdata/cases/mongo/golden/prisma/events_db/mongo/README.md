@@ -14,7 +14,7 @@ Generated from Protobuf by protoc-gen-protorm. Source of truth is the `.proto` f
 erDiagram
     direction LR
     Event {
-        string name PK
+        string id PK
     }
 ```
 
@@ -26,6 +26,7 @@ Event is a document in the events collection.
 
 | Column | Type | Null |
 | --- | --- | --- |
+| `id` | `CHAR(26)` | not null |
 | `name` | `VARCHAR(255)` | not null |
 | `kind` | `VARCHAR(255)` | not null |
 | `payload` | `JSONB` | nullable |

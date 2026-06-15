@@ -5,6 +5,7 @@ package embedded.v1;
 import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
 import "google/protobuf/timestamp.proto";
+import "protorm/v1/annotations.proto";
 
 option go_package = "example.com/test/gen;embeddedv1";
 option java_multiple_files = true;
@@ -40,6 +41,19 @@ message Event {
   // A second field of the same message type forces named relations on both
   // sides (Prisma rejects two unnamed relations between the same model pair).
   Location billing = 6;
+
+  // storage=json inlines this message as a single JSONB column instead of
+  // relationalizing it into a child table (P1.6 embed-vs-relation control).
+  Metadata metadata = 7 [(protorm.v1.col) = {storage: STORAGE_MODE_JSON}];
+}
+
+// Metadata is referenced only via a storage=json field, so it is inlined as a
+// JSONB column and never becomes its own table.
+message Metadata {
+  // Free-form source system label.
+  string source = 1;
+  // Arbitrary tags.
+  repeated string tags = 2;
 }
 
 // Location is reachable from Event and so becomes its own table; its existing

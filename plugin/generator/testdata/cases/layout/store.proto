@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package store.apps.calendar.v1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+option go_package = "example.com/test/gen;layoutv1";
+option java_multiple_files = true;
+option java_outer_classname = "CalendarProto";
+option java_package = "com.store.apps.calendar.v1";
+
+// Event is a calendar app resource. The layout config routes it to the "users"
+// database, schema "calendar_app".
+message Event {
+  option (google.api.resource) = {
+    type: "store.apps.calendar.v1/Event"
+    pattern: "events/{event}"
+    singular: "event"
+    plural: "events"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // title is the event's display title.
+  string title = 2 [(google.api.field_behavior) = REQUIRED];
+}

@@ -18,31 +18,42 @@ import (
 
 // Event exercises nested-message normalization: a singular message field becomes a belongs-to relation, a repeated message field becomes a has-many, while well-known and map fields stay scalar / JSONB.
 type Event struct {
+	// Unique identifier for the record.
+	ID string `gorm:"column:id;primaryKey;not null" json:"id"`
 	// Resource name; the AIP identifier.
-	Name string `gorm:"column:name;primaryKey;not null" json:"name"`
+	Name string `gorm:"column:name;not null;uniqueIndex" json:"name" validate:"required"`
 	// Repeated attendee resource names.
 	Attendees  *string   `gorm:"column:attendees" json:"attendees,omitempty"`
 	Attendees2 *Attendee `gorm:"foreignKey:Attendees" json:"attendees2,omitempty"`
 	// Well-known type stays a scalar column, not a relation.
-	CreateTime *time.Time `gorm:"column:create_time" json:"create_time,omitempty"`
+	CreateTime time.Time `gorm:"column:create_time;not null;autoCreateTime" json:"create_time"`
 	// Map fields stay JSONB.
 	Labels json.RawMessage `gorm:"column:labels" json:"labels,omitempty"`
+	// storage=json inlines this message as a single JSONB column instead of relationalizing it into a child table (P1.6 embed-vs-relation control).
+	Metadata json.RawMessage `gorm:"column:metadata" json:"metadata,omitempty"`
 	// Foreign key to Location.
 	LocationID string    `gorm:"column:location_id;not null" json:"location_id" validate:"required"`
-	Location   *Location `gorm:"foreignKey:LocationID" json:"location,omitempty"`
+	Location   *Location `gorm:"foreignKey:LocationID;constraint:OnDelete:CASCADE" json:"location,omitempty"`
 	// Foreign key to Location.
 	BillingID *string   `gorm:"column:billing_id" json:"billing_id,omitempty"`
-	Billing   *Location `gorm:"foreignKey:BillingID" json:"billing,omitempty"`
+	Billing   *Location `gorm:"foreignKey:BillingID;constraint:OnDelete:SET NULL" json:"billing,omitempty"`
+	// Back-relation: Attendee records that reference this via event_id.
+	Attendees3 []Attendee `gorm:"foreignKey:EventID" json:"attendees3,omitempty"`
 }
 
 func (*Event) TableName() string { return "embedded_v1.events" }
 
 // Attendee carries an IDENTIFIER, so that field is its primary key.
 type Attendee struct {
+	// Unique identifier for the record.
+	ID string `gorm:"column:id;primaryKey;not null" json:"id"`
 	// Resource name; the AIP identifier.
-	Name string `gorm:"column:name;primaryKey;not null" json:"name"`
+	Name string `gorm:"column:name;not null;uniqueIndex" json:"name" validate:"required"`
 	// Email address of the attendee.
 	Email string `gorm:"column:email;not null" json:"email" validate:"required"`
+	// Parent reference to Event (from the AIP resource pattern).
+	EventID string `gorm:"column:event_id;not null" json:"event_id" validate:"required"`
+	Event   *Event `gorm:"foreignKey:EventID;constraint:OnDelete:CASCADE" json:"event,omitempty"`
 	// Back-relation: Event records that reference this via attendees.
 	Events []Event `gorm:"foreignKey:Attendees" json:"events,omitempty"`
 }

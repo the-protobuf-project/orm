@@ -13,8 +13,10 @@ CREATE SCHEMA IF NOT EXISTS "kitchen";
 
 -- Sink is one table holding every interesting type mapping.
 CREATE TABLE "kitchen"."sinks" (
+    -- Unique identifier for the record.
+    "id"  CHAR(26)  NOT NULL  PRIMARY KEY,
     -- name: IDENTIFIER → PRIMARY KEY.
-    "name"  VARCHAR(255)  NOT NULL  PRIMARY KEY,
+    "name"  VARCHAR(255)  NOT NULL  UNIQUE,
     -- bool → BOOLEAN.
     "flag"  BOOLEAN,
     -- int32 → INTEGER.

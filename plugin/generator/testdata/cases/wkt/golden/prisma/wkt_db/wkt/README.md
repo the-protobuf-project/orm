@@ -14,7 +14,7 @@ Generated from Protobuf by protoc-gen-protorm. Source of truth is the `.proto` f
 erDiagram
     direction LR
     Sink {
-        string name PK
+        string id PK
     }
 ```
 
@@ -26,6 +26,7 @@ Sink is one table holding every interesting type mapping.
 
 | Column | Type | Null |
 | --- | --- | --- |
+| `id` | `CHAR(26)` | not null |
 | `name` | `VARCHAR(255)` | not null |
 | `flag` | `BOOLEAN` | nullable |
 | `count32` | `INTEGER` | nullable |

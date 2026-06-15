@@ -34,6 +34,26 @@ func TestScalarPostgres(t *testing.T) {
 	}
 }
 
+// TestWellKnownPostgres covers the well-known-type → PostgreSQL mapping,
+// including the type-fidelity choices (P2.3): Duration → INTERVAL (queryable,
+// not String) and the uint64 wrappers widening to NUMERIC(20,0).
+func TestWellKnownPostgres(t *testing.T) {
+	cases := map[string]string{
+		"google.protobuf.Timestamp":   "TIMESTAMPTZ",
+		"google.protobuf.Duration":    "INTERVAL",
+		"google.protobuf.UInt64Value": "NUMERIC(20,0)",
+		"google.protobuf.FieldMask":   "TEXT",
+		"google.type.Date":            "DATE",
+		"google.type.Interval":        "TSTZRANGE",
+		"example.v1.CustomMessage":    "JSONB", // user messages fall back to JSONB
+	}
+	for in, want := range cases {
+		if got := messagePostgres(in); got != want {
+			t.Errorf("messagePostgres(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestBaseType(t *testing.T) {
 	cases := []struct {
 		in    string
@@ -69,6 +89,7 @@ func TestGoType(t *testing.T) {
 		"TIMESTAMPTZ":      "time.Time",
 		"DATE":             "time.Time",
 		"TSTZRANGE":        "string",
+		"INTERVAL":         "string", // no lossless Go primitive; stays driver-agnostic
 	}
 	for in, want := range cases {
 		if got := GoType(in); got != want {
@@ -88,6 +109,7 @@ func TestPrismaType(t *testing.T) {
 		"JSONB":            "Json",
 		"TIMESTAMPTZ":      "DateTime",
 		"POINT":            "String", // no native Prisma scalar
+		"INTERVAL":         "String", // Prisma has no Interval scalar; DB type stays INTERVAL
 	}
 	for in, want := range cases {
 		if got := PrismaType(in); got != want {

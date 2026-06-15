@@ -228,6 +228,65 @@ All options live in `protorm/v1/annotations.proto`.
 | `unique`, `index` | Single-column constraint / index. |
 | `skip` | Field exists in the proto contract but not the database. |
 | `on_delete` / `on_update` | FK referential action (`CASCADE`, `SET_NULL`, …) for a `resource_reference` field. |
+| `storage` | `STORAGE_MODE_JSON` inlines a message-typed field as a single `JSONB` column instead of relationalizing it into a child table (default: relation). |
+
+### Plugin options (`opt:` in `buf.gen.yaml`)
+
+| Option | Description |
+| --- | --- |
+| `target` | Output backend: `prisma` \| `gorm` \| `sql` \| `csv`. Required. |
+| `strict` | Per-rule severity for schema problems. `""` (default) warns on everything; `true` makes every rule a hard error; a spec like `ref:error,collision:warn,index:error,lint:warn` sets severity per rule. Rules: **ref** (unresolved/dropped references), **collision** (global name qualification), **index** (index names an unknown column), **lint** (validate-on-generate advisories). |
+| `config` | Path to a [`protorm.yaml`](#layout-config-protormyaml) layout config. |
+
+---
+
+## Defaults applied automatically
+
+protorm bakes in the conventions a hand-written production schema uses, so the
+common case needs **no annotations**. Each is overridable.
+
+| Default | Behavior | Override |
+| --- | --- | --- |
+| Surrogate keys | Every resource gets a ULID `id` primary key; the AIP `name` becomes `@unique`. | `(protorm.v1.table).id` |
+| AIP system fields | `create_time`/`update_time` → auto-managed `NOT NULL` timestamps; `delete_time` → nullable indexed soft-delete marker; `uid` → `UNIQUE`. (AIP-148/164) | rename the field |
+| Parent materialization | Each parent segment of the AIP resource `pattern` (`users/{user}/…`) becomes a FK column (`user_id` → `User`) with `onDelete: Cascade`. | declare the field explicitly |
+| FK indexing | Every foreign-key column gets a single-column `@@index` (Postgres does not auto-index FKs). | already indexed columns are skipped |
+| Enum hygiene | The AIP `*_UNSPECIFIED = 0` sentinel is dropped; a required enum column defaults to its first value. | `(protorm.v1.col).default_value` |
+| `oneof` integrity | A `oneof` adds a `<oneof>_case` discriminator enum recording which member is set. | — |
+| Soft FK | A `resource_reference` to a model outside the generation set is kept as an indexed scalar column with a `TODO` note, not dropped. | provide the referenced resource |
+| Embedded children | Nested message fields cascade on delete (required) or null (optional). | `(protorm.v1.col).on_delete`, `.storage` |
+
+---
+
+## Layout config (`protorm.yaml`)
+
+Map proto packages to databases and schemas without per-file annotations — the
+way to split a multi-service monorepo into the intended database boundaries.
+Pass it with `opt: [config=protorm.yaml]`.
+
+```yaml
+datasources:
+  - match: "fleet.**"         # dotted package glob; trailing ** matches any suffix
+    database: fleet
+    schema_depth: 3           # first 3 package segments → fleet_tracking_device
+  - match: "store.apps.**"
+    database: users
+    schema: "{leaf}_app"      # leaf package segment (version dropped) → calendar_app
+```
+
+Precedence: a per-file `(protorm.v1.datasource)` annotation wins over the config,
+which wins over the package-path defaults.
+
+---
+
+## Determinism & migrations
+
+Generation is **deterministic**: re-running on unchanged protos produces
+byte-identical output (enforced by golden tests), so a regenerate → `prisma
+migrate diff` is a no-op when nothing changed. Name collisions qualify **all**
+participants (never leaving one bare), so adding a new package cannot silently
+rename an existing model and force a destructive migration. Recommended flow:
+regenerate, review the diff, then `migrate diff` / `migrate dev`.
 
 ---
 

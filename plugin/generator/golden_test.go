@@ -13,23 +13,14 @@ package generator
 // which backends run; the default is all of them.
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
-	"github.com/bufbuild/protocompile"
-	"github.com/bufbuild/protocompile/linker"
 	"google.golang.org/protobuf/compiler/protogen"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
-	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 
@@ -56,9 +47,15 @@ func TestGolden(t *testing.T) {
 func runCase(t *testing.T, dir string) {
 	req := buildRequest(t, dir)
 
+	// A case may ship a protorm.yaml to exercise the layout config (P1.1).
+	configPath := ""
+	if _, err := os.Stat(filepath.Join(dir, "protorm.yaml")); err == nil {
+		configPath = filepath.Join(dir, "protorm.yaml")
+	}
+
 	for _, target := range caseTargets(t, dir) {
 		t.Run(target, func(t *testing.T) {
-			files := runTarget(t, req, target)
+			files := runTarget(t, req, configPath, target)
 			goldenDir := filepath.Join(dir, "golden", target)
 
 			if *update {
@@ -70,130 +67,16 @@ func runCase(t *testing.T, dir string) {
 	}
 }
 
-// buildRequest compiles the case protos in-process and assembles the
-// CodeGeneratorRequest a protoc invocation would deliver.
-//
-// A case directory holds its own .proto files, unless it contains a "source"
-// file naming another directory (path relative to this package) to compile
-// instead — used so the bookstore case exercises the real example protos rather
-// than a drift-prone copy.
-func buildRequest(t *testing.T, dir string) *pluginpb.CodeGeneratorRequest {
-	t.Helper()
-
-	protoDir := dir
-	if b, err := os.ReadFile(filepath.Join(dir, "source")); err == nil {
-		protoDir = filepath.Clean(strings.TrimSpace(string(b)))
-	}
-
-	entries, err := os.ReadDir(protoDir)
-	if err != nil {
-		t.Fatalf("read %s: %v", protoDir, err)
-	}
-	var protos []string
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".proto") {
-			protos = append(protos, e.Name())
-		}
-	}
-	sort.Strings(protos)
-
-	compiler := protocompile.Compiler{
-		Resolver: protocompile.WithStandardImports(protocompile.CompositeResolver{
-			// Case protos are compiled from source so doc comments forward.
-			&protocompile.SourceResolver{ImportPaths: []string{protoDir}},
-			// google/api/* and protorm/v1/* are served from the already-compiled
-			// global registry (linked in via the generator's imports), so no
-			// vendored .proto copies live in the workspace to drift or get linted.
-			registryResolver{},
-		}),
-		SourceInfoMode: protocompile.SourceInfoStandard, // keep comments for doc forwarding
-	}
-	compiled, err := compiler.Compile(context.Background(), protos...)
-	if err != nil {
-		t.Fatalf("compile: %v", err)
-	}
-
-	// Collect the transitive descriptor set in dependency order.
-	seen := map[string]bool{}
-	var fdps []*descriptorpb.FileDescriptorProto
-	var add func(fd protoreflect.FileDescriptor)
-	add = func(fd protoreflect.FileDescriptor) {
-		if seen[fd.Path()] {
-			return
-		}
-		seen[fd.Path()] = true
-		for i := 0; i < fd.Imports().Len(); i++ {
-			add(fd.Imports().Get(i).FileDescriptor)
-		}
-		fdps = append(fdps, toFDP(t, fd))
-	}
-	for _, fd := range compiled {
-		add(fd)
-	}
-
-	// protogen demands a Go import path for every generated file; supply the
-	// M mappings a buf.gen.yaml would.
-	mappings := make([]string, len(protos))
-	for i, p := range protos {
-		mappings[i] = "M" + p + "=example.com/test/gen"
-	}
-	return &pluginpb.CodeGeneratorRequest{
-		FileToGenerate: protos,
-		Parameter:      proto.String(strings.Join(mappings, ",")),
-		ProtoFile:      fdps,
-	}
-}
-
-// registryResolver serves import paths from the global protobuf registry, which
-// holds every .proto linked into the test binary (google/api/* via genproto,
-// protorm/v1/* via the generated stubs). Returning a compiled Desc lets
-// protocompile reuse it directly without needing the original source.
-type registryResolver struct{}
-
-func (registryResolver) FindFileByPath(path string) (protocompile.SearchResult, error) {
-	fd, err := protoregistry.GlobalFiles.FindFileByPath(path)
-	if err != nil {
-		return protocompile.SearchResult{}, err
-	}
-	return protocompile.SearchResult{Desc: fd}, nil
-}
-
-// toFDP extracts the FileDescriptorProto, preferring the compiler's own copy
-// (which always carries SourceCodeInfo) over a protodesc reconstruction.
-//
-// The result is round-tripped through the wire format: protocompile stores
-// custom options as dynamic extension messages, which would panic when read
-// via the linked-in generated extension types. Re-unmarshalling against the
-// global registry re-interns them — matching what a real protoc run delivers.
-func toFDP(t *testing.T, fd protoreflect.FileDescriptor) *descriptorpb.FileDescriptorProto {
-	t.Helper()
-	var fdp *descriptorpb.FileDescriptorProto
-	if r, ok := fd.(linker.Result); ok {
-		fdp = r.FileDescriptorProto()
-	} else {
-		fdp = protodesc.ToFileDescriptorProto(fd)
-	}
-	b, err := proto.Marshal(fdp)
-	if err != nil {
-		t.Fatalf("marshal %s: %v", fd.Path(), err)
-	}
-	out := &descriptorpb.FileDescriptorProto{}
-	if err := proto.Unmarshal(b, out); err != nil {
-		t.Fatalf("unmarshal %s: %v", fd.Path(), err)
-	}
-	return out
-}
-
 // runTarget executes one backend through the real plugin entry point and
 // returns the generated files as path → content.
-func runTarget(t *testing.T, req *pluginpb.CodeGeneratorRequest, target string) map[string]string {
+func runTarget(t *testing.T, req *pluginpb.CodeGeneratorRequest, configPath, target string) map[string]string {
 	t.Helper()
 
 	p, err := protogen.Options{}.New(req)
 	if err != nil {
 		t.Fatalf("protogen: %v", err)
 	}
-	if err := Generate(p, Options{Target: target}); err != nil {
+	if err := Generate(p, Options{Target: target, ConfigPath: configPath}); err != nil {
 		t.Fatalf("generate %s: %v", target, err)
 	}
 	resp := p.Response()

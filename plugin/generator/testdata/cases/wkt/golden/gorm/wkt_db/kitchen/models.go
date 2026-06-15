@@ -18,8 +18,10 @@ import (
 
 // Sink is one table holding every interesting type mapping.
 type Sink struct {
+	// Unique identifier for the record.
+	ID string `gorm:"column:id;primaryKey;not null" json:"id"`
 	// name: IDENTIFIER → PRIMARY KEY.
-	Name string `gorm:"column:name;primaryKey;not null" json:"name"`
+	Name string `gorm:"column:name;not null;uniqueIndex" json:"name" validate:"required"`
 	// bool → BOOLEAN.
 	Flag *bool `gorm:"column:flag" json:"flag,omitempty"`
 	// int32 → INTEGER.

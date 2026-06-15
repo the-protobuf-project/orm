@@ -14,10 +14,11 @@ Generated from Protobuf by protoc-gen-protorm. Source of truth is the `.proto` f
 erDiagram
     direction LR
     Attendee {
-        string name PK
+        string id PK
+        string event_id FK
     }
     Event {
-        string name PK
+        string id PK
         string attendees FK
         string location_id FK
         string billing_id FK
@@ -25,6 +26,7 @@ erDiagram
     Location {
         string id PK
     }
+    Attendee }o--|| Event : "event_id"
     Event }o--|| Attendee : "attendees"
     Event }o--|| Location : "location_id"
     Event }o--|| Location : "billing_id"
@@ -38,10 +40,12 @@ Event exercises nested-message normalization: a singular message field becomes a
 
 | Column | Type | Null |
 | --- | --- | --- |
+| `id` | `CHAR(26)` | not null |
 | `name` | `VARCHAR(255)` | not null |
-| `attendees` | `VARCHAR(255)` | nullable |
-| `create_time` | `TIMESTAMPTZ` | nullable |
+| `attendees` | `CHAR(26)` | nullable |
+| `create_time` | `TIMESTAMPTZ` | not null |
 | `labels` | `JSONB` | nullable |
+| `metadata` | `JSONB` | nullable |
 | `location_id` | `VARCHAR(255)` | not null |
 | `billing_id` | `VARCHAR(255)` | nullable |
 
@@ -51,8 +55,10 @@ Attendee carries an IDENTIFIER, so that field is its primary key.
 
 | Column | Type | Null |
 | --- | --- | --- |
+| `id` | `CHAR(26)` | not null |
 | `name` | `VARCHAR(255)` | not null |
 | `email` | `VARCHAR(255)` | not null |
+| `event_id` | `CHAR(26)` | not null |
 
 ### `Location` → `locations`
 

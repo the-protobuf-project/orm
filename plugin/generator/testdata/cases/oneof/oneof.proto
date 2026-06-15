@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package oneof.v1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+option go_package = "example.com/test/gen;oneofv1";
+option java_multiple_files = true;
+option java_outer_classname = "OneofProto";
+option java_package = "com.oneof.v1";
+
+// Audio exercises oneof integrity: the `input` oneof flattens to independent
+// nullable columns, and protorm adds a generated input_case discriminator enum
+// recording which member is set so the lost exclusivity invariant is observable.
+message Audio {
+  option (google.api.resource) = {
+    type: "oneof.v1/Audio"
+    pattern: "audios/{audio}"
+    singular: "audio"
+    plural: "audios"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // input selects exactly one audio source.
+  oneof input {
+    // Inline audio bytes.
+    bytes audio_data = 2;
+    // Path to a previously uploaded file.
+    string upload_path = 3;
+    // Path to a file produced by a live pipeline.
+    string live_pipeline_file_path = 4;
+  }
+
+  // sample_rate is a plain scalar outside the oneof.
+  int32 sample_rate = 5;
+}

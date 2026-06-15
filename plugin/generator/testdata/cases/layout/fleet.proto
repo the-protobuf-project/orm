@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package fleet.tracking.device.v1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+
+option go_package = "example.com/test/gen;layoutv1";
+option java_multiple_files = true;
+option java_outer_classname = "FleetProto";
+option java_package = "com.fleet.tracking.device.v1";
+
+// Tracker is a fleet device resource. The layout config routes it to the
+// "fleet" database, schema "fleet_tracking_device".
+message Tracker {
+  option (google.api.resource) = {
+    type: "fleet.tracking.device.v1/Tracker"
+    pattern: "trackers/{tracker}"
+    singular: "tracker"
+    plural: "trackers"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // serial is the device's hardware serial number.
+  string serial = 2 [(google.api.field_behavior) = REQUIRED];
+}

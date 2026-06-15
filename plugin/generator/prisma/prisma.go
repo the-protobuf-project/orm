@@ -15,8 +15,6 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 
-	"github.com/oh-tarnished/protorm/plugin/generator/header"
-	"github.com/oh-tarnished/protorm/plugin/generator/naming"
 	"github.com/oh-tarnished/protorm/plugin/generator/schema"
 	"github.com/oh-tarnished/protorm/plugin/generator/templates"
 	"github.com/oh-tarnished/protorm/plugin/generator/types"
@@ -131,104 +129,4 @@ func fragmentDir(dbName, sourceDir, fileBase string) string {
 	}
 	parts = append(parts, fileBase)
 	return strings.Join(parts, "/")
-}
-
-// schemaFileView prepares the datasource template data for one database.
-func schemaFileView(db *schema.Database, provider types.Provider) map[string]any {
-	names := make([]string, 0, len(db.Schemas))
-	quoted := make([]string, 0, len(db.Schemas))
-	for _, s := range db.Schemas {
-		names = append(names, s.Name)
-		quoted = append(quoted, `"`+s.Name+`"`)
-	}
-	suffix := "pgsql"
-	if provider == types.MongoDB {
-		suffix = "mongo"
-	}
-	return map[string]any{
-		"Header": header.Render("//", header.Info{
-			PluginVersion: db.PluginVersion,
-			ProtocVersion: db.ProtocVersion,
-			Database:      db.Name,
-			SchemaLabel:   "schemas",
-			Schema:        strings.Join(names, ", "),
-			Notes:         []string{"Connection URLs live in " + db.Name + ".config.ts (Prisma 7 convention)."},
-		}),
-		"Datasource":  naming.DatasourceName(db.Name, suffix),
-		"Provider":    provider.PrismaProvider(),
-		"SchemaList":  strings.Join(quoted, ", "),
-		"MultiSchema": provider == types.Postgres,
-	}
-}
-
-// configView prepares the <db>.config.ts template data: the env var carrying
-// the connection URL ("bookstore_db" → "BOOKSTORE_DB_DATABASE_URL").
-func configView(db *schema.Database) map[string]any {
-	names := make([]string, 0, len(db.Schemas))
-	for _, s := range db.Schemas {
-		names = append(names, s.Name)
-	}
-	return map[string]any{
-		"Header": header.Render("//", header.Info{
-			PluginVersion: db.PluginVersion,
-			ProtocVersion: db.ProtocVersion,
-			Database:      db.Name,
-			SchemaLabel:   "schemas",
-			Schema:        strings.Join(names, ", "),
-			Notes:         []string{"Prisma 7 configuration; connection URLs are environment-driven."},
-		}),
-		"URL":    db.URL,
-		"EnvVar": envVar(db),
-	}
-}
-
-// scaffoldFiles maps each scaffold output path suffix to its template name.
-// scaffoldFiles are the static project files; the README.md tree is generated
-// separately by writeReadmes (one per folder, with a Mermaid ER diagram).
-var scaffoldFiles = []struct{ name, tpl string }{
-	{"package.json", "package.json.tpl"},
-	{"tsconfig.json", "tsconfig.json.tpl"},
-	{".env.example", "env.example.tpl"},
-	{".gitignore", "gitignore.tpl"},
-}
-
-// writeScaffold emits the package.json, tsconfig.json, .env.example, .gitignore,
-// and README.md that turn the database folder into a runnable Prisma project.
-func writeScaffold(p *protogen.Plugin, db *schema.Database, provider types.Provider) error {
-	view := scaffoldView(db, provider)
-	for _, sf := range scaffoldFiles {
-		f := p.NewGeneratedFile(db.Name+"/"+sf.name, "")
-		if err := templates.Render(f, sf.tpl, view); err != nil {
-			return fmt.Errorf("prisma: %s/%s: %w", db.Name, sf.name, err)
-		}
-	}
-	return nil
-}
-
-// scaffoldView prepares the shared template data for the project scaffold files.
-func scaffoldView(db *schema.Database, provider types.Provider) map[string]any {
-	return map[string]any{
-		"Database":    db.Name,
-		"PackageName": strings.ReplaceAll(db.Name, "_", "-") + "-prisma",
-		"EnvVar":      envVar(db),
-		"URLExample":  exampleURL(db, provider),
-		"ProviderExt": provider.FragmentExt(),
-	}
-}
-
-// envVar derives the connection-URL environment variable name for a database.
-func envVar(db *schema.Database) string {
-	return strings.ToUpper(db.Name) + "_DATABASE_URL"
-}
-
-// exampleURL returns the connection URL written into .env.example: the one
-// declared in the proto when present, otherwise a provider-appropriate stub.
-func exampleURL(db *schema.Database, provider types.Provider) string {
-	if db.URL != "" {
-		return db.URL
-	}
-	if provider == types.MongoDB {
-		return "mongodb://localhost:27017/" + db.Name
-	}
-	return "postgresql://user:password@localhost:5432/" + db.Name
 }

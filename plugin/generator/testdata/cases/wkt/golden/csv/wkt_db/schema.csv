@@ -1,5 +1,6 @@
 database,schema,table,column,sql_type,not_null,primary_key,unique,default,description
-wkt_db,kitchen,sinks,name,VARCHAR(255),true,true,false,,name: IDENTIFIER → PRIMARY KEY.
+wkt_db,kitchen,sinks,id,CHAR(26),true,true,false,,Unique identifier for the record.
+wkt_db,kitchen,sinks,name,VARCHAR(255),true,false,true,,name: IDENTIFIER → PRIMARY KEY.
 wkt_db,kitchen,sinks,flag,BOOLEAN,false,false,false,,bool → BOOLEAN.
 wkt_db,kitchen,sinks,count32,INTEGER,false,false,false,,int32 → INTEGER.
 wkt_db,kitchen,sinks,count64,BIGINT,false,false,false,,int64 → BIGINT.

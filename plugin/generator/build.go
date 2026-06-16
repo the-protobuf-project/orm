@@ -48,6 +48,9 @@ func buildDatabases(p *protogen.Plugin, diags *diagnostics, layout *layoutConfig
 	// Materialize embedded child tables and their FK columns before relations
 	// are resolved, so resolveRelations sees the full table set.
 	ctx.normalizeEmbeds(diags)
+	// Synthesize join tables for repeated resource_reference (many-to-many),
+	// after embeds so every potential target table already exists.
+	ctx.normalizeM2M(diags)
 
 	for _, db := range order {
 		qualifyModels(db, diags)

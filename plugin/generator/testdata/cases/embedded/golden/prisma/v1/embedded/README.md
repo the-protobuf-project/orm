@@ -6,7 +6,7 @@ Generated from Protobuf by protoc-gen-protorm. Source of truth is the `.proto` f
 
 | Models | Enums |
 | ---: | ---: |
-| 4 | 0 |
+| 5 | 0 |
 
 ## Entity relationships
 
@@ -23,6 +23,11 @@ erDiagram
         string billing_id FK
         string metadata_id FK
     }
+    EventAttendees {
+        string id PK
+        string event_id FK
+        string attendee_id FK
+    }
     Location {
         string id PK
     }
@@ -33,6 +38,8 @@ erDiagram
     Event }o--|| Location : "location_id"
     Event }o--|| Location : "billing_id"
     Event }o--|| Metadata : "metadata_id"
+    EventAttendees }o--|| Event : "event_id"
+    EventAttendees }o--|| Attendee : "attendee_id"
 ```
 
 Schema file: [`embedded.postgres.prisma`](./embedded.postgres.prisma)
@@ -45,7 +52,6 @@ Event exercises nested-message normalization: a singular message field becomes a
 | --- | --- | --- |
 | `id` | `CHAR(26)` | not null |
 | `name` | `VARCHAR(255)` | not null |
-| `attendees` | `VARCHAR(255)[]` | nullable |
 | `create_time` | `TIMESTAMPTZ` | not null |
 | `labels` | `JSONB` | nullable |
 | `location_id` | `VARCHAR(255)` | not null |
@@ -82,3 +88,13 @@ Metadata is reachable only through Event.metadata and carries no resource annota
 | `id` | `CHAR(26)` | not null |
 | `source` | `VARCHAR(255)` | nullable |
 | `tags` | `VARCHAR(255)[]` | nullable |
+
+### `EventAttendees` → `event_attendees`
+
+Join table for the many-to-many relation Event.attendees ↔ Attendee.
+
+| Column | Type | Null |
+| --- | --- | --- |
+| `id` | `CHAR(26)` | not null |
+| `event_id` | `CHAR(26)` | not null |
+| `attendee_id` | `CHAR(26)` | not null |

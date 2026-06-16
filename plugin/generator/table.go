@@ -66,6 +66,19 @@ func (ctx *buildCtx) populateColumns(db *schema.Database, s *schema.Schema, t *s
 			continue
 		}
 
+		// A repeated resource_reference is a many-to-many relation: a scalar FK
+		// can't hold many parents. Defer it to normalizeM2M, which synthesizes a
+		// join table (or falls back to an array column). No scalar column here.
+		if ref := resourceRef(f); ref != nil && f.Desc.IsList() && !cOpts.GetSkip() {
+			ctx.m2m = append(ctx.m2m, &m2mReq{
+				db: db, schemaName: s.Name, parent: t, field: f,
+				targetModel: modelNameFromType(ref.GetType()),
+				onDelete:    refAction(cOpts.GetOnDelete()),
+				onUpdate:    refAction(cOpts.GetOnUpdate()),
+			})
+			continue
+		}
+
 		col := buildColumn(s, f)
 		if col == nil {
 			continue
@@ -74,16 +87,9 @@ func (ctx *buildCtx) populateColumns(db *schema.Database, s *schema.Schema, t *s
 		if col.PrimaryKey && t.PKColumn == "" {
 			t.PKColumn = col.Name
 		}
+		// Singular resource_reference → belongs-to FK. The repeated case is
+		// intercepted above and modeled as a join table by normalizeM2M.
 		if ref := resourceRef(f); ref != nil {
-			// A repeated resource_reference is a list of resource names, not a
-			// single foreign key — a scalar FK column can't hold many parents.
-			// Keep it as the array column buildColumn already produced (T[]); a
-			// proper relation here would need a join table, which protorm does not
-			// synthesize. Modeling it as a single FK would silently drop the list
-			// (and collide field names, e.g. exceptions/exceptions2).
-			if f.Desc.IsList() {
-				continue
-			}
 			refSchema, refTable := schemaTable(ref.GetType(), "")
 			refModel := modelNameFromType(ref.GetType())
 			col.FKModel = refModel

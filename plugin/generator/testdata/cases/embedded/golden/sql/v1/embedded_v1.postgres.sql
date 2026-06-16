@@ -17,8 +17,6 @@ CREATE TABLE "embedded_v1"."events" (
     "id"  CHAR(26)  NOT NULL  PRIMARY KEY,
     -- Resource name; the AIP identifier.
     "name"  VARCHAR(255)  NOT NULL  UNIQUE,
-    -- Repeated attendee resource names.
-    "attendees"  VARCHAR(255)[],
     -- Well-known type stays a scalar column, not a relation.
     "create_time"  TIMESTAMPTZ  NOT NULL  DEFAULT now(),
     -- Map fields stay JSONB.
@@ -70,3 +68,18 @@ CREATE TABLE "embedded_v1"."metadatas" (
     -- Arbitrary tags.
     "tags"  VARCHAR(255)[]
 );
+
+-- Join table for the many-to-many relation Event.attendees ↔ Attendee.
+CREATE TABLE "embedded_v1"."event_attendees" (
+    -- Unique identifier for the record.
+    "id"  CHAR(26)  NOT NULL  PRIMARY KEY,
+    -- Foreign key to Event.
+    "event_id"  CHAR(26)  NOT NULL,
+    -- Foreign key to Attendee.
+    "attendee_id"  CHAR(26)  NOT NULL,
+    CONSTRAINT "fk_event_attendees_event_id" FOREIGN KEY ("event_id") REFERENCES "embedded_v1"."events"("id") ON DELETE CASCADE,
+    CONSTRAINT "fk_event_attendees_attendee_id" FOREIGN KEY ("attendee_id") REFERENCES "embedded_v1"."attendees"("id") ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX "idx_event_attendees_event_id_attendee_id" ON "embedded_v1"."event_attendees" ("event_id", "attendee_id");
+CREATE INDEX "idx_event_attendees_event_id" ON "embedded_v1"."event_attendees" ("event_id");
+CREATE INDEX "idx_event_attendees_attendee_id" ON "embedded_v1"."event_attendees" ("attendee_id");

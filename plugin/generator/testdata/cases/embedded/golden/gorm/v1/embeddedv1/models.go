@@ -22,8 +22,6 @@ type Event struct {
 	ID string `gorm:"column:id;primaryKey;not null" json:"id"`
 	// Resource name; the AIP identifier.
 	Name string `gorm:"column:name;not null;uniqueIndex" json:"name" validate:"required"`
-	// Repeated attendee resource names.
-	Attendees []string `gorm:"column:attendees" json:"attendees,omitempty"`
 	// Well-known type stays a scalar column, not a relation.
 	CreateTime time.Time `gorm:"column:create_time;not null;autoCreateTime" json:"create_time"`
 	// Map fields stay JSONB.
@@ -38,7 +36,9 @@ type Event struct {
 	MetadataID *string   `gorm:"column:metadata_id" json:"metadata_id,omitempty"`
 	Metadata   *Metadata `gorm:"foreignKey:MetadataID;constraint:OnDelete:SET NULL" json:"metadata,omitempty"`
 	// Back-relation: Attendee records that reference this via event_id.
-	Attendees2 []Attendee `gorm:"foreignKey:EventID" json:"attendees2,omitempty"`
+	Attendees []Attendee `gorm:"foreignKey:EventID" json:"attendees,omitempty"`
+	// Back-relation: EventAttendees records that reference this via event_id.
+	EventAttendees []EventAttendees `gorm:"foreignKey:EventID" json:"eventattendees,omitempty"`
 }
 
 func (*Event) TableName() string { return "embedded_v1.events" }
@@ -54,6 +54,8 @@ type Attendee struct {
 	// Parent reference to Event (from the AIP resource pattern).
 	EventID string `gorm:"column:event_id;not null" json:"event_id" validate:"required"`
 	Event   *Event `gorm:"foreignKey:EventID;constraint:OnDelete:CASCADE" json:"event,omitempty"`
+	// Back-relation: EventAttendees records that reference this via attendee_id.
+	EventAttendees []EventAttendees `gorm:"foreignKey:AttendeeID" json:"eventattendees,omitempty"`
 }
 
 func (*Attendee) TableName() string { return "embedded_v1.attendees" }
@@ -87,3 +89,17 @@ type Metadata struct {
 }
 
 func (*Metadata) TableName() string { return "embedded_v1.metadatas" }
+
+// Join table for the many-to-many relation Event.attendees ↔ Attendee.
+type EventAttendees struct {
+	// Unique identifier for the record.
+	ID string `gorm:"column:id;primaryKey;not null" json:"id"`
+	// Foreign key to Event.
+	EventID string `gorm:"column:event_id;not null" json:"event_id" validate:"required"`
+	Event   *Event `gorm:"foreignKey:EventID;constraint:OnDelete:CASCADE" json:"event,omitempty"`
+	// Foreign key to Attendee.
+	AttendeeID string    `gorm:"column:attendee_id;not null" json:"attendee_id" validate:"required"`
+	Attendee   *Attendee `gorm:"foreignKey:AttendeeID;constraint:OnDelete:CASCADE" json:"attendee,omitempty"`
+}
+
+func (*EventAttendees) TableName() string { return "embedded_v1.event_attendees" }

@@ -17,9 +17,6 @@ model Event {
   /// Resource name; the AIP identifier.
   name String @unique @map("name")
 
-  /// Repeated attendee resource names.
-  attendees String[] @map("attendees")
-
   /// Well-known type stays a scalar column, not a relation.
   createTime DateTime @default(now()) @map("create_time")
 
@@ -45,7 +42,10 @@ model Event {
   metadata Metadata? @relation(fields: [metadataID], references: [id], onDelete: SetNull)
 
   /// Back-relation: Attendee records that reference this model via event_id.
-  attendees2 Attendee[]
+  attendees Attendee[]
+
+  /// Back-relation: EventAttendees records that reference this model via event_id.
+  eventAttendees EventAttendees[]
 
   /// Composite index on [location_id].
   @@index([locationID])
@@ -75,6 +75,9 @@ model Attendee {
 
   /// Relation to Event via event_id.
   event Event @relation(fields: [eventID], references: [id], onDelete: Cascade)
+
+  /// Back-relation: EventAttendees records that reference this model via attendee_id.
+  eventAttendees EventAttendees[]
 
   /// Composite index on [event_id].
   @@index([eventID])
@@ -123,6 +126,35 @@ model Metadata {
 
   /// Maps the model to the "metadatas" table in the database.
   @@map("metadatas")
+  /// Maps the model to the "embedded_v1" schema in the database.
+  @@schema("embedded_v1")
+}
+
+/// Join table for the many-to-many relation Event.attendees ↔ Attendee.
+model EventAttendees {
+  /// Unique identifier for the record.
+  id String @id @default(ulid()) @map("id")
+
+  /// Foreign key to Event.
+  eventID String @map("event_id")
+
+  /// Relation to Event via event_id.
+  event Event @relation(fields: [eventID], references: [id], onDelete: Cascade)
+
+  /// Foreign key to Attendee.
+  attendeeID String @map("attendee_id")
+
+  /// Relation to Attendee via attendee_id.
+  attendee Attendee @relation(fields: [attendeeID], references: [id], onDelete: Cascade)
+
+  /// Unique constraint on [event_id, attendee_id].
+  @@unique([eventID, attendeeID])
+  /// Composite index on [event_id].
+  @@index([eventID])
+  /// Composite index on [attendee_id].
+  @@index([attendeeID])
+  /// Maps the model to the "event_attendees" table in the database.
+  @@map("event_attendees")
   /// Maps the model to the "embedded_v1" schema in the database.
   @@schema("embedded_v1")
 }

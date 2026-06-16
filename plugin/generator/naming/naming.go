@@ -223,6 +223,20 @@ func StripPackageVersion(schemaName string) string {
 	return schemaName
 }
 
+// FKFieldBase returns the snake_case base used to derive a foreign-key column's
+// language-level field name. When the column is a foreign key whose name doesn't
+// already end in "_id", an "_id" suffix is appended ("resource" → "resource_id")
+// so the bare name ("resource") stays free for the relation/association field and
+// needn't take a numeric suffix ("resource2"). The database column name itself is
+// unchanged — only the Prisma/Go field identifier differs (kept aligned to the DB
+// column via @map / gorm:"column:..."). Non-FK columns are returned unchanged.
+func FKFieldBase(colName string, isFK bool) string {
+	if isFK && !strings.HasSuffix(colName, "_id") {
+		return colName + "_id"
+	}
+	return colName
+}
+
 // StripIDSuffix drops a trailing "_id" so a FK column yields a relation stem:
 // "location_id" → "location", "organizer_user_app_ref_id" →
 // "organizer_user_app_ref". A bare "id" (or a name without the suffix) is

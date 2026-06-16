@@ -25,10 +25,17 @@ func uniqueName(base string, used map[string]bool) string {
 	return name
 }
 
+// scalarFieldName is the Prisma field identifier for a column. Foreign-key
+// columns gain an "Id" suffix (resource → resourceId) so the bare name is free
+// for the relation field; the DB column stays col.Name via @map.
+func scalarFieldName(col *schema.Column) string {
+	return naming.Camel(naming.FKFieldBase(col.Name, col.FKModel != ""))
+}
+
 // fieldDecl renders one column declaration: name, type, and attributes.
 func fieldDecl(col *schema.Column, provider types.Provider) string {
 	var b strings.Builder
-	b.WriteString(naming.Camel(col.Name))
+	b.WriteString(scalarFieldName(col))
 	b.WriteByte(' ')
 	var typeName string
 	if col.Enum != nil {

@@ -6,7 +6,7 @@ Generated from Protobuf by protoc-gen-protorm. Source of truth is the `.proto` f
 
 | Models | Enums |
 | ---: | ---: |
-| 4 | 0 |
+| 5 | 0 |
 
 ## Entity relationships
 
@@ -23,6 +23,11 @@ erDiagram
         string billing_id FK
         string metadata_id FK
     }
+    EventAttendees {
+        string id PK
+        string event_id FK
+        string attendee_id FK
+    }
     Location {
         string id PK
     }
@@ -33,6 +38,8 @@ erDiagram
     Event }o--|| Location : "location_id"
     Event }o--|| Location : "billing_id"
     Event }o--|| Metadata : "metadata_id"
+    EventAttendees }o--|| Event : "event_id"
+    EventAttendees }o--|| Attendee : "attendee_id"
 ```
 
 ## Subfolders

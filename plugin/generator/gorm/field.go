@@ -8,9 +8,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
 	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
 	"github.com/the-protobuf-project/protorm/plugin/generator/types"
 )
+
+// gormFieldName is the Go struct field name for a column. Foreign-key columns
+// gain an "ID" suffix (Resource → ResourceID) so the bare name is free for the
+// association field; the DB column stays col.Name via the gorm:"column:..." tag.
+func gormFieldName(col *schema.Column) string {
+	return naming.PascalGo(naming.FKFieldBase(col.Name, col.FKModel != ""))
+}
 
 // goType returns the Go type for a column: enums use their generated Go type,
 // nullable scalars become pointers. Slice types ([]byte, json.RawMessage,

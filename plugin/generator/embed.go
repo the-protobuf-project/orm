@@ -33,6 +33,7 @@ import (
 type buildCtx struct {
 	msgIndex map[string]*protogen.Message
 	embeds   []*embedReq
+	m2m      []*m2mReq     // repeated resource_reference fields awaiting join-table synthesis
 	layout   *layoutConfig // optional protorm.yaml db/schema mapping; may be nil
 }
 

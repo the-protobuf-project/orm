@@ -83,10 +83,10 @@ func modelViewOf(t *schema.Table, provider types.Provider) modelView {
 
 	m := modelView{Comment: commentOr(t.Comment, t.ModelName+" model."), Name: t.ModelName, Map: t.Name, Schema: t.PgSchema}
 
-	// Reserve every scalar column name so a relation field can't collide with one.
+	// Reserve every scalar field name so a relation field can't collide with one.
 	used := map[string]bool{}
 	for _, col := range t.Columns {
-		used[naming.Camel(col.Name)] = true
+		used[scalarFieldName(col)] = true
 	}
 
 	for _, col := range t.Columns {
@@ -105,7 +105,7 @@ func modelViewOf(t *schema.Table, provider types.Provider) modelView {
 			if fk.RelationName != "" {
 				args = `"` + fk.RelationName + `", `
 			}
-			args += "fields: [" + naming.Camel(col.Name) + "], references: [" +
+			args += "fields: [" + scalarFieldName(col) + "], references: [" +
 				naming.Camel(fk.ReferencedColumn) + "]"
 			if a := prismaAction(fk.OnDelete); a != "" {
 				args += ", onDelete: " + a

@@ -1,7 +1,6 @@
 database,schema,table,column,sql_type,not_null,primary_key,unique,default,description
 v1,embedded_v1,events,id,CHAR(26),true,true,false,,Unique identifier for the record.
 v1,embedded_v1,events,name,VARCHAR(255),true,false,true,,Resource name; the AIP identifier.
-v1,embedded_v1,events,attendees,VARCHAR(255)[],false,false,false,,Repeated attendee resource names.
 v1,embedded_v1,events,create_time,TIMESTAMPTZ,true,false,false,now(),"Well-known type stays a scalar column, not a relation."
 v1,embedded_v1,events,labels,JSONB,false,false,false,,Map fields stay JSONB.
 v1,embedded_v1,events,location_id,VARCHAR(255),true,false,false,,Foreign key to Location.
@@ -17,3 +16,6 @@ v1,embedded_v1,locations,venue,VARCHAR(255),false,false,false,,Venue name within
 v1,embedded_v1,metadatas,id,CHAR(26),true,true,false,,Unique identifier for the record.
 v1,embedded_v1,metadatas,source,VARCHAR(255),false,false,false,,Free-form source system label.
 v1,embedded_v1,metadatas,tags,VARCHAR(255)[],false,false,false,,Arbitrary tags.
+v1,embedded_v1,event_attendees,id,CHAR(26),true,true,false,,Unique identifier for the record.
+v1,embedded_v1,event_attendees,event_id,CHAR(26),true,false,false,,Foreign key to Event.
+v1,embedded_v1,event_attendees,attendee_id,CHAR(26),true,false,false,,Foreign key to Attendee.

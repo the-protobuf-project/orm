@@ -54,14 +54,14 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 		// FKs to the same model must not produce two identically-named fields.
 		used := map[string]bool{}
 		for _, col := range t.Columns {
-			used[naming.PascalGo(col.Name)] = true
+			used[gormFieldName(col)] = true
 		}
 		for _, col := range t.Columns {
 			gt := goType(col)
 			needTime = needTime || strings.Contains(gt, "time.Time")
 			needJSON = needJSON || strings.Contains(gt, "json.RawMessage")
 
-			goField := naming.PascalGo(col.Name)
+			goField := gormFieldName(col)
 			m.Fields = append(m.Fields, fieldView{
 				Comment: col.Comment,
 				Decl:    goField + " " + gt + " `" + structTag(col) + "`",

@@ -145,16 +145,28 @@ func GoPackage(s string) string {
 
 // DatasourceName returns a valid Prisma datasource identifier for the database.
 // The block name is just a label (nothing references it), so the database name
-// is used directly — "bookstore_db" → "bookstore_db". A leading digit, illegal
-// for a Prisma identifier, is prefixed with "db_"; other names pass through.
+// is used directly — "bookstore_db" → "bookstore_db". Characters illegal in a
+// Prisma identifier (anything but letters, digits, and underscore) are replaced
+// with "_", and a name that doesn't start with a letter is prefixed with "db_",
+// so a database like "my-app" or "2fa" still yields a valid block.
 func DatasourceName(dbName string) string {
-	if dbName == "" {
+	var b strings.Builder
+	for _, r := range dbName {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('_')
+		}
+	}
+	name := b.String()
+	if name == "" {
 		return "db"
 	}
-	if c := dbName[0]; c >= '0' && c <= '9' {
-		return "db_" + dbName
+	if c := name[0]; !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+		return "db_" + name
 	}
-	return dbName
+	return name
 }
 
 // EnumValueName strips the enum-name prefix from a proto enum value, per the

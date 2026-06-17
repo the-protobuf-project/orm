@@ -16,6 +16,7 @@ BEGIN;
 CREATE SCHEMA IF NOT EXISTS "oneof_v1";
 
 -- Enum types
+-- Discriminator for the input oneof of Audio.
 DO $$ BEGIN
     CREATE TYPE "oneof_v1"."audio_input_case" AS ENUM ('AUDIO_DATA', 'UPLOAD_PATH', 'LIVE_PIPELINE_FILE_PATH');
 EXCEPTION WHEN duplicate_object THEN null;

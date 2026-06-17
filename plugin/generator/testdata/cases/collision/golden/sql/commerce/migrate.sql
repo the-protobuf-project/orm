@@ -17,10 +17,12 @@ CREATE SCHEMA IF NOT EXISTS "shop_cart_v1";
 CREATE SCHEMA IF NOT EXISTS "shop_order_v1";
 
 -- Enum types
+-- Status enumerates cart payment states.
 DO $$ BEGIN
     CREATE TYPE "shop_cart_v1"."status" AS ENUM ('PENDING', 'PAID');
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;
+-- Status enumerates order fulfillment states.
 DO $$ BEGIN
     CREATE TYPE "shop_order_v1"."status" AS ENUM ('SHIPPED', 'DELIVERED');
 EXCEPTION WHEN duplicate_object THEN null;

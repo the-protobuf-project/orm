@@ -99,6 +99,9 @@ func TestDatasourceName(t *testing.T) {
 	cases := map[string]string{
 		"bookstore_db": "bookstore_db", // valid identifier passes through
 		"2fa":          "db_2fa",       // leading digit is illegal in Prisma → prefixed
+		"my-app":       "my_app",       // hyphen sanitized to underscore
+		"my.app db":    "my_app_db",    // dot and space sanitized
+		"-x":           "db__x",        // leading non-letter after sanitize → prefixed
 		"":             "db",           // empty falls back to a generic label
 	}
 	for in, want := range cases {

@@ -17,6 +17,7 @@ CREATE SCHEMA IF NOT EXISTS "bookstore_v1";
 CREATE SCHEMA IF NOT EXISTS "inventory";
 
 -- Enum types
+-- Genre classifies a book's literary category.
 DO $$ BEGIN
     CREATE TYPE "bookstore_v1"."genre" AS ENUM ('FICTION', 'NON_FICTION', 'SCI_FI', 'FANTASY');
 EXCEPTION WHEN duplicate_object THEN null;
@@ -123,9 +124,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER "trg_authors_updated_at" BEFORE UPDATE ON "bookstore_v1"."authors"
+DROP TRIGGER IF EXISTS "trg_authors_updated_at" ON "bookstore_v1"."authors";
+CREATE TRIGGER "trg_authors_updated_at" BEFORE UPDATE ON "bookstore_v1"."authors"
     FOR EACH ROW EXECUTE FUNCTION "bookstore_v1"."set_updated_at"();
-CREATE OR REPLACE TRIGGER "trg_shelves_updated_at" BEFORE UPDATE ON "inventory"."shelves"
+DROP TRIGGER IF EXISTS "trg_shelves_updated_at" ON "inventory"."shelves";
+CREATE TRIGGER "trg_shelves_updated_at" BEFORE UPDATE ON "inventory"."shelves"
     FOR EACH ROW EXECUTE FUNCTION "inventory"."set_updated_at"();
 
 COMMIT;

@@ -65,7 +65,9 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 			goField := gormFieldName(col)
 			extra := idxTags[col.Name]
 			if col.Enum != nil {
-				extra = append(extra, enumCheck(t.Name, col))
+				if chk := enumCheck(t.Name, col); chk != "" {
+					extra = append(extra, chk)
+				}
 			}
 			m.Fields = append(m.Fields, fieldView{
 				Comment: col.Comment,

@@ -16,6 +16,7 @@ BEGIN;
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- Enum types
+-- State is the account lifecycle state.
 DO $$ BEGIN
     CREATE TYPE "public"."state" AS ENUM ('ACTIVE', 'CLOSED');
 EXCEPTION WHEN duplicate_object THEN null;

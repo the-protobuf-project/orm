@@ -57,7 +57,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER "trg_documents_update_time" BEFORE UPDATE ON "aip_v1"."documents"
+DROP TRIGGER IF EXISTS "trg_documents_update_time" ON "aip_v1"."documents";
+CREATE TRIGGER "trg_documents_update_time" BEFORE UPDATE ON "aip_v1"."documents"
     FOR EACH ROW EXECUTE FUNCTION "aip_v1"."set_update_time"();
 
 COMMIT;

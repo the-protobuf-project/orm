@@ -110,10 +110,11 @@ func enumDDLViews(s *schema.Schema) []enumDDLView {
 // that fires it. COMMENT ON persists every table/column comment into the catalog
 // (the inline -- comments in the DDL file are not stored by PostgreSQL).
 //
-// orReplace emits CREATE OR REPLACE TRIGGER (PostgreSQL 14+) so the consolidated
-// migrate.sql is safe to re-apply; the per-schema reference files pass false for
-// plain, readable CREATE TRIGGER.
-func schemaDDLOf(s *schema.Schema, orReplace bool) schemaDDL {
+// idempotent emits a DROP TRIGGER IF EXISTS before each CREATE TRIGGER so the
+// consolidated migrate.sql is safe to re-apply on every supported PostgreSQL
+// version; the per-schema reference files pass false for a plain, readable
+// CREATE TRIGGER.
+func schemaDDLOf(s *schema.Schema, idempotent bool) schemaDDL {
 	var ddl schemaDDL
 	funcSeen := map[string]bool{}
 	for _, t := range s.Tables {
@@ -123,7 +124,7 @@ func schemaDDLOf(s *schema.Schema, orReplace bool) schemaDDL {
 					funcSeen[c.Name] = true
 					ddl.Functions = append(ddl.Functions, updatedAtFunction(s.Name, c.Name))
 				}
-				ddl.Triggers = append(ddl.Triggers, updatedAtTrigger(s.Name, t.Name, c.Name, orReplace))
+				ddl.Triggers = append(ddl.Triggers, updatedAtTrigger(s.Name, t.Name, c.Name, idempotent))
 			}
 		}
 		ddl.Comments = append(ddl.Comments, tableComments(s.Name, t)...)
@@ -140,16 +141,19 @@ func updatedAtFunction(schemaName, col string) string {
 }
 
 // updatedAtTrigger renders the BEFORE UPDATE trigger wiring a table to its
-// auto-update function. orReplace selects CREATE OR REPLACE TRIGGER (idempotent,
-// PostgreSQL 14+) over plain CREATE TRIGGER.
-func updatedAtTrigger(schemaName, table, col string, orReplace bool) string {
-	verb := "CREATE TRIGGER"
-	if orReplace {
-		verb = "CREATE OR REPLACE TRIGGER"
+// auto-update function. When idempotent, a DROP TRIGGER IF EXISTS precedes the
+// CREATE so the statement re-applies cleanly — and unlike CREATE OR REPLACE
+// TRIGGER (PostgreSQL 14+), this works on every supported PostgreSQL version.
+func updatedAtTrigger(schemaName, table, col string, idempotent bool) string {
+	name := quoteIdent("trg_" + table + "_" + col)
+	tbl := qualified(schemaName, table)
+	create := fmt.Sprintf(
+		"CREATE TRIGGER %s BEFORE UPDATE ON %s\n    FOR EACH ROW EXECUTE FUNCTION %s();",
+		name, tbl, qualified(schemaName, "set_"+col))
+	if idempotent {
+		return fmt.Sprintf("DROP TRIGGER IF EXISTS %s ON %s;\n%s", name, tbl, create)
 	}
-	return fmt.Sprintf(
-		"%s %s BEFORE UPDATE ON %s\n    FOR EACH ROW EXECUTE FUNCTION %s();",
-		verb, quoteIdent("trg_"+table+"_"+col), qualified(schemaName, table), qualified(schemaName, "set_"+col))
+	return create
 }
 
 // tableComments renders COMMENT ON statements for a table and its commented columns.
@@ -214,7 +218,7 @@ func migrateView(db *schema.Database) map[string]any {
 			indexes = append(indexes, indexStmts(s, t, true)...)
 		}
 
-		ddl := schemaDDLOf(s, true) // CREATE OR REPLACE TRIGGER — safe to re-apply
+		ddl := schemaDDLOf(s, true) // DROP + CREATE TRIGGER — re-runnable on every PostgreSQL version
 		functions = append(functions, ddl.Functions...)
 		triggers = append(triggers, ddl.Triggers...)
 		comments = append(comments, ddl.Comments...)
@@ -243,10 +247,12 @@ func migrateView(db *schema.Database) map[string]any {
 // idempotentEnum wraps CREATE TYPE in a DO block that swallows the duplicate
 // error, since PostgreSQL has no CREATE TYPE IF NOT EXISTS. This lets the
 // consolidated migration re-run without failing on an enum that already exists.
+// The leading -- comment carries the enum's documentation, matching the
+// per-schema files.
 func idempotentEnum(e enumDDLView) string {
 	return fmt.Sprintf(
-		"DO $$ BEGIN\n    CREATE TYPE %s AS ENUM (%s);\nEXCEPTION WHEN duplicate_object THEN null;\nEND $$;",
-		e.TypeRef, e.ValueList)
+		"-- %s\nDO $$ BEGIN\n    CREATE TYPE %s AS ENUM (%s);\nEXCEPTION WHEN duplicate_object THEN null;\nEND $$;",
+		e.Comment, e.TypeRef, e.ValueList)
 }
 
 // schemaLabels returns the bare schema names for the migrate.sql banner.

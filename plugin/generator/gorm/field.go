@@ -114,8 +114,13 @@ func indexTagsByColumn(t *schema.Table) map[string][]string {
 // integrity the SQL/Prisma targets get from a native enum type — GORM models an
 // enum as a plain string column, which otherwise accepts any text. The explicit
 // constraint name (before the first comma) keeps GORM from mis-parsing the
-// commas inside the IN list as the name/expression separator.
+// commas inside the IN list as the name/expression separator. Returns "" for an
+// enum with no values (e.g. one declaring only the dropped *_UNSPECIFIED
+// sentinel), which would otherwise produce an invalid `IN ()`.
 func enumCheck(tableName string, col *schema.Column) string {
+	if len(col.Enum.Values) == 0 {
+		return ""
+	}
 	vals := make([]string, len(col.Enum.Values))
 	for i, v := range col.Enum.Values {
 		vals[i] = "'" + v.MapName + "'"

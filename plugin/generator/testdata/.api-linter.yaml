@@ -1,0 +1,15 @@
+# These are generator test fixtures, not API surface. They deliberately violate
+# AIP style rules to exercise the generator's handling of imperfect input — e.g.
+# strict/lint/schema.proto intentionally omits the `name`/IDENTIFIER field, and
+# collision/{cart,order}.proto intentionally reuse the `Status` enum and the
+# `money/{money}` pattern to test name-collision rendering. Their golden outputs
+# are pinned, so "fixing" the lint warnings would break TestGolden/TestStrictMode.
+#
+# The google-api-linter VS Code extension lints every .proto in the workspace and
+# auto-discovers the nearest .api-linter.yaml (walking up from each file). Placing
+# this here disables AIP linting for everything under testdata/ — and only here —
+# while real protos under protobuf/ and examples/proto/ stay linted.
+- included_paths:
+    - '**'
+  disabled_rules:
+    - 'all'

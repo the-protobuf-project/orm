@@ -8,6 +8,7 @@ syntax = "proto3";
 package lintcase.v1;
 
 import "google/api/resource.proto";
+import "protorm/v1/annotations.proto";
 
 option java_multiple_files = true;
 option java_outer_classname = "SchemaProto";
@@ -17,8 +18,6 @@ option (protorm.v1.datasource) = {
   provider: "postgres"
   schema: "public"
 };
-
-import "protorm/v1/annotations.proto";
 
 // Gizmo's resource type host (other.v1) disagrees with the package, and it has
 // no IDENTIFIER field.

@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package orm.v1;
+
+import "google/protobuf/descriptor.proto";
+import "orm/v1/column.proto";
+import "orm/v1/datasource.proto";
+import "orm/v1/table.proto";
+
+option go_package = "github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1";
+option java_multiple_files = true;
+option java_outer_classname = "AnnotationsProto";
+option java_package = "com.orm.v1";
+
+// annotations.proto is the single import an orm schema author needs:
+//
+//	import "orm/v1/annotations.proto";
+//
+// It is self-contained — grouping (datasource), model structure (table names,
+// id/timestamp synthesis), and database rendering (types, sizing, indexes) all
+// live under orm.v1, so a user annotates entirely with orm.v1.* and imports
+// nothing else. Field numbers 50000-99999 are reserved for non-Google options.
+
+extend google.protobuf.FileOptions {
+  // datasource groups the file's messages into a database and names its schema.
+  DatasourceOptions datasource = 50000;
+}
+
+extend google.protobuf.MessageOptions {
+  // table overrides table-level generation: name, id strategy, timestamps, indexes.
+  TableOptions table = 50001;
+}
+
+extend google.protobuf.FieldOptions {
+  // column overrides column-level generation: name, type, sizing, FK actions.
+  ColumnOptions column = 50002;
+}

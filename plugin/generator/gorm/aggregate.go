@@ -9,9 +9,9 @@ package gorm
 import (
 	"strings"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/header"
-	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
+	"github.com/the-protobuf-project/protokit/header"
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
 )
 
 // importView is one per-schema models package the aggregator imports.
@@ -36,7 +36,7 @@ func aggregateView(db *schema.Database) map[string]any {
 				seen[pkg] = true
 				imports = append(imports, importView{
 					Alias: pkg,
-					Path:  db.GoModule + "/" + db.Name + "/" + pkg,
+					Path:  dbGoModule(db) + "/" + db.Name + "/" + pkg,
 				})
 			}
 			models = append(models, pkg+"."+t.LocalName)
@@ -57,7 +57,7 @@ func aggregateView(db *schema.Database) map[string]any {
 		"Imports":     imports,
 		"Models":      models,
 		"Schemas":     schemaNames,
-		"OTel":        db.OTel,
-		"OTelMetrics": db.OTelMetrics,
+		"OTel":        dbOTel(db),
+		"OTelMetrics": dbOTelMetrics(db),
 	}
 }

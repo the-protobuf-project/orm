@@ -11,11 +11,11 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/header"
-	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/plugin/generator/templates"
-	"github.com/the-protobuf-project/protorm/plugin/generator/types"
+	"github.com/the-protobuf-project/orm/plugin/generator/types"
+	"github.com/the-protobuf-project/protokit/header"
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
+	"github.com/the-protobuf-project/protokit/templates"
 )
 
 // schemaFileView prepares the datasource template data for one database.
@@ -82,7 +82,7 @@ func writeScaffold(p *protogen.Plugin, db *schema.Database, provider types.Provi
 	view := scaffoldView(db, provider)
 	for _, sf := range scaffoldFiles {
 		f := p.NewGeneratedFile(db.Name+"/"+sf.name, "")
-		if err := templates.Render(f, sf.tpl, view); err != nil {
+		if err := templates.Render(tmpl, f, sf.tpl, view); err != nil {
 			return fmt.Errorf("prisma: %s/%s: %w", db.Name, sf.name, err)
 		}
 	}

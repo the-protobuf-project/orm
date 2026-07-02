@@ -1,14 +1,14 @@
-# protorm annotations
+# orm annotations
 
-Protobuf custom options that let [**protorm**](https://github.com/the-protobuf-project/protorm)
+Protobuf custom options that let [**orm**](https://github.com/the-protobuf-project/orm)
 turn your service definitions into production database schemas. Annotate your
 messages with the [Google AIP](https://google.aip.dev/) standards you already use
 (`google.api.resource`, `field_behavior`, `resource_reference`); reach for these
-`protorm.v1.*` options only for the ~20% AIP can't express (explicit types,
+`orm.v1.*` options only for the ~20% AIP can't express (explicit types,
 indexes, id strategy, referential actions, …).
 
 This module ships **only the option definitions**. Code generation is done by the
-`protoc-gen-protorm` plugin — see the [main repo](https://github.com/the-protobuf-project/protorm)
+`protoc-gen-orm` plugin — see the [main repo](https://github.com/the-protobuf-project/orm)
 for installing the plugin and generating Prisma / GORM / SQL output.
 
 ---
@@ -21,13 +21,13 @@ Add the module to your `buf.yaml` `deps` (with [buf](https://buf.build)):
 # buf.yaml
 version: v2
 deps:
-  - buf.build/the-protobuf-project/protorm
+  - buf.build/the-protobuf-project/orm
 ```
 
 Run `buf dep update`, then import the single entrypoint in your protos:
 
 ```proto
-import "protorm/v1/annotations.proto";
+import "orm/v1/annotations.proto";
 ```
 
 ---
@@ -40,10 +40,10 @@ package bookstore.v1;
 
 import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
-import "protorm/v1/annotations.proto";
+import "orm/v1/annotations.proto";
 
 // File-level: name the database all messages in this file map to.
-option (protorm.v1.datasource) = {
+option (orm.v1.datasource) = {
   database: "bookstore_db"
   provider: "postgres"
 };
@@ -54,7 +54,7 @@ message Author {
     plural: "authors"
   };
   // Message-level: synthesize a ULID primary key + created_at/updated_at.
-  option (protorm.v1.table) = {id: ID_STRATEGY_ULID, timestamps: true};
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID, timestamps: true};
 
   // IDENTIFIER → the AIP resource name; becomes a UNIQUE lookup column.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
@@ -63,7 +63,7 @@ message Author {
   string display_name = 2 [(google.api.field_behavior) = REQUIRED];
 
   // Field-level: override the default VARCHAR(255) with unbounded TEXT.
-  string bio = 3 [(protorm.v1.column) = {type: "TEXT"}];
+  string bio = 3 [(orm.v1.column) = {type: "TEXT"}];
 }
 ```
 
@@ -71,7 +71,7 @@ message Author {
 
 ## Options reference
 
-### `(protorm.v1.datasource)` — file level
+### `(orm.v1.datasource)` — file level
 
 Configures the database every message in the file maps to. Files that declare the
 same `database` merge into one schema tree.
@@ -83,7 +83,7 @@ same `database` merge into one schema tree.
 | `url` | Connection URL, documented in generated config/DDL. |
 | `provider` | `postgres` (default) or `mongodb`. |
 
-### `(protorm.v1.table)` — message level
+### `(orm.v1.table)` — message level
 
 Overrides table-level generation for a `google.api.resource` message.
 
@@ -95,7 +95,7 @@ Overrides table-level generation for a `google.api.resource` message.
 | `id` | `ID_STRATEGY_ULID` / `ID_STRATEGY_UUID` — synthesize a generated `id` PK and demote the `IDENTIFIER` field to `UNIQUE`. |
 | `timestamps` | Add `created_at` / `updated_at` columns. |
 
-### `(protorm.v1.column)` — field level
+### `(orm.v1.column)` — field level
 
 Overrides column-level generation for a single field.
 
@@ -118,11 +118,11 @@ Overrides column-level generation for a single field.
 
 ## Versioning
 
-The package is `protorm.v1`. Option field numbers live in the `50000`–`99999`
+The package is `orm.v1`. Option field numbers live in the `50000`–`99999`
 range reserved for non-Google custom options. See the
-[main repository](https://github.com/the-protobuf-project/protorm) for the full
+[main repository](https://github.com/the-protobuf-project/orm) for the full
 option surface, defaults applied automatically, and the type-mapping table.
 
 ## License
 
-[Apache License 2.0](https://github.com/the-protobuf-project/protorm/blob/main/LICENSE).
+[Apache License 2.0](https://github.com/the-protobuf-project/orm/blob/main/LICENSE).

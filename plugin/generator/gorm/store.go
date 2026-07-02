@@ -17,15 +17,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/header"
-	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
+	"github.com/the-protobuf-project/protokit/header"
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
 )
 
 // gormxImportPath is the import path of the shared gormx runtime package, emitted
 // at <go_module>/gormx. Stores import its ListOptions and Store interface.
 func gormxImportPath(db *schema.Database) string {
-	return db.GoModule + "/gormx"
+	return dbGoModule(db) + "/gormx"
 }
 
 // finderView is one typed finder method: GetBy<Col> for a unique column or
@@ -84,7 +84,7 @@ func storeModelView(db *schema.Database, s *schema.Schema, pkg string, t *schema
 	}
 	// A column made unique via a single-column unique index gets a finder too —
 	// table-level uniqueness is as good a lookup key as column.unique (e.g. a
-	// `code` column declared in protorm.v1.table.indexes). Deduped against the
+	// `code` column declared in orm.v1.table.indexes). Deduped against the
 	// column.unique finders above; the PK is covered by GetByID.
 	for _, idx := range t.Indexes {
 		if !idx.Unique || len(idx.Columns) != 1 {
@@ -119,7 +119,7 @@ func storeModelView(db *schema.Database, s *schema.Schema, pkg string, t *schema
 		"PKColumn":  t.PKColumn,
 		"PKArgType": pkArgType,
 		// The generic gormx.Store fixes id as a string, so only string-PK stores
-		// (protorm's ULID/UUID default) can assert they satisfy it.
+		// (orm's ULID/UUID default) can assert they satisfy it.
 		"AssertStore":   hasPK && pkArgType == "string",
 		"UniqueFinders": unique,
 		"FKFinders":     fks,

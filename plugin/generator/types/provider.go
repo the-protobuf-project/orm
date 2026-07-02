@@ -1,21 +1,22 @@
-// Package types is the single home for every type table protorm uses:
-// proto → PostgreSQL inference, and the canonical-PostgreSQL → Go / Prisma /
-// MongoDB-Prisma projections each backend renders.
-//
-// The IR always stores the canonical PostgreSQL type. Backends project it:
-//
-//	proto field ──infer──▶ canonical PG type ──project──▶ Go | Prisma | Mongo
 package types
+
+// provider.go is orm's datasource-provider model: the backend a datasource
+// targets and the Prisma-specific projections of it. protokit carries its own
+// generic Provider for grouping/validation during the build; orm keeps its own
+// here so its type package is self-contained (the two never cross — the IR passes
+// the provider as a plain string on schema.Database.Provider).
 
 import "fmt"
 
 // Provider identifies the database backend a datasource targets.
-// Parsed from (protorm.v1.datasource).provider.
 type Provider string
 
 const (
 	Postgres Provider = "postgres"
 	MongoDB  Provider = "mongodb"
+	// EVM marks a datasource whose backend is an EVM chain rather than a SQL
+	// database; the relational targets reject it.
+	EVM Provider = "evm"
 )
 
 // ParseProvider normalizes a datasource provider string. Empty means Postgres.
@@ -25,8 +26,10 @@ func ParseProvider(s string) (Provider, error) {
 		return Postgres, nil
 	case "mongodb", "mongo":
 		return MongoDB, nil
+	case "evm", "ethereum":
+		return EVM, nil
 	default:
-		return "", fmt.Errorf("unknown datasource provider %q (want postgres or mongodb)", s)
+		return "", fmt.Errorf("unknown datasource provider %q (want postgres, mongodb, or evm)", s)
 	}
 }
 

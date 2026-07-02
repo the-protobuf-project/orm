@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/header"
-	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/plugin/generator/types"
+	"github.com/the-protobuf-project/orm/plugin/generator/types"
+	"github.com/the-protobuf-project/protokit/header"
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
 )
 
 type fieldLine struct{ Doc, Decl string }

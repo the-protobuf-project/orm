@@ -1,4 +1,4 @@
-// Package sql generates PostgreSQL DDL from the protorm IR.
+// Package sql generates PostgreSQL DDL from the orm IR.
 //
 // Output layout — one file per schema, mirroring the prisma fragment tree:
 //
@@ -14,10 +14,10 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/docs"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/plugin/generator/templates"
-	"github.com/the-protobuf-project/protorm/plugin/generator/types"
+	"github.com/the-protobuf-project/orm/plugin/generator/types"
+	"github.com/the-protobuf-project/protokit/docs"
+	"github.com/the-protobuf-project/protokit/schema"
+	"github.com/the-protobuf-project/protokit/templates"
 )
 
 // Generator implements schema.Target for PostgreSQL DDL output.
@@ -30,13 +30,13 @@ func (g *Generator) Name() string { return "sql" }
 // migrate.sql into the plugin response.
 func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 	for _, db := range dbs {
-		if types.Provider(db.Provider) == types.MongoDB {
-			return fmt.Errorf("sql: database %q uses provider mongodb — the sql target only supports postgres", db.Name)
+		if types.Provider(db.Provider) != types.Postgres {
+			return fmt.Errorf("sql: database %q uses provider %q — the sql target only supports postgres", db.Name, db.Provider)
 		}
 		for _, s := range db.Schemas {
 			path := fmt.Sprintf("%s/%s.postgres.sql", db.Name, s.Name)
 			f := p.NewGeneratedFile(path, "")
-			if err := templates.Render(f, "schema.sql.tpl", schemaView(db, s)); err != nil {
+			if err := templates.Render(tmpl, f, "schema.sql.tpl", schemaView(db, s)); err != nil {
 				return fmt.Errorf("sql: %s: %w", path, err)
 			}
 		}
@@ -44,7 +44,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 		// in one transaction (foreign keys deferred to ALTER statements).
 		migratePath := db.Name + "/migrate.sql"
 		mf := p.NewGeneratedFile(migratePath, "")
-		if err := templates.Render(mf, "migrate.sql.tpl", migrateView(db)); err != nil {
+		if err := templates.Render(tmpl, mf, "migrate.sql.tpl", migrateView(db)); err != nil {
 			return fmt.Errorf("sql: %s: %w", migratePath, err)
 		}
 		rf := p.NewGeneratedFile(db.Name+"/README.md", "")
@@ -57,6 +57,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 				"Auto-update triggers keep updated-at columns current; COMMENT ON persists field docs to the catalog.",
 			},
 			Naming: docs.Local(db),
+			TypeOf: types.SQLForColumn,
 		})
 		if _, err := rf.Write([]byte(md)); err != nil {
 			return fmt.Errorf("sql: %s/README.md: %w", db.Name, err)

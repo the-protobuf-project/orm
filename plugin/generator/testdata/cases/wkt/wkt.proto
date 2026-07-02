@@ -11,12 +11,12 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
-import "protorm/v1/annotations.proto";
+import "orm/v1/annotations.proto";
 
 option java_multiple_files = true;
 option java_outer_classname = "WktProto";
 option java_package = "com.wkt.v1";
-option (protorm.v1.datasource) = {
+option (orm.v1.datasource) = {
   database: "wkt_db"
   schema: "kitchen"
 };

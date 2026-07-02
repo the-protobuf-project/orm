@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/header"
-	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
+	"github.com/the-protobuf-project/protokit/header"
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
 )
 
 type fieldView struct{ Comment, Decl string }
@@ -87,7 +87,7 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 						"\" json:\"" + strings.ToLower(assoc) + ",omitempty\"`",
 				})
 			} else if tgt := tableByModel(col.FKModel); col.FKModel != "" && tgt != nil &&
-				tgt.ValueObject && db.GoModule != "" && emitCrossAssoc(s.Name, tgt.PgSchema, voEdges) {
+				tgt.ValueObject && dbGoModule(db) != "" && emitCrossAssoc(s.Name, tgt.PgSchema, voEdges) {
 				// Cross-schema belongs-to to a value object: a leaf table, so importing
 				// its package can't form a cycle. Emitting the association lets the
 				// generic engine Preload it instead of hydrating Money/Address by hand.
@@ -98,7 +98,7 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 						" `gorm:\"foreignKey:" + goField + constraintTag(t, col.Name) +
 						"\" json:\"" + strings.ToLower(assoc) + ",omitempty\"`",
 				})
-				assocImports[db.GoModule+"/"+db.Name+"/"+tgtPkg] = true
+				assocImports[dbGoModule(db)+"/"+db.Name+"/"+tgtPkg] = true
 			}
 		}
 		// HasMany back-references (e.g. Author.Books []Book). Same-schema only:

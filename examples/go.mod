@@ -1,10 +1,10 @@
-module github.com/the-protobuf-project/protorm/examples
+module github.com/the-protobuf-project/orm/examples
 
 go 1.26.4
 
-// replace points at the repo root so go.work resolves the local protorm module
+// replace points at the repo root so go.work resolves the local orm module
 // without publishing it to the registry first.
-replace github.com/the-protobuf-project/protorm => ../
+replace github.com/the-protobuf-project/orm => ../
 
 require (
 	gorm.io/gorm v1.31.2

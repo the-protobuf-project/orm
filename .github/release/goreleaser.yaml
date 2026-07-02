@@ -1,5 +1,5 @@
 version: 2
-project_name: protoc-gen-protorm
+project_name: protoc-gen-orm
 
 before:
   hooks:
@@ -7,9 +7,9 @@ before:
     - go test ./...
 
 builds:
-  - id: protoc-gen-protorm
-    binary: protoc-gen-protorm
-    main: ./plugin/cmd/protoc-gen-protorm
+  - id: protoc-gen-orm
+    binary: protoc-gen-orm
+    main: ./plugin/cmd/protoc-gen-orm
     env:
       - CGO_ENABLED=0
     goos:
@@ -20,10 +20,10 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+      - -s -w -X main.version={{.Version}}
 
 archives:
-  - id: protoc-gen-protorm-archive
+  - id: protoc-gen-orm-archive
     formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_
@@ -70,61 +70,61 @@ changelog:
 # Homebrew cask, generated and committed to the tap on each release. The url +
 # sha256 for every platform are filled in automatically from the archives below,
 # so there is no checksum to hand-maintain (this is what makes the removed,
-# hand-written Formula/protoc-gen-protorm.rb redundant).
+# hand-written Formula/protoc-gen-orm.rb redundant).
 homebrew_casks:
-  - name: protoc-gen-protorm
+  - name: protoc-gen-orm
     repository:
       owner: the-protobuf-project
       name: homebrew-tap
       token: '{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}'
     directory: Casks
-    homepage: 'https://github.com/the-protobuf-project/protorm'
+    homepage: 'https://github.com/the-protobuf-project/orm'
     description: 'Protoc plugin generating Prisma, GORM & SQL schemas from Protobuf + AIP annotations'
     ids:
-      - protoc-gen-protorm-archive
+      - protoc-gen-orm-archive
     binaries:
-      - protoc-gen-protorm
+      - protoc-gen-orm
     url:
-      verified: 'github.com/the-protobuf-project/protorm/'
+      verified: 'github.com/the-protobuf-project/orm/'
     hooks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/protoc-gen-protorm"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/protoc-gen-orm"]
           end
 
 release:
   github:
     owner: the-protobuf-project
-    name: protorm
+    name: orm
   draft: false
   prerelease: auto
   name_template: 'v{{.Version}}'
   header: |
     ## What's New in v{{.Version}}
 
-    `protoc-gen-protorm` generates Prisma, GORM, and SQL database schemas
+    `protoc-gen-orm` generates Prisma, GORM, and SQL database schemas
     from your Protobuf definitions. Download the binary for your platform below.
 
     ### Installation
 
     #### Homebrew
     ```bash
-    brew install the-protobuf-project/tap/protoc-gen-protorm
+    brew install the-protobuf-project/tap/protoc-gen-orm
     ```
 
     #### Manual (macOS / Linux)
     ```bash
     # Pick your platform, e.g. darwin_arm64 / linux_amd64
-    curl -LO https://github.com/the-protobuf-project/protorm/releases/download/v{{.Version}}/protoc-gen-protorm_{{.Version}}_darwin_arm64.tar.gz
-    tar -xzf protoc-gen-protorm_{{.Version}}_darwin_arm64.tar.gz
-    sudo mv protoc-gen-protorm /usr/local/bin/
+    curl -LO https://github.com/the-protobuf-project/orm/releases/download/v{{.Version}}/protoc-gen-orm_{{.Version}}_darwin_arm64.tar.gz
+    tar -xzf protoc-gen-orm_{{.Version}}_darwin_arm64.tar.gz
+    sudo mv protoc-gen-orm /usr/local/bin/
     ```
 
     Then reference it from `buf.gen.yaml`:
     ```yaml
     plugins:
-      - local: protoc-gen-protorm
+      - local: protoc-gen-orm
         out: generated
         opt: [target=prisma]   # prisma | gorm | sql
     ```

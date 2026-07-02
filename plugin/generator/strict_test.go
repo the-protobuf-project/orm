@@ -1,16 +1,21 @@
-package generator
+package generator_test
 
 // Strict-mode tests: schema problems that are recoverable warnings by default
 // (codegen proceeds with a fallback) must become hard errors under Options.Strict.
 // Fixtures live under testdata/strict/ (not testdata/cases/, so TestGolden
 // ignores them) and are compiled with the same in-process harness as the golden
-// tests.
+// tests. Driven through the sql database target.
 
 import (
 	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/compiler/protogen"
+
+	"github.com/the-protobuf-project/orm/plugin/generator"
+	"github.com/the-protobuf-project/orm/plugin/generator/backend"
+	core "github.com/the-protobuf-project/protokit"
+	"github.com/the-protobuf-project/protokit/golden"
 )
 
 func TestStrictMode(t *testing.T) {
@@ -54,10 +59,10 @@ func TestStrictMode(t *testing.T) {
 // strict spec, returning the generation error (if any).
 func generateStrict(t *testing.T, dir, strict string) error {
 	t.Helper()
-	req := buildRequest(t, dir)
+	req := golden.BuildRequest(t, dir)
 	p, err := protogen.Options{}.New(req)
 	if err != nil {
 		t.Fatalf("protogen: %v", err)
 	}
-	return Generate(p, Options{Target: "sql", Strict: strict})
+	return core.Run(p, core.Options{Target: "sql", Strict: strict}, generator.Targets(), backend.Backend{})
 }

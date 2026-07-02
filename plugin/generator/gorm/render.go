@@ -14,14 +14,14 @@ import (
 	"go/format"
 	"io"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/templates"
+	"github.com/the-protobuf-project/protokit/templates"
 )
 
 // renderGo executes the named template into w, gofmt-formatting the rendered Go
 // first. Use it for every .go output; non-Go files (README.md) use templates.Render.
 func renderGo(w io.Writer, name string, data any) error {
 	var buf bytes.Buffer
-	if err := templates.Render(&buf, name, data); err != nil {
+	if err := templates.Render(tmpl, &buf, name, data); err != nil {
 		return err
 	}
 	formatted, err := format.Source(buf.Bytes())

@@ -1,14 +1,14 @@
 version: v2
 
 # This buf.yaml defines a two-module workspace:
-#   protobuf/       — the publishable BSR module (buf.build/the-protobuf-project/protorm)
+#   protobuf/       — the publishable BSR module (buf.build/the-protobuf-project/orm)
 #   examples/proto/ — sample annotated protos that consume the options
 modules:
   - path: protobuf
-    name: buf.build/the-protobuf-project/protorm
+    name: buf.build/the-protobuf-project/orm
 
   - path: examples/proto
-    # examples/proto can import protorm options and googleapis because they
+    # examples/proto can import orm options and googleapis because they
     # share this workspace; no separate buf dep update needed during development.
 
 deps:
@@ -18,7 +18,7 @@ lint:
   use:
     - STANDARD
   except:
-    - PACKAGE_VERSION_SUFFIX # protorm.v1 is intentionally version-suffixed
+    - PACKAGE_VERSION_SUFFIX # orm.v1 is intentionally version-suffixed
 
 breaking:
   use:

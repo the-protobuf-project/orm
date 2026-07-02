@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/header"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
+	"github.com/the-protobuf-project/orm/plugin/generator/types"
+	"github.com/the-protobuf-project/protokit/header"
+	"github.com/the-protobuf-project/protokit/schema"
 )
 
 // quoteIdent wraps a SQL identifier in double quotes (doubling any embedded
@@ -312,7 +313,7 @@ func indexStmts(s *schema.Schema, t *schema.Table, ifNotExists bool) []string {
 // colDef renders a single column definition fragment.
 // Enum columns use the schema-qualified type created by CREATE TYPE.
 func colDef(s *schema.Schema, col *schema.Column) string {
-	sqlType := col.SQLType
+	sqlType := types.SQLForColumn(col)
 	if col.Enum != nil {
 		sqlType = qualified(s.Name, col.Enum.LocalSQLName)
 	}

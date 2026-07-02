@@ -1,6 +1,6 @@
 package gorm
 
-// imports.go renders Go import statements for the generated files. protorm does
+// imports.go renders Go import statements for the generated files. orm does
 // not run goimports over its output, so the backend emits already-grouped,
 // already-sorted import blocks: a stdlib group and a third-party group separated
 // by a blank line, matching the hand-written convention.

@@ -14,10 +14,10 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/docs"
-	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/plugin/generator/types"
+	"github.com/the-protobuf-project/orm/plugin/generator/types"
+	"github.com/the-protobuf-project/protokit/docs"
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
 )
 
 // Generator implements schema.Target for GORM Go struct output.
@@ -34,12 +34,12 @@ const gormxPkg = "gormx"
 func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 	gormxEmitted := false // the shared runtime is emitted once for the whole tree
 	for _, db := range dbs {
-		if types.Provider(db.Provider) == types.MongoDB {
-			return fmt.Errorf("gorm: database %q uses provider mongodb — the gorm target only supports postgres", db.Name)
+		if types.Provider(db.Provider) != types.Postgres {
+			return fmt.Errorf("gorm: database %q uses provider %q — the gorm target only supports postgres", db.Name, db.Provider)
 		}
 		// The stores share one gormx runtime package, imported by its full path, so
 		// store generation now needs the go_module opt just like the aggregator.
-		if db.Stores && db.GoModule == "" {
+		if dbStores(db) && dbGoModule(db) == "" {
 			return fmt.Errorf("gorm: database %q has the stores opt set but no go_module opt; "+
 				"the generated stores import the shared %q runtime package by its import path, "+
 				"so set go_module to the import path of the gorm output directory", db.Name, gormxPkg)
@@ -53,7 +53,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			// Opt-in: a typed CRUD store per resource, one file per model, sharing
 			// the models package. Skip empty schemas so the shared runtime is only
 			// emitted once a store actually uses it.
-			if db.Stores && len(s.Tables) > 0 {
+			if dbStores(db) && len(s.Tables) > 0 {
 				if !gormxEmitted {
 					gf := p.NewGeneratedFile(fmt.Sprintf("%s/%s.go", gormxPkg, gormxPkg), "")
 					if err := renderGo(gf, "gormx.go.tpl", gormxView(db)); err != nil {
@@ -72,7 +72,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 		// The migration aggregator imports each per-schema package by its full Go
 		// import path, so it can only be generated when go_module gives us the
 		// output tree's base import path.
-		if db.GoModule != "" {
+		if dbGoModule(db) != "" {
 			mf := p.NewGeneratedFile(fmt.Sprintf("%s/migrate.go", db.Name), "")
 			if err := renderGo(mf, "migrate.go.tpl", aggregateView(db)); err != nil {
 				return fmt.Errorf("gorm: %s/migrate.go: %w", db.Name, err)
@@ -95,13 +95,13 @@ func writeReadme(p *protogen.Plugin, db *schema.Database) error {
 		"Nullable columns are pointer types; proto enums become string-typed Go enums.",
 		"Attach in main: `Default.EnsureSchemas(db)` then `Default.Migrate(db)`, or wire the structs into a `*gorm.DB` and run AutoMigrate yourself.",
 	}
-	if db.Stores {
+	if dbStores(db) {
 		outputs = append(outputs,
 			"`<schema>/<model>_store.go` — a typed CRUD store per resource (Create, GetByID, List, Count, Update, DeleteByID, plus GetBy/ListBy finders for unique and foreign-key columns); emitted when the `stores` opt is set (which also requires `go_module`). Requires `gorm.io/gorm`.",
 			"`gormx/gormx.go` — the shared runtime every store imports: `ListOptions`, the generic `Store[M]` interface every store satisfies, a `GenericStore[M]` engine that runs CRUD for any model with no per-entity code, and `EnsureSchemas`. Lets one generic engine drive every entity.",
 		)
 	}
-	if db.OTel {
+	if dbOTel(db) {
 		outputs = append(outputs,
 			"`Registry.Instrument(db)` in `migrate.go` — installs the OpenTelemetry GORM tracing plugin; on by default (set the `otel` opt false to omit), emitted with `go_module`. Requires `gorm.io/plugin/opentelemetry`.",
 		)
@@ -111,6 +111,7 @@ func writeReadme(p *protogen.Plugin, db *schema.Database) error {
 		Tagline: "Go structs with GORM struct tags — one package per schema.",
 		Outputs: outputs,
 		Naming:  docs.Local(db),
+		TypeOf:  types.SQLForColumn,
 	})
 	if _, err := rf.Write([]byte(md)); err != nil {
 		return fmt.Errorf("gorm: %s/README.md: %w", db.Name, err)

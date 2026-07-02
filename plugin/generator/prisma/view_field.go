@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/plugin/generator/types"
+	"github.com/the-protobuf-project/orm/plugin/generator/types"
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
 )
 
 // uniqueName returns base, or base with the smallest numeric suffix that is not
@@ -43,7 +43,7 @@ func fieldDecl(col *schema.Column, provider types.Provider, dsName string) strin
 	if col.Enum != nil {
 		typeName = col.Enum.Name
 	} else {
-		typeName = types.PrismaTypeFor(provider, col.SQLType)
+		typeName = types.PrismaTypeFor(provider, types.SQLForColumn(col))
 	}
 	b.WriteString(typeName)
 	// A Prisma list is implicitly empty-not-null: an optional list (`Type[]?`)
@@ -73,7 +73,7 @@ func fieldDecl(col *schema.Column, provider types.Provider, dsName string) strin
 	// GORM/SQL column (DateTime → timestamp(3) without zone). The attribute is
 	// namespaced by the datasource block name. Mongo has no native-type attributes.
 	if provider == types.Postgres {
-		if nt := types.PrismaNativeType(col.SQLType); nt != "" {
+		if nt := types.PrismaNativeType(types.SQLForColumn(col)); nt != "" {
 			b.WriteString(" @" + dsName + "." + nt)
 		}
 	}

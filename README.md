@@ -1,14 +1,14 @@
-# protorm
+# ORM
 
 > **Protobuf → Database** — generate production-grade Prisma, GORM, and PostgreSQL
 > schemas directly from the [Google AIP](https://google.aip.dev/) annotations you
 > already use. One source of truth, three backends that always agree.
 
-[![Release](https://img.shields.io/github/v/release/the-protobuf-project/protorm?sort=semver&logo=github)](https://github.com/the-protobuf-project/protorm/releases)
-[![Go Reference](https://pkg.go.dev/badge/github.com/the-protobuf-project/protorm.svg)](https://pkg.go.dev/github.com/the-protobuf-project/protorm)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/the-protobuf-project/protorm?logo=go)](go.mod)
-[![Buf BSR](https://img.shields.io/badge/BSR-the--protobuf--project%2Fprotorm-0B7FFF?logo=buffer)](https://buf.build/the-protobuf-project/protorm)
-[![CI](https://github.com/the-protobuf-project/protorm/actions/workflows/test.yaml/badge.svg)](https://github.com/the-protobuf-project/protorm/actions/workflows/test.yaml)
+[![Release](https://img.shields.io/github/v/release/the-protobuf-project/orm?sort=semver&logo=github)](https://github.com/the-protobuf-project/orm/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/the-protobuf-project/orm.svg)](https://pkg.go.dev/github.com/the-protobuf-project/orm)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/the-protobuf-project/orm?logo=go)](go.mod)
+[![Buf BSR](https://img.shields.io/badge/BSR-the--protobuf--project%2Form-0B7FFF?logo=buffer)](https://buf.build/the-protobuf-project/orm)
+[![CI](https://github.com/the-protobuf-project/orm/actions/workflows/test.yaml/badge.svg)](https://github.com/the-protobuf-project/orm/actions/workflows/test.yaml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 ## Contents
@@ -21,7 +21,7 @@
 - [Quick start](#quick-start)
 - [Output layout](#output-layout)
 - [Annotations reference](#annotations-reference)
-- [Configuration — `protorm.yaml`](#configuration--protormyaml)
+- [Configuration — `orm.yaml`](#configuration--ormyaml)
 - [Plugin options](#plugin-options)
 - [Defaults applied automatically](#defaults-applied-automatically)
 - [Determinism & migrations](#determinism--migrations)
@@ -33,12 +33,12 @@
 
 ## Overview
 
-**protorm** is a [protoc](https://protobuf.dev/) plugin (`protoc-gen-protorm`) that
+**orm** is a [protoc](https://protobuf.dev/) plugin (`protoc-gen-orm`) that
 turns Protobuf service definitions into database schemas. Annotate your messages
 with the [Google AIP](https://google.aip.dev/) standards you already use
-(`google.api.resource`, `field_behavior`, `resource_reference`) and protorm infers
+(`google.api.resource`, `field_behavior`, `resource_reference`) and orm infers
 tables, columns, primary keys, foreign keys, and relations — then emits them for
-three backends from one source of truth.
+three database backends from one source of truth.
 
 | Target | Output | Notes |
 | --- | --- | --- |
@@ -53,16 +53,19 @@ Postgres and MongoDB providers are both supported.
 ## Features
 
 - **AIP-native.** ~80% of the schema is read straight from standard AIP
-  annotations; only the remaining ~20% needs `protorm.v1.*` options.
+  annotations; only the remaining ~20% needs `orm.v1.*` options.
 - **Three backends, one IR.** A single intermediate representation renders to
-  Prisma, GORM, and SQL — so all three outputs always agree.
+  Prisma, GORM, and SQL — so every output always agrees. The IR engine
+  ([protokit](https://github.com/the-protobuf-project/protokit)) is a shared,
+  generic library, so a sibling plugin ([web3](https://github.com/the-protobuf-project/web3))
+  adds a blockchain backend from the same model without touching your protos.
 - **Production defaults.** ULID surrogate keys, auto-managed timestamps,
   FK indexing, soft-delete markers, and enum hygiene — all overridable.
 - **Idempotent SQL.** The consolidated `migrate.sql` is transactional and guarded
   (`IF NOT EXISTS`, `CREATE OR REPLACE`, deferred FK `ALTER`s) — safe to re-apply.
 - **Relational nesting.** Nested and imported value messages become real child
   tables (PK + FK), never opaque `JSONB` blobs — your structure stays queryable.
-- **Monorepo layout.** An optional [`protorm.yaml`](#configuration--protormyaml)
+- **Monorepo layout.** An optional [`orm.yaml`](#configuration--ormyaml)
   maps proto packages to databases and schemas without per-file annotations.
 - **Deterministic.** Re-running on unchanged protos produces byte-identical
   output (enforced by golden tests), so regenerate → `migrate diff` is a no-op.
@@ -76,12 +79,12 @@ flowchart LR
         direction TB
         P[".proto files"]
         A["AIP annotations<br/>google.api.resource<br/>field_behavior<br/>resource_reference"]
-        O["protorm.v1.* options<br/>(the ~20% AIP can't express)"]
-        C["protorm.yaml<br/>(optional layout config)"]
+        O["orm.v1.* options<br/>(the ~20% AIP can't express)"]
+        C["orm.yaml<br/>(optional layout config)"]
     end
 
-    Source --> G["protoc-gen-protorm<br/>plugin"]
-    G --> IR[("Intermediate<br/>Representation")]
+    Source --> G["protoc-gen-orm<br/>plugin"]
+    G --> IR[("Intermediate<br/>Representation<br/>(protokit)")]
 
     IR --> PR["prisma<br/>Prisma 7 project"]
     IR --> GO["gorm<br/>Go structs + registry"]
@@ -92,13 +95,16 @@ flowchart LR
     SQL --> DB
 ```
 
-protorm builds everything into one IR, then each target renders it independently.
+orm builds everything into one IR, then each target renders it independently.
 Files that declare the **same datasource name merge into one database**, so a
-multi-file proto package becomes a single schema tree.
+multi-file proto package becomes a single schema tree. The IR itself is built by
+[protokit](https://github.com/the-protobuf-project/protokit), a generic engine, so
+the blockchain plugin ([web3](https://github.com/the-protobuf-project/web3))
+renders from the exact same model.
 
 ## How it works
 
-Every annotation maps to a concrete piece of schema. protorm collects them all
+Every annotation maps to a concrete piece of schema. orm collects them all
 into the IR, applies its [production defaults](#defaults-applied-automatically),
 then hands the IR to the selected renderer.
 
@@ -109,7 +115,7 @@ flowchart TD
     REQ["field_behavior = REQUIRED"] -->|"NOT NULL<br/>(nullable otherwise → pointer/? types)"| T
     REF["resource_reference<br/>on a field"] -->|"FOREIGN KEY → resolved to referenced PK"| T
     SC["proto scalar / well-known type"] -->|"SQL column type"| T
-    O["protorm.v1.* options"] -->|"overrides + extras<br/>(types, indexes, id strategy, FK actions)"| T
+    O["orm.v1.* options"] -->|"overrides + extras<br/>(types, indexes, id strategy, FK actions)"| T
 
     T --> IR[("IR")]
     IR --> RENDER{{"target renderer"}}
@@ -130,14 +136,14 @@ flowchart TD
 
 ```bash
 # Homebrew (macOS / Linux)
-brew install the-protobuf-project/tap/protoc-gen-protorm
+brew install the-protobuf-project/tap/protoc-gen-orm
 
 # or go install
-go install github.com/the-protobuf-project/protorm/plugin/cmd/protoc-gen-protorm@latest
+go install github.com/the-protobuf-project/orm/plugin/cmd/protoc-gen-orm@latest
 ```
 
 Releases ship prebuilt binaries for **linux / darwin / windows** on **amd64 / arm64**
-on the [Releases page](https://github.com/the-protobuf-project/protorm/releases).
+on the [Releases page](https://github.com/the-protobuf-project/orm/releases).
 The plugin must be on your `PATH` so `protoc`/`buf` can find it.
 
 You'll also need the option definitions on your import path. With
@@ -145,10 +151,10 @@ You'll also need the option definitions on your import path. With
 
 ```yaml
 deps:
-  - buf.build/the-protobuf-project/protorm
+  - buf.build/the-protobuf-project/orm
 ```
 
-then `import "protorm/v1/annotations.proto";` in your protos.
+then `import "orm/v1/annotations.proto";` in your protos.
 
 ## Quick start
 
@@ -160,9 +166,9 @@ package bookstore.v1;
 
 import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
-import "protorm/v1/annotations.proto";
+import "orm/v1/annotations.proto";
 
-option (protorm.v1.datasource) = {
+option (orm.v1.datasource) = {
   database: "bookstore_db"
   provider: "postgres"
 };
@@ -175,7 +181,7 @@ message Author {
     plural: "authors"
   };
   // Use a generated ULID primary key + created_at/updated_at columns.
-  option (protorm.v1.table) = { id: ID_STRATEGY_ULID, timestamps: true };
+  option (orm.v1.table) = { id: ID_STRATEGY_ULID, timestamps: true };
 
   // IDENTIFIER → the AIP resource name; becomes a UNIQUE lookup column.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
@@ -184,7 +190,7 @@ message Author {
   string display_name = 2 [(google.api.field_behavior) = REQUIRED];
 
   // Override the default for a free-form column.
-  string bio = 3 [(protorm.v1.column) = { type: "TEXT" }];
+  string bio = 3 [(orm.v1.column) = { type: "TEXT" }];
 }
 ```
 
@@ -193,7 +199,7 @@ message Author {
 ```yaml
 version: v2
 plugins:
-  - local: protoc-gen-protorm
+  - local: protoc-gen-orm
     out: generated/prisma
     opt: [target=prisma]   # prisma | gorm | sql
 ```
@@ -205,7 +211,7 @@ buf generate
 ```
 
 > [!NOTE]
-> protorm doesn't generate Go message stubs, so protoc/buf needs a Go import
+> orm doesn't generate Go message stubs, so protoc/buf needs a Go import
 > path for each file. If your protos don't set `option go_package`, supply it
 > per file in `opt:` with an `M` mapping, e.g.
 > `Mbookstore/v1/bookstore.proto=example.com/gen/bookstore/v1`.
@@ -359,7 +365,7 @@ bookstoredb.Default.Instrument(db, tracing.WithAttributes(attribute.String("svc"
 
 It needs `go_module` (the helper lives in the aggregator) and adds the
 `gorm.io/plugin/opentelemetry` dependency. Set `otel=false` to omit it, or tune
-the generated default — including spans-only via [`protorm.yaml` `otel:`](#top-level-keys).
+the generated default — including spans-only via [`orm.yaml` `otel:`](#top-level-keys).
 
 The **sql** target emits one transactional `migrate.sql` you can apply in a
 single shot — foreign keys are deferred to `ALTER` statements (so creation order
@@ -373,9 +379,9 @@ psql "$BOOKSTORE_DB_DATABASE_URL" -f generated/sql/bookstore_db/migrate.sql
 
 ## Annotations reference
 
-All options live in `protorm/v1/annotations.proto`.
+All options live in `orm/v1/annotations.proto`.
 
-### `(protorm.v1.datasource)` — file level
+### `(orm.v1.datasource)` — file level
 
 | Field | Description |
 | --- | --- |
@@ -384,7 +390,7 @@ All options live in `protorm/v1/annotations.proto`.
 | `url` | Connection URL (documented in config/DDL; Prisma reads it from `.env`). |
 | `provider` | `postgres` (default) or `mongodb`. |
 
-### `(protorm.v1.table)` — message level
+### `(orm.v1.table)` — message level
 
 | Field | Description |
 | --- | --- |
@@ -394,7 +400,7 @@ All options live in `protorm/v1/annotations.proto`.
 | `id` | `ID_STRATEGY_ULID` / `ID_STRATEGY_UUID` — synthesize a generated `id` PK and demote the `IDENTIFIER` field to `UNIQUE`. |
 | `timestamps` | Add `created_at` / `updated_at` (`@updatedAt` / GORM `autoUpdateTime`). |
 
-### `(protorm.v1.column)` — field level
+### `(orm.v1.column)` — field level
 
 | Field | Description |
 | --- | --- |
@@ -407,9 +413,9 @@ All options live in `protorm/v1/annotations.proto`.
 | `skip` | Field exists in the proto contract but not the database. |
 | `on_delete` / `on_update` | FK referential action (`CASCADE`, `SET_NULL`, …) for a `resource_reference` field. |
 
-## Configuration — `protorm.yaml`
+## Configuration — `orm.yaml`
 
-`protorm.yaml` is the **layout config**: it maps proto packages to databases and
+`orm.yaml` is the **layout config**: it maps proto packages to databases and
 schemas *without* per-file annotations — the way to split a multi-service monorepo
 into the intended database boundaries from one central file. It's entirely
 optional; without it, every package falls back to the [package-path
@@ -420,11 +426,11 @@ Pass it with the `config` plugin option:
 ```yaml
 # buf.gen.yaml
 plugins:
-  - local: protoc-gen-protorm
+  - local: protoc-gen-orm
     out: generated/sql
     opt:
       - target=sql
-      - config=protorm.yaml   # path to your layout config
+      - config=orm.yaml   # path to your layout config
 ```
 
 ### Anatomy
@@ -458,7 +464,7 @@ datasources:
 | Key | Type | Description |
 | --- | --- | --- |
 | `datasources` | list | Ordered list of [match rules](#datasource-rules). The **first** rule whose `match` matches a package wins. |
-| `strip_version` | bool | Drop a trailing API version from derived schema names — `bookstore.v1` → schema `bookstore` instead of `bookstore_v1`. Applies to resource-type-derived and config-derived schema names, **never** to an explicit `(protorm.v1.datasource).schema` annotation. A per-rule `strip_version` overrides this default. |
+| `strip_version` | bool | Drop a trailing API version from derived schema names — `bookstore.v1` → schema `bookstore` instead of `bookstore_v1`. Applies to resource-type-derived and config-derived schema names, **never** to an explicit `(orm.v1.datasource).schema` annotation. A per-rule `strip_version` overrides this default. |
 | `dedupe_schema_table` | bool | Rename a table whose name would stutter with its schema in a schema-qualified identifier (`booking` schema + `bookings` table → `bookingBookings` in tools that join schema+table, e.g. Hasura). The redundant leading schema word is stripped; for the schema's primary table — where stripping leaves nothing — the table is renamed to a generic word (`resource`, then `entity`, …). Only the generated table name changes; proto/model names are untouched. |
 | `otel` | map | **gorm only.** Tune the OpenTelemetry tracing helper folded into the migration registry (see the [`otel` plugin opt](#plugin-options)). `enabled` (bool) overrides the opt's master switch — set `false` to omit `Instrument` even when the opt defaults it on. `metrics` (bool, default `true`) — set `false` to emit spans only, baking `tracing.WithoutMetrics()` into the generated default. |
 
@@ -487,11 +493,11 @@ wins:
 
 ```mermaid
 flowchart LR
-    A["(protorm.v1.datasource)<br/>per-file annotation"] -->|wins over| B["protorm.yaml<br/>matched rule"]
+    A["(orm.v1.datasource)<br/>per-file annotation"] -->|wins over| B["orm.yaml<br/>matched rule"]
     B -->|wins over| C["package-path<br/>default"]
 ```
 
-So you can set sane monorepo-wide defaults in `protorm.yaml` and still override a
+So you can set sane monorepo-wide defaults in `orm.yaml` and still override a
 single file inline when it needs to live somewhere unusual.
 
 ### Worked examples
@@ -518,7 +524,7 @@ datasources:
 ```
 
 **Merge two packages into one database** (their same-named models then collide,
-which protorm resolves per-target — see [Determinism & migrations](#determinism--migrations)):
+which orm resolves per-target — see [Determinism & migrations](#determinism--migrations)):
 
 ```yaml
 datasources:
@@ -537,26 +543,26 @@ Passed via `opt:` in `buf.gen.yaml`.
 | `target` | Output backend: `prisma` \| `gorm` \| `sql`. Required. |
 | `go_module` | **gorm only.** Go import path of the output directory (e.g. `github.com/me/gen`). Enables the `migrate.go` factory registry, whose package imports each per-schema models package. Omit it and the per-schema model packages still generate, just without the aggregator. |
 | `stores` | **gorm only.** Also emit a typed CRUD store per resource — one `<model>_store.go` file each (see [GORM stores](#gorm-stores-and-tracing)). Off by default; turning it on adds a `gorm.io/gorm` dependency to each models package. |
-| `otel` | **gorm only.** Fold an OpenTelemetry tracing helper (`Registry.Instrument`) into the migration registry. **On by default**; takes effect with `go_module`, and adds the `gorm.io/plugin/opentelemetry` dependency. Set `otel=false` to omit it, or tune it via `protorm.yaml` `otel:`. |
+| `otel` | **gorm only.** Fold an OpenTelemetry tracing helper (`Registry.Instrument`) into the migration registry. **On by default**; takes effect with `go_module`, and adds the `gorm.io/plugin/opentelemetry` dependency. Set `otel=false` to omit it, or tune it via `orm.yaml` `otel:`. |
 | `strict` | Per-rule severity for schema problems. `""` (default) warns on everything; `true` makes every rule a hard error; a spec like `ref:error,collision:warn,index:error,lint:warn` sets severity per rule. Rules: **ref** (unresolved/dropped references), **collision** (global name qualification), **index** (index names an unknown column), **lint** (validate-on-generate advisories). |
-| `config` | Path to a [`protorm.yaml`](#configuration--protormyaml) layout config. |
+| `config` | Path to a [`orm.yaml`](#configuration--ormyaml) layout config. |
 | `M<proto>=<import>` | Go import-path mapping for a proto file, required when protos omit `option go_package`. |
 
 ## Defaults applied automatically
 
-protorm bakes in the conventions a hand-written production schema uses, so the
+orm bakes in the conventions a hand-written production schema uses, so the
 common case needs **no annotations**. Each is overridable.
 
 | Default | Behavior | Override |
 | --- | --- | --- |
-| Surrogate keys | Every resource gets a ULID `id` primary key; the AIP `name` becomes `@unique`. | `(protorm.v1.table).id` |
+| Surrogate keys | Every resource gets a ULID `id` primary key; the AIP `name` becomes `@unique`. | `(orm.v1.table).id` |
 | AIP system fields | `create_time`/`update_time` → auto-managed `NOT NULL` timestamps; `delete_time` → nullable indexed soft-delete marker; `uid` → `UNIQUE`. (AIP-148/164) | rename the field |
 | Parent materialization | Each parent segment of the AIP resource `pattern` (`users/{user}/…`) becomes a FK column (`user_id` → `User`) with `onDelete: Cascade`. | declare the field explicitly |
 | FK indexing | Every foreign-key column gets a single-column `@@index` (Postgres does not auto-index FKs). | already indexed columns are skipped |
-| Enum hygiene | The AIP `*_UNSPECIFIED = 0` sentinel is dropped; a required enum column defaults to its first value. | `(protorm.v1.column).default_value` |
+| Enum hygiene | The AIP `*_UNSPECIFIED = 0` sentinel is dropped; a required enum column defaults to its first value. | `(orm.v1.column).default_value` |
 | `oneof` integrity | A `oneof` adds a `<oneof>_case` discriminator enum recording which member is set. | — |
 | Soft FK | A `resource_reference` to a model outside the generation set is kept as an indexed scalar column with a `TODO` note, not dropped. | provide the referenced resource |
-| Relationalized nesting | Every message-typed field becomes its own child table with a primary key + foreign key — never an opaque `JSONB` blob — so the structure stays queryable. This covers user-defined nested messages **and** imported value types (`google.type.Money`, `PostalAddress`, a third-party proto), read straight from the descriptor set protoc already supplies — no source or network fetch. Required links cascade on delete, optional links null. (`map` fields and the freeform `google.protobuf` wrappers — `Struct`, `Any`, `Value`, `ListValue`, `Empty` — stay `JSONB`; well-known scalar types like `Timestamp` stay single columns.) | `(protorm.v1.column).on_delete` |
+| Relationalized nesting | Every message-typed field becomes its own child table with a primary key + foreign key — never an opaque `JSONB` blob — so the structure stays queryable. This covers user-defined nested messages **and** imported value types (`google.type.Money`, `PostalAddress`, a third-party proto), read straight from the descriptor set protoc already supplies — no source or network fetch. Required links cascade on delete, optional links null. (`map` fields and the freeform `google.protobuf` wrappers — `Struct`, `Any`, `Value`, `ListValue`, `Empty` — stay `JSONB`; well-known scalar types like `Timestamp` stay single columns.) | `(orm.v1.column).on_delete` |
 
 ## Determinism & migrations
 
@@ -572,8 +578,8 @@ flow: regenerate, review the diff, then `migrate diff` / `migrate dev`.
 
 ## Type mapping
 
-The IR stores a canonical PostgreSQL type, which each backend projects to its
-own type system. Highlights:
+The IR stores a **neutral, target-agnostic** type per column; orm projects it onto
+a canonical PostgreSQL type, then onto each backend's own type system. Highlights:
 
 | Proto | PostgreSQL | Prisma | Go |
 | --- | --- | --- | --- |
@@ -586,6 +592,7 @@ own type system. Highlights:
 | `enum` | a `CREATE TYPE` enum | `enum` | typed string consts + `CHECK` constraint |
 | `Timestamp` | `TIMESTAMPTZ` | `DateTime` | `time.Time` |
 | `Duration` | `INTERVAL` | `String` | `string` |
+| `double` / `float` | `DOUBLE PRECISION` / `REAL` | `Float` | `float64` / `float32` |
 | `map` / freeform msg (`Struct`, `Any`) | `JSONB` | `Json` | `json.RawMessage` |
 | nested / imported value msg | child table (PK + FK) | relation | relation struct |
 | `repeated` scalar | `T[]` | `T[]` | `[]T` |
@@ -600,7 +607,7 @@ Nullable columns become pointer (`*T`) / optional (`T?`) types.
 ## Examples
 
 The [`examples/`](examples/) directory is a complete, generated demo — a
-`bookstore` domain rendered to all three targets:
+`bookstore` domain rendered to orm's three database targets:
 
 ```text
 examples/proto/bookstore/v1/   # annotated source protos
@@ -618,9 +625,9 @@ buf generate --template buf.gen.example.yaml
 ## Building from source
 
 ```bash
-git clone https://github.com/the-protobuf-project/protorm
-cd protorm
-go build ./plugin/cmd/protoc-gen-protorm   # the plugin binary
+git clone https://github.com/the-protobuf-project/orm
+cd orm
+go build ./plugin/cmd/protoc-gen-orm   # the plugin binary
 go test ./...                              # golden + unit tests
 buf lint                                   # proto linting
 ```
@@ -633,11 +640,11 @@ buf lint                                   # proto linting
 - **Versioning** follows semantic version tags. While the project is in early
   development (`v0.x`), minor releases may include breaking changes to the API or
   generated output — pin an exact tag in CI and review migration diffs.
-- The **annotation module** is published to the [Buf Schema Registry](https://buf.build/the-protobuf-project/protorm)
-  under `protorm.v1`; option field numbers live in the `50000`–`99999` range
+- The **annotation module** is published to the [Buf Schema Registry](https://buf.build/the-protobuf-project/orm)
+  under `orm.v1`; option field numbers live in the `50000`–`99999` range
   reserved for non-Google custom options.
 
-See the [Releases page](https://github.com/the-protobuf-project/protorm/releases)
+See the [Releases page](https://github.com/the-protobuf-project/orm/releases)
 for binaries and changelogs, and [`SECUIRTY.MD`](SECUIRTY.MD) for the security policy.
 
 ## License

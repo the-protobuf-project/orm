@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/naming"
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/plugin/generator/types"
+	"github.com/the-protobuf-project/orm/plugin/generator/types"
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
 )
 
 // gormFieldName is the Go struct field name for a column. Foreign-key columns
@@ -29,7 +29,7 @@ func goType(col *schema.Column) string {
 	if col.Enum != nil {
 		base = col.Enum.LocalName // package-namespaced: bare enum type name
 	} else {
-		base = types.GormGoType(col.SQLType)
+		base = types.GormGoType(types.SQLForColumn(col))
 	}
 	if col.Optional && !strings.HasPrefix(base, "[]") && base != "json.RawMessage" && !strings.HasPrefix(base, "pq.") {
 		return "*" + base
@@ -47,7 +47,7 @@ func structTag(col *schema.Column, extra []string) string {
 	// Pin the DB type when GORM's Go-type default disagrees with the canonical
 	// column type (timestamptz, jsonb, native arrays) so AutoMigrate produces the
 	// same column the Prisma/SQL targets do.
-	if ct := types.GormColumnType(col.SQLType); ct != "" {
+	if ct := types.GormColumnType(types.SQLForColumn(col)); ct != "" {
 		gormParts = append(gormParts, "type:"+ct)
 	}
 	if col.PrimaryKey {
@@ -93,7 +93,7 @@ func structTag(col *schema.Column, extra []string) string {
 
 // indexTagsByColumn maps each column to the GORM index struct-tag fragments for
 // the table-level indexes it participates in (composite indexes from
-// protorm.v1.table.indexes and the synthesized single-column FK indexes). A
+// orm.v1.table.indexes and the synthesized single-column FK indexes). A
 // multi-column index carries a per-column priority so GORM preserves column
 // order; a single-column index needs none. The index name matches the SQL
 // target's (assigned in the build's nameIndexes pass), so both backends create

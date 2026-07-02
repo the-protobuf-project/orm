@@ -1,4 +1,4 @@
-// Package prisma generates a multi-file Prisma schema tree from the protorm IR,
+// Package prisma generates a multi-file Prisma schema tree from the orm IR,
 // replicating the hand-written layout this repository uses:
 //
 //	<db>/schema.prisma                       — datasource + generator blocks
@@ -15,9 +15,9 @@ import (
 
 	"google.golang.org/protobuf/compiler/protogen"
 
-	"github.com/the-protobuf-project/protorm/plugin/generator/schema"
-	"github.com/the-protobuf-project/protorm/plugin/generator/templates"
-	"github.com/the-protobuf-project/protorm/plugin/generator/types"
+	"github.com/the-protobuf-project/orm/plugin/generator/types"
+	"github.com/the-protobuf-project/protokit/schema"
+	"github.com/the-protobuf-project/protokit/templates"
 )
 
 // Generator implements schema.Target for Prisma schema output.
@@ -30,15 +30,18 @@ func (g *Generator) Name() string { return "prisma" }
 func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 	for _, db := range dbs {
 		provider := types.Provider(db.Provider)
+		if provider == types.EVM {
+			return fmt.Errorf("prisma: database %q uses provider evm — the prisma target supports postgres or mongodb", db.Name)
+		}
 
 		f := p.NewGeneratedFile(db.Name+"/schema.prisma", "")
-		if err := templates.Render(f, "schema.prisma.tpl", schemaFileView(db, provider)); err != nil {
+		if err := templates.Render(tmpl, f, "schema.prisma.tpl", schemaFileView(db, provider)); err != nil {
 			return fmt.Errorf("prisma: %s: %w", db.Name, err)
 		}
 
 		// Prisma 7: the connection URL lives in <db>.config.ts, not the schema file.
 		cf := p.NewGeneratedFile(db.Name+"/"+db.Name+".config.ts", "")
-		if err := templates.Render(cf, "config.ts.tpl", configView(db)); err != nil {
+		if err := templates.Render(tmpl, cf, "config.ts.tpl", configView(db)); err != nil {
 			return fmt.Errorf("prisma: %s config: %w", db.Name, err)
 		}
 
@@ -56,7 +59,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			dir := fragmentDir(db.Name, g.sourceDir, g.fileBase)
 			path := fmt.Sprintf("%s/%s.%s.prisma", dir, g.fileBase, provider.FragmentExt())
 			ff := p.NewGeneratedFile(path, "")
-			if err := templates.Render(ff, "fragment.prisma.tpl", fragmentView(db, g, provider)); err != nil {
+			if err := templates.Render(tmpl, ff, "fragment.prisma.tpl", fragmentView(db, g, provider)); err != nil {
 				return fmt.Errorf("prisma: %s: %w", path, err)
 			}
 		}

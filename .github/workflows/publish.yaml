@@ -26,15 +26,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # Full history + tags so the pushed label carries correct git metadata.
+          # Full history + tags so --git-metadata carries the correct release info.
           fetch-depth: 0
 
-      - name: Push to BSR
-        uses: bufbuild/buf-action@v1
+      - name: Install buf
+        uses: bufbuild/buf-setup-action@v1
         with:
-          token: ${{ secrets.BUF_TOKEN }}
-          # Lint, format, and breaking-change checks live in lint.yaml; this
-          # workflow's sole job is to publish, so disable the rest.
-          lint: false
-          format: false
-          breaking: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to BSR
+        env:
+          # buf authenticates to buf.build from BUF_TOKEN.
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+        # This is a two-module workspace (see buf.yaml): the publishable `protobuf`
+        # module is named, while `examples/proto` is a local-only workspace module
+        # with no BSR name. A bare `buf push` errors on the unnamed module, so
+        # --exclude-unnamed pushes only the named module. --create makes the first
+        # release auto-create the (public) BSR repository; --git-metadata stamps the tag.
+        run: buf push --exclude-unnamed --create --create-visibility public --git-metadata

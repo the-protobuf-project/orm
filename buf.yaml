@@ -2,7 +2,11 @@ version: v2
 
 # This buf.yaml defines a two-module workspace:
 #   protobuf/       — the publishable BSR module (buf.build/the-protobuf-project/orm)
-#   examples/proto/ — sample annotated protos that consume the options
+#   examples/proto/ — sample annotated protos that consume the options (local only)
+#
+# Only protobuf/ has a BSR name, so publish it with:
+#   buf push --exclude-unnamed
+# A bare `buf push` errors on the unnamed examples/proto module.
 modules:
   - path: protobuf
     name: buf.build/the-protobuf-project/orm

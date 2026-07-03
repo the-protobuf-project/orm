@@ -17,7 +17,7 @@
 package v1
 
 import (
-	aipv1 "example.com/test/gen/v1/aipv1"
+	"example.com/test/gen/v1/aipv1"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

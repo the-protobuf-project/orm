@@ -17,8 +17,8 @@
 package shopdb
 
 import (
-	ordering "example.com/test/gen/shop_db/ordering"
-	promo "example.com/test/gen/shop_db/promo"
+	"example.com/test/gen/shop_db/ordering"
+	"example.com/test/gen/shop_db/promo"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

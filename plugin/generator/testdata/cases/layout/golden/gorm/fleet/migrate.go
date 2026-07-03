@@ -17,7 +17,7 @@
 package fleet
 
 import (
-	fleettrackingdevice "example.com/test/gen/fleet/fleettrackingdevice"
+	"example.com/test/gen/fleet/fleettrackingdevice"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

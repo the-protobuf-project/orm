@@ -17,9 +17,9 @@
 package freebusydb
 
 import (
-	billing "example.com/test/gen/freebusy_db/billing"
-	common "example.com/test/gen/freebusy_db/common"
-	promocode "example.com/test/gen/freebusy_db/promocode"
+	"example.com/test/gen/freebusy_db/billing"
+	"example.com/test/gen/freebusy_db/common"
+	"example.com/test/gen/freebusy_db/promocode"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

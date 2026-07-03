@@ -17,7 +17,7 @@
 package wktdb
 
 import (
-	kitchen "example.com/test/gen/wkt_db/kitchen"
+	"example.com/test/gen/wkt_db/kitchen"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

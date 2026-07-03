@@ -14,8 +14,21 @@ import (
 	"github.com/the-protobuf-project/protokit/schema"
 )
 
-// importView is one per-schema models package the aggregator imports.
+// importView is one per-schema models package the aggregator imports. Alias is
+// empty in the common case: an import whose package name already matches its path's
+// final segment needs no alias, and an explicit alias equal to the package name is
+// redundant (gofmt/goimports would strip it).
 type importView struct{ Alias, Path string }
+
+// importAlias returns the alias an import to path (whose package is named pkg)
+// needs, or "" when pkg already matches path's final segment — the usual case, so
+// the generated import stays a clean, unaliased path.
+func importAlias(pkg, path string) string {
+	if pkg == path[strings.LastIndex(path, "/")+1:] {
+		return ""
+	}
+	return pkg
+}
 
 // aggregateView assembles the migrate.go template data: the package name, the
 // per-schema imports, and the fully-qualified model expressions (pkg.Model) the
@@ -34,9 +47,10 @@ func aggregateView(db *schema.Database) map[string]any {
 			// no tables never leaves an unused import in the generated file.
 			if !seen[pkg] {
 				seen[pkg] = true
+				path := dbGoModule(db) + "/" + db.Name + "/" + pkg
 				imports = append(imports, importView{
-					Alias: pkg,
-					Path:  dbGoModule(db) + "/" + db.Name + "/" + pkg,
+					Alias: importAlias(pkg, path),
+					Path:  path,
 				})
 			}
 			models = append(models, pkg+"."+t.LocalName)

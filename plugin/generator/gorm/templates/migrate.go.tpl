@@ -8,7 +8,7 @@ package {{.Package}}
 
 import (
 {{- range .Imports}}
-	{{.Alias}} "{{.Path}}"
+	{{if .Alias}}{{.Alias}} {{end}}"{{.Path}}"
 {{- end}}
 
 	"gorm.io/gorm"

@@ -17,8 +17,8 @@
 package bookstoredb
 
 import (
-	bookstorev1 "github.com/the-protobuf-project/orm/examples/generated/gorm/bookstore_db/bookstorev1"
-	inventory "github.com/the-protobuf-project/orm/examples/generated/gorm/bookstore_db/inventory"
+	"github.com/the-protobuf-project/orm/examples/generated/gorm/bookstore_db/bookstorev1"
+	"github.com/the-protobuf-project/orm/examples/generated/gorm/bookstore_db/inventory"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

@@ -17,7 +17,7 @@
 package billingdb
 
 import (
-	acmebilling "example.com/test/gen/billing_db/acmebilling"
+	"example.com/test/gen/billing_db/acmebilling"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

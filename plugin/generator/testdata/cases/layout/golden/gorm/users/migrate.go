@@ -17,7 +17,7 @@
 package users
 
 import (
-	calendarapp "example.com/test/gen/users/calendarapp"
+	"example.com/test/gen/users/calendarapp"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

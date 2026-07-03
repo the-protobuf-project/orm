@@ -17,7 +17,7 @@
 package v1
 
 import (
-	embeddedv1 "example.com/test/gen/v1/embeddedv1"
+	"example.com/test/gen/v1/embeddedv1"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

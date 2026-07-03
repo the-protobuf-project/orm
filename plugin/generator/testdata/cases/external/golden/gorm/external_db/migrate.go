@@ -17,7 +17,7 @@
 package externaldb
 
 import (
-	externalv1 "example.com/test/gen/external_db/externalv1"
+	"example.com/test/gen/external_db/externalv1"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

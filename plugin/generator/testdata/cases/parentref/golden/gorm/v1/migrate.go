@@ -17,7 +17,7 @@
 package v1
 
 import (
-	parentrefv1 "example.com/test/gen/v1/parentrefv1"
+	"example.com/test/gen/v1/parentrefv1"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

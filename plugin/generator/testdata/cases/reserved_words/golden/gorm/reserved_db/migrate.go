@@ -17,7 +17,7 @@
 package reserveddb
 
 import (
-	public "example.com/test/gen/reserved_db/public"
+	"example.com/test/gen/reserved_db/public"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

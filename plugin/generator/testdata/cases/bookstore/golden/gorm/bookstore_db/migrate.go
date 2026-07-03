@@ -17,8 +17,8 @@
 package bookstoredb
 
 import (
-	bookstorev1 "example.com/test/gen/bookstore_db/bookstorev1"
-	inventory "example.com/test/gen/bookstore_db/inventory"
+	"example.com/test/gen/bookstore_db/bookstorev1"
+	"example.com/test/gen/bookstore_db/inventory"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

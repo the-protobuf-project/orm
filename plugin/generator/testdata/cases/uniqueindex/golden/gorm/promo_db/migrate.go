@@ -17,7 +17,7 @@
 package promodb
 
 import (
-	promo "example.com/test/gen/promo_db/promo"
+	"example.com/test/gen/promo_db/promo"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

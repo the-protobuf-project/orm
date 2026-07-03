@@ -17,8 +17,8 @@
 package commerce
 
 import (
-	shopcartv1 "example.com/test/gen/commerce/shopcartv1"
-	shoporderv1 "example.com/test/gen/commerce/shoporderv1"
+	"example.com/test/gen/commerce/shopcartv1"
+	"example.com/test/gen/commerce/shoporderv1"
 
 	"gorm.io/gorm"
 	"gorm.io/plugin/opentelemetry/tracing"

@@ -25,13 +25,7 @@ message Gadget {
     singular: "gadget"
     plural: "gadgets"
   };
-  option (orm.v1.table) = {
-    indexes: [
-      {
-        columns: ["nonexistent_column"]
-      }
-    ]
-  };
+  option (orm.v1.table) = {indexes: [{columns: ["nonexistent_column"]}]};
 
   // name: IDENTIFIER → PRIMARY KEY.
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];

@@ -33,6 +33,7 @@ const gormxPkg = "gormx"
 // Generate writes one Go package per schema into the plugin response.
 func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 	gormxEmitted := false // the shared runtime is emitted once for the whole tree
+	var pbIdx *pbIndex    // built lazily: only the converters emitter needs it
 	for _, db := range dbs {
 		if types.Provider(db.Provider) != types.Postgres {
 			return fmt.Errorf("gorm: database %q uses provider %q — the gorm target only supports postgres", db.Name, db.Provider)
@@ -49,6 +50,23 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			f := p.NewGeneratedFile(fmt.Sprintf("%s/%s/models.go", db.Name, pkg), "")
 			if err := renderGo(f, "models.go.tpl", packageView(db, s, pkg)); err != nil {
 				return fmt.Errorf("gorm: %s/%s: %w", db.Name, pkg, err)
+			}
+			// Opt-in: proto↔model converters, one protobuf.go per schema package.
+			// Skipped when no table in the schema maps back to a proto message.
+			if dbConverters(db) && len(s.Tables) > 0 {
+				if pbIdx == nil {
+					pbIdx = newPbIndex(p)
+				}
+				view, err := convertView(pbIdx, db, s, pkg)
+				if err != nil {
+					return fmt.Errorf("gorm: %s/%s/protobuf.go: %w", db.Name, pkg, err)
+				}
+				if view != nil {
+					cf := p.NewGeneratedFile(fmt.Sprintf("%s/%s/protobuf.go", db.Name, pkg), "")
+					if err := renderGo(cf, "protobuf.go.tpl", view); err != nil {
+						return fmt.Errorf("gorm: %s/%s/protobuf.go: %w", db.Name, pkg, err)
+					}
+				}
 			}
 			// Opt-in: a typed CRUD store per resource, one file per model, sharing
 			// the models package. Skip empty schemas so the shared runtime is only

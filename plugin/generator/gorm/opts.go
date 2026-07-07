@@ -14,6 +14,9 @@ func dbGoModule(db *schema.Database) string { return db.Opt("go_module") }
 // dbStores reports whether to emit a typed CRUD store per resource.
 func dbStores(db *schema.Database) bool { return db.Opt("stores") == "true" }
 
+// dbConverters reports whether to emit proto↔model converters per schema.
+func dbConverters(db *schema.Database) bool { return db.Opt("converters") == "true" }
+
 // dbOTel reports whether to fold the OpenTelemetry tracing helper into the
 // migration Registry.
 func dbOTel(db *schema.Database) bool { return db.Opt("otel") == "true" }

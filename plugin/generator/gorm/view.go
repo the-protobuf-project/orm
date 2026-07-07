@@ -35,15 +35,6 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 	// models (FK / has-many targets) carry the globally-qualified ModelName,
 	// which loc translates back to the local name they're declared under.
 	loc := localNameFunc(db)
-	// inThisSchema reports whether a model is declared in the schema being
-	// rendered. Same-package targets get a direct association field. A cross-schema
-	// target would need importing another package, which risks an import cycle, so
-	// it is normally omitted — except a value object (a leaf table nothing points
-	// back through), which is safe to import so the generic engine can Preload it
-	// (see the cross-schema branch below). The scalar FK column is always kept.
-	inThisSchema := modelSchemaSet(db, s.Name)
-	tableByModel := tableByModelFunc(db)
-	voEdges := crossSchemaVOEdges(db)
 	assocImports := map[string]bool{} // cross-schema value-object packages to import
 
 	for _, t := range s.Tables {
@@ -52,11 +43,16 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 			Name:      t.LocalName,
 			TableName: s.Name + "." + t.Name,
 		}
-		// Reserve scalar Go field names so association fields stay unique — two
-		// FKs to the same model must not produce two identically-named fields.
-		used := map[string]bool{}
-		for _, col := range t.Columns {
-			used[gormFieldName(col)] = true
+		// Association fields come from the shared plan (see assoc.go): same-schema
+		// belongs-to and has-many targets get a direct field; a cross-schema target
+		// would need importing another package, which risks an import cycle, so it
+		// is omitted — except a value object (a leaf table nothing points back
+		// through), which is safe to import so the generic engine can Preload it.
+		// The scalar FK column is always kept.
+		bts, hms := assocPlan(db, s, t)
+		btByCol := map[*schema.Column]belongsTo{}
+		for _, bt := range bts {
+			btByCol[bt.Col] = bt
 		}
 		idxTags := indexTagsByColumn(t)
 		for _, col := range t.Columns {
@@ -79,40 +75,27 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 			// BelongsTo association: emitted alongside the FK column. The field is
 			// named after the FK column (minus _id) so multiple references to the
 			// same model stay distinct; GORM resolves the link via foreignKey.
-			if col.FKModel != "" && inThisSchema(col.FKModel) {
-				assoc := uniqueGoName(naming.PascalGo(naming.StripIDSuffix(col.Name)), used)
+			if bt, ok := btByCol[col]; ok {
+				typ := loc(col.FKModel)
+				if bt.CrossPkg != "" {
+					typ = bt.CrossPkg + "." + bt.Target.LocalName
+					assocImports[dbGoModule(db)+"/"+db.Name+"/"+bt.CrossPkg] = true
+				}
 				m.Fields = append(m.Fields, fieldView{
-					Decl: assoc + " *" + loc(col.FKModel) +
+					Decl: bt.Field + " *" + typ +
 						" `gorm:\"foreignKey:" + goField + constraintTag(t, col.Name) +
-						"\" json:\"" + strings.ToLower(assoc) + ",omitempty\"`",
+						"\" json:\"" + strings.ToLower(bt.Field) + ",omitempty\"`",
 				})
-			} else if tgt := tableByModel(col.FKModel); col.FKModel != "" && tgt != nil &&
-				tgt.ValueObject && dbGoModule(db) != "" && emitCrossAssoc(s.Name, tgt.PgSchema, voEdges) {
-				// Cross-schema belongs-to to a value object: a leaf table, so importing
-				// its package can't form a cycle. Emitting the association lets the
-				// generic engine Preload it instead of hydrating Money/Address by hand.
-				tgtPkg := naming.GoPackage(tgt.PgSchema)
-				assoc := uniqueGoName(naming.PascalGo(naming.StripIDSuffix(col.Name)), used)
-				m.Fields = append(m.Fields, fieldView{
-					Decl: assoc + " *" + tgtPkg + "." + tgt.LocalName +
-						" `gorm:\"foreignKey:" + goField + constraintTag(t, col.Name) +
-						"\" json:\"" + strings.ToLower(assoc) + ",omitempty\"`",
-				})
-				assocImports[dbGoModule(db)+"/"+db.Name+"/"+tgtPkg] = true
 			}
 		}
 		// HasMany back-references (e.g. Author.Books []Book). Same-schema only:
-		// the child type lives in another package otherwise (see inThisSchema).
-		for _, hm := range t.HasMany {
-			if !inThisSchema(hm.Model) {
-				continue
-			}
-			field := uniqueGoName(naming.PascalGo(hm.Field), used)
-			childModel := loc(hm.Model)
+		// the child type lives in another package otherwise (see assocPlan).
+		for _, hm := range hms {
+			childModel := loc(hm.Ref.Model)
 			m.Fields = append(m.Fields, fieldView{
-				Comment: "Back-relation: " + childModel + " records that reference this via " + hm.ViaFK + ".",
-				Decl: field + " []" + childModel +
-					" `gorm:\"foreignKey:" + naming.PascalGo(hm.ViaFK) + "\" json:\"" + strings.ToLower(field) + ",omitempty\"`",
+				Comment: "Back-relation: " + childModel + " records that reference this via " + hm.Ref.ViaFK + ".",
+				Decl: hm.Field + " []" + childModel +
+					" `gorm:\"foreignKey:" + naming.PascalGo(hm.Ref.ViaFK) + "\" json:\"" + strings.ToLower(hm.Field) + ",omitempty\"`",
 			})
 		}
 		models = append(models, m)

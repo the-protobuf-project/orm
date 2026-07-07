@@ -27,10 +27,10 @@ import (
 var defaultTargets = []string{"gorm", "prisma", "sql"}
 
 // ormBackend builds the orm Backend for one golden case: it reads any orm.yaml
-// the case ships (grouping/otel config) and its optional "stores" marker, and
-// mirrors the binary's opt defaults (go_module set so the gorm aggregator is
-// emitted, otel on). protokit's harness stays generator-neutral — all of this
-// generator-specific knowledge lives here, not in RunCase.
+// the case ships (grouping/otel config) and its optional "stores"/"converters"
+// markers, and mirrors the binary's opt defaults (go_module set so the gorm
+// aggregator is emitted, otel on). protokit's harness stays generator-neutral —
+// all of this generator-specific knowledge lives here, not in RunCase.
 func ormBackend(dir string) schema.Backend {
 	var cfg *backend.Config
 	if path := filepath.Join(dir, "orm.yaml"); fileExists(path) {
@@ -41,7 +41,8 @@ func ormBackend(dir string) schema.Backend {
 		cfg = c
 	}
 	stores := fileExists(filepath.Join(dir, "stores"))
-	return backend.New(cfg, "example.com/test/gen", stores, true)
+	converters := fileExists(filepath.Join(dir, "converters"))
+	return backend.New(cfg, "example.com/test/gen", stores, true, converters)
 }
 
 func fileExists(path string) bool {

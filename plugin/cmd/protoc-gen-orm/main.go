@@ -93,6 +93,10 @@ func main() {
 	stores := flags.Bool("stores", false,
 		"gorm target only: also generate a typed CRUD store per resource "+
 			"(introduces a gorm.io/gorm dependency in each models package)")
+	converters := flags.Bool("converters", false,
+		"gorm target only: also generate proto↔model converters per schema "+
+			"(<Model>ToProto / <Model>FromProto plus per-enum value mappers; introduces "+
+			"a dependency on the generated proto packages)")
 	otel := flags.Bool("otel", true,
 		"gorm target only: fold an OpenTelemetry tracing helper into the migration "+
 			"Registry (Instrument); on by default, takes effect with go_module. "+
@@ -112,6 +116,6 @@ func main() {
 			Target:  *target,
 			Strict:  *strict,
 			Version: v,
-		}, generator.Targets(), backend.New(cfg, *goModule, *stores, *otel))
+		}, generator.Targets(), backend.New(cfg, *goModule, *stores, *otel, *converters))
 	})
 }

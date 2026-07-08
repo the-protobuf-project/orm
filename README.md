@@ -42,8 +42,8 @@ three database backends from one source of truth.
 
 | Target | Output | Notes |
 | --- | --- | --- |
-| **prisma** | A complete, runnable Prisma 7 project | multi-file schema, `package.json`, `tsconfig.json`, config, `.env.example` |
-| **gorm** | Go structs with GORM tags + a migration registry | one package per schema, pointer types for nullables, relation fields, a `migrate.go` factory `Registry`; optional [per-resource CRUD stores and OpenTelemetry tracing](#gorm-stores-and-tracing) |
+| **prisma** | A complete, runnable Prisma 7 project | multi-file schema, `package.json`, `tsconfig.json`, config, a pre-filled `.env` + `.env.example` |
+| **gorm** | Go structs with GORM tags + a migration registry | one package per schema, pointer types for nullables, relation fields, a `migrate.go` factory `Registry`; optional [per-resource CRUD stores and OpenTelemetry tracing](#gorm-stores-and-tracing), [AIP-160 filter / AIP-132 order_by list engines for **SQL and Hasura GraphQL**](#aip-160-filters-and-list-engines-sql--hasura), and [proto ↔ model converters](#proto--model-converters) |
 | **sql** | PostgreSQL DDL | per-schema reference files **and** a single transactional, **idempotent** `migrate.sql` (safe to re-apply); FK constraints, indexes, `updated_at` triggers, `COMMENT ON` |
 
 Every target also emits a `README.md` with a Mermaid ER diagram and a per-model
@@ -61,6 +61,12 @@ Postgres and MongoDB providers are both supported.
   adds a blockchain backend from the same model without touching your protos.
 - **Production defaults.** ULID surrogate keys, auto-managed timestamps,
   FK indexing, soft-delete markers, and enum hygiene — all overridable.
+- **List queries built in — SQL and Hasura.** Opt-in [AIP-160](https://google.aip.dev/160)
+  `filter` / [AIP-132](https://google.aip.dev/132) `order_by` engines: generated
+  per-resource specs drive one shared `filterx` SDK whose **GORM (SQL)** and
+  **Hasura DDN (GraphQL)** engines accept identical filter strings by
+  construction — free-text search, sort allowlists, and opaque page tokens
+  included.
 - **Idempotent SQL.** The consolidated `migrate.sql` is transactional and guarded
   (`IF NOT EXISTS`, `CREATE OR REPLACE`, deferred FK `ALTER`s) — safe to re-apply.
 - **Relational nesting.** Nested and imported value messages become real child
@@ -284,13 +290,16 @@ generated/prisma/bookstore_db/
 ├── schema.prisma                          # datasource + generator blocks
 ├── bookstore_db.config.ts                 # Prisma 7 config (URL via env)
 ├── package.json, tsconfig.json            # runnable project scaffold
-├── .env.example, .gitignore, README.md
+├── .env, .env.example, .gitignore, README.md  # .env is pre-filled from the datasource url (git-ignored)
 ├── bookstore_v1/bookstore.postgres.prisma # models & enums, one file per source proto
 └── inventory/inventory.postgres.prisma    # (a second file, merged datasource)
 
 generated/gorm/bookstore_db/bookstorev1/models.go        # package = folder name
 generated/gorm/bookstore_db/bookstorev1/author_store.go  # typed CRUD store (stores opt)
+generated/gorm/bookstore_db/bookstorev1/filters.go       # AIP-160/132 filter & sort specs (filters opt)
+generated/gorm/bookstore_db/bookstorev1/protobuf.go      # proto ↔ model converters (converters opt)
 generated/gorm/gormx/gormx.go                       # shared runtime: ListOptions, Store[M], engine (stores opt)
+generated/gorm/filterx/                             # shared filter/order/list engines: SQL + Hasura (filters opt)
 generated/gorm/bookstore_db/migrate.go              # factory Registry + EnsureSchemas + Instrument (needs go_module)
 generated/gorm/bookstore_db/README.md               # ER diagram + model reference
 generated/sql/bookstore_db/migrate.sql              # whole DB, one transactional file
@@ -302,10 +311,13 @@ The Prisma output is a project you can run immediately:
 
 ```bash
 cd generated/prisma/bookstore_db
-npm install
-cp .env.example .env        # then set BOOKSTORE_DB_DATABASE_URL
+npm install                 # .env ships pre-filled from the proto datasource url
 npm run prisma:generate
 ```
+
+The emitted `.env` is git-ignored and pre-populated with the datasource `url`
+from your proto — edit it locally if your credentials differ (`.env.example`
+stays as the committed reference).
 
 The **gorm** target emits a `migrate.go` factory registry (when you pass the
 `go_module` opt, see [Plugin options](#plugin-options)). Attach it in your
@@ -367,6 +379,72 @@ It needs `go_module` (the helper lives in the aggregator) and adds the
 `gorm.io/plugin/opentelemetry` dependency. Set `otel=false` to omit it, or tune
 the generated default — including spans-only via [`orm.yaml` `otel:`](#top-level-keys).
 
+### AIP-160 filters and list engines (SQL + Hasura)
+
+The `filters` opt (gorm target, needs `go_module`) generates the complete
+list-query surface for every resource — [AIP-160](https://google.aip.dev/160)
+`filter`, [AIP-132](https://google.aip.dev/132) `order_by`, and pagination —
+as **specs (data) + engines (code)**:
+
+- `<schema>/filters.go` — a `filterx.Spec` per resource: the filterable fields
+  with type-derived operator kinds (text, enum, date, timestamp, int, bool,
+  tags, reference), the free-text `Search` columns, and the `order_by`
+  allowlist. Tune what each field exposes with
+  [`(orm.v1.query)`](#ormv1query--field-level).
+- `filterx/` — one shared, chainable SDK package holding the engines the specs
+  drive. `filterx.Gorm[M]` renders parsed conditions to SQL on a `*gorm.DB`;
+  `filterx.Hasura[M]` renders the **same filter strings** to Hasura DDN
+  GraphQL `BoolExp` predicates — so a gRPC/REST list endpoint and a
+  Hasura-backed GraphQL API accept identical filters by construction.
+
+```go
+// SQL — pass a *gorm.DB already parent-scoped and preloaded; the engine
+// only adds filter / order / pagination.
+rows, next, err := filterx.Gorm[bookstorev1.Author](bookstorev1.AuthorFilterSpec).
+    List(ctx, db, in) // in: filterx.ListInput{PageSize, PageToken, OrderBy, Filter}
+
+// GraphQL — same spec, same filter strings, over a Hasura DDN query handler.
+rows, next, err = filterx.Hasura[bookstorev1.Author](bookstorev1.AuthorFilterSpec, queryHandler).
+    Scope(scopePredicates...). // fixed predicates ANDed into every query
+    List(ctx, in)
+```
+
+Both engines share one set of semantics, so the backends always agree: enum
+values normalize (`ROOM` and `UNIT_TYPE_ROOM` both match), dates and numbers
+validate **before** any query runs, `:` does a case-insensitive contains with
+ILIKE escaping, bareword terms (`filter: "beach resort"`) match the `search`
+columns, resource-reference fields compare the bare id segment
+(`operator = "operators/op1"` and `= "op1"` are equivalent), and results
+paginate limit+1 with an opaque page token. Invalid filter/order input is
+rejected with `filterx.ErrInvalid` — translate it to your invalid-argument
+error (e.g. gRPC `InvalidArgument`) with `errors.Is`.
+
+Every engine is tunable through its chainable options: `Override` installs a
+custom handler for one filter field (the escape hatch for derived predicates
+the schema can't express), and `Observe` plugs an `Observer` in for query spans
+and rejected-input debug events. The `pulse` opt additionally emits a
+ready-made [pulse-go](https://github.com/machanirobotics/pulse) observer
+adapter (`filterx.PulseObserver`). The Hasura engine adds a dependency on
+`github.com/the-protobuf-project/runtime-go` (its `graphql` package).
+
+### Proto ↔ model converters
+
+The `converters` opt (gorm target) emits a `protobuf.go` per schema package
+with a mapper pair per resource — `<Model>ToProto` / `<Model>FromProto` — plus
+per-enum value mappers. The converters cover the mechanical field mass:
+scalars, enums, temporals, arrays, JSON, optional fields (pointer-wrapped
+where the model is a pointer; `bytes` stays `[]byte`), and belongs-to value
+objects on the read side. They deliberately **don't** invent data or wiring the
+schema can't know:
+
+- synthesized columns (surrogate ids, audit timestamps) are never set from
+  proto input; audit timestamps still render back out;
+- resource-reference columns are skipped in both directions — the
+  resource-name ↔ id mapping stays with the caller;
+- relationalized sub-rows (value objects) render `ToProto` from their preloaded
+  associations, but `FromProto` graph wiring (fresh ids, FK assignment, insert
+  order) stays with the caller, composing each sub-row's own `FromProto`.
+
 The **sql** target emits one transactional `migrate.sql` you can apply in a
 single shot — foreign keys are deferred to `ALTER` statements (so creation order
 never matters) and every statement is guarded (`IF NOT EXISTS`, `CREATE OR
@@ -379,7 +457,8 @@ psql "$BOOKSTORE_DB_DATABASE_URL" -f generated/sql/bookstore_db/migrate.sql
 
 ## Annotations reference
 
-All options live in `orm/v1/annotations.proto`.
+Schema options live in `orm/v1/annotations.proto`; the list-query options live
+in `orm/v1/query.proto`.
 
 ### `(orm.v1.datasource)` — file level
 
@@ -412,6 +491,23 @@ All options live in `orm/v1/annotations.proto`.
 | `unique`, `index` | Single-column constraint / index. |
 | `skip` | Field exists in the proto contract but not the database. |
 | `on_delete` / `on_update` | FK referential action (`CASCADE`, `SET_NULL`, …) for a `resource_reference` field. |
+
+### `(orm.v1.query)` — field level
+
+Tunes the field's generated list-query surface — the [AIP-160 filter / AIP-132
+order_by specs](#aip-160-filters-and-list-engines-sql--hasura) — separately
+from the physical column options:
+
+```proto
+string display_name = 2 [(orm.v1.query) = { search: true }];
+string state = 5 [(orm.v1.query) = { filterable: false, sortable: false }];
+```
+
+| Field | Description |
+| --- | --- |
+| `filterable` | Override the type-derived default in the generated filter spec (scalar columns are filterable by default, operators inferred from the type). Presence matters: `filterable: false` removes the field; unset keeps the default. |
+| `sortable` | Override the type-derived default in the `order_by` allowlist (scalar, date, timestamp, and numeric columns sort by default). Presence matters, as with `filterable`. |
+| `search` | Include the column in bareword free-text search — a filter term with no field (e.g. `beach resort`) matches it with a case-insensitive contains. Off by default. |
 
 ## Configuration — `orm.yaml`
 
@@ -543,6 +639,9 @@ Passed via `opt:` in `buf.gen.yaml`.
 | `target` | Output backend: `prisma` \| `gorm` \| `sql`. Required. |
 | `go_module` | **gorm only.** Go import path of the output directory (e.g. `github.com/me/gen`). Enables the `migrate.go` factory registry, whose package imports each per-schema models package. Omit it and the per-schema model packages still generate, just without the aggregator. |
 | `stores` | **gorm only.** Also emit a typed CRUD store per resource — one `<model>_store.go` file each (see [GORM stores](#gorm-stores-and-tracing)). Off by default; turning it on adds a `gorm.io/gorm` dependency to each models package. |
+| `filters` | **gorm only.** Emit AIP-160 filter / AIP-132 order_by specs per schema (`filters.go`) plus the shared `filterx` engine package serving both **SQL (GORM)** and **Hasura DDN GraphQL** (see [filters and list engines](#aip-160-filters-and-list-engines-sql--hasura)). Off by default; requires `go_module`. The Hasura engine adds a `github.com/the-protobuf-project/runtime-go` dependency. |
+| `pulse` | **gorm only.** With `filters`, also emit a [pulse-go](https://github.com/machanirobotics/pulse) `Observer` adapter (`filterx.PulseObserver`) for the list engines' spans and debug events. Off by default. |
+| `converters` | **gorm only.** Emit `protobuf.go` proto ↔ model converters per schema — `<Model>ToProto` / `<Model>FromProto` plus enum value mappers (see [converters](#proto--model-converters)). Off by default. |
 | `otel` | **gorm only.** Fold an OpenTelemetry tracing helper (`Registry.Instrument`) into the migration registry. **On by default**; takes effect with `go_module`, and adds the `gorm.io/plugin/opentelemetry` dependency. Set `otel=false` to omit it, or tune it via `orm.yaml` `otel:`. |
 | `strict` | Per-rule severity for schema problems. `""` (default) warns on everything; `true` makes every rule a hard error; a spec like `ref:error,collision:warn,index:error,lint:warn` sets severity per rule. Rules: **ref** (unresolved/dropped references), **collision** (global name qualification), **index** (index names an unknown column), **lint** (validate-on-generate advisories). |
 | `config` | Path to a [`orm.yaml`](#configuration--ormyaml) layout config. |

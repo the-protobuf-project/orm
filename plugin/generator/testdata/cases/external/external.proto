@@ -16,7 +16,6 @@ option go_package = "example.com/test/gen;externalv1";
 option java_multiple_files = true;
 option java_outer_classname = "ExternalProto";
 option java_package = "com.example.external.v1";
-
 option (orm.v1.datasource) = {database: "external_db"};
 
 // Product owns a price expressed as an imported Money value type.

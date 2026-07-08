@@ -5,6 +5,7 @@ package orm.v1;
 import "google/protobuf/descriptor.proto";
 import "orm/v1/column.proto";
 import "orm/v1/datasource.proto";
+import "orm/v1/query.proto";
 import "orm/v1/table.proto";
 
 option go_package = "github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1";
@@ -34,4 +35,8 @@ extend google.protobuf.MessageOptions {
 extend google.protobuf.FieldOptions {
   // column overrides column-level generation: name, type, sizing, FK actions.
   ColumnOptions column = 50002;
+
+  // query tunes the field's generated list-query surface: AIP-160 filter,
+  // AIP-132 order_by, and free-text search.
+  QueryOptions query = 50003;
 }

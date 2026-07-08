@@ -19,17 +19,20 @@ import (
 // reads — protokit holds none of these; the Backend resolves them here and folds
 // them into the neutral IR (a resolved Datasource per file, db.Opts per database).
 type Backend struct {
-	cfg      *Config // orm.yaml layout config; nil when none was supplied
-	goModule string  // Go import path of the output dir (gorm migration aggregator)
-	stores   bool    // gorm: also emit a typed CRUD store per resource
-	otel     bool    // gorm: fold the OpenTelemetry tracing helper into the Registry
+	cfg        *Config // orm.yaml layout config; nil when none was supplied
+	goModule   string  // Go import path of the output dir (gorm migration aggregator)
+	stores     bool    // gorm: also emit a typed CRUD store per resource
+	otel       bool    // gorm: fold the OpenTelemetry tracing helper into the Registry
+	converters bool    // gorm: also emit proto↔model converters per schema
+	filters    bool    // gorm: also emit AIP filter/order specs + the filterx engines
+	pulse      bool    // gorm: with filters, emit the pulse-go Observer adapter
 }
 
 // New builds an orm Backend from the resolved plugin options. The zero value
 // (Backend{}) is still valid — no config, no gorm aggregator — which is all the
 // non-gorm targets need.
-func New(cfg *Config, goModule string, stores, otel bool) Backend {
-	return Backend{cfg: cfg, goModule: goModule, stores: stores, otel: otel}
+func New(cfg *Config, goModule string, stores, otel, converters, filters, pulse bool) Backend {
+	return Backend{cfg: cfg, goModule: goModule, stores: stores, otel: otel, converters: converters, filters: filters, pulse: pulse}
 }
 
 // ReadDatasource resolves the file's grouping from orm.v1.datasource and orm.yaml,
@@ -131,8 +134,11 @@ func (b Backend) Enrich(dbs []*schema.Database) error {
 		}
 		db.Opts["go_module"] = b.goModule
 		db.Opts["stores"] = boolStr(b.stores)
+		db.Opts["converters"] = boolStr(b.converters)
 		db.Opts["otel"] = boolStr(otelOn)
 		db.Opts["otel_metrics"] = boolStr(otelMetrics)
+		db.Opts["filters"] = boolStr(b.filters)
+		db.Opts["pulse"] = boolStr(b.pulse)
 	}
 	return nil
 }

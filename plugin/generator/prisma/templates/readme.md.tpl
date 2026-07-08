@@ -14,14 +14,14 @@ The source of truth is the `.proto` files — regenerate rather than editing the
 ├── <schema>/<domain>.{{.ProviderExt}}.prisma   models & enums, one file per source proto
 ├── package.json
 ├── tsconfig.json
+├── .env                      pre-populated {{.EnvVar}} (git-ignored)
 └── .env.example
 ```
 
 ## Setup
 
 ```bash
-npm install
-cp .env.example .env        # then edit {{.EnvVar}}
+npm install                 # .env ships pre-populated; edit {{.EnvVar}} if needed
 npm run prisma:generate     # generate the typed client
 npm run prisma:migrate      # create & apply a dev migration
 ```

@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package venue.v1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "google/type/date.proto";
+import "orm/v1/annotations.proto";
+
+option go_package = "example.com/test/gen;venuev1";
+option java_multiple_files = true;
+option java_outer_classname = "FiltersProto";
+option java_package = "com.venue.v1";
+
+// The kind of venue, exercising enum filter normalization (prefix strip).
+enum VenueKind {
+  VENUE_KIND_UNSPECIFIED = 0;
+  VENUE_KIND_HALL = 1;
+  VENUE_KIND_ARENA = 2;
+}
+
+// Venue exercises the filters emitter: type-derived kinds for every scalar
+// shape (text, enum, date, timestamp, int, bool, tags), the search opt-in, the
+// filterable/sortable opt-outs, a resource reference (equality-only Ref kind),
+// and shapes that are always excluded (JSONB attributes, the synthesized key).
+message Venue {
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  option (google.api.resource) = {
+    type: "venue.v1/Venue"
+    pattern: "venues/{venue}"
+    singular: "venue"
+    plural: "venues"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Human-friendly name; opted into the bareword free-text search.
+  string display_name = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (orm.v1.query) = {search: true}
+  ];
+
+  // The owning operator: a resource reference filters as an identity match.
+  string operator = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "venue.v1/Operator"}
+  ];
+
+  // What kind of venue this is.
+  VenueKind kind = 4 [(google.api.field_behavior) = REQUIRED];
+
+  // Seating capacity: an integral comparable.
+  int32 capacity = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Whether the venue is open-air.
+  bool open_air = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // Date the venue's licence expires: the renewal-reminder bound filter.
+  google.type.Date licence_expiry = 7 [(google.api.field_behavior) = OPTIONAL];
+
+  // Arbitrary tags: `:` containment.
+  repeated string tags = 8 [(google.api.field_behavior) = OPTIONAL];
+
+  // An internal code, deliberately unfilterable but still sortable.
+  string internal_code = 9 [
+    (google.api.field_behavior) = OPTIONAL,
+    (orm.v1.query) = {filterable: false}
+  ];
+
+  // A per-row nonce, filterable but deliberately unsortable.
+  string nonce = 10 [
+    (google.api.field_behavior) = OPTIONAL,
+    (orm.v1.query) = {sortable: false}
+  ];
+
+  // JSONB attributes are never filterable.
+  google.protobuf.Struct attributes = 11 [(google.api.field_behavior) = OPTIONAL];
+
+  // Creation timestamp: a timestamptz comparable.
+  google.protobuf.Timestamp create_time = 12 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// Operator is the referenced parent so the venue's reference resolves to a
+// real table (a hard FK) instead of degrading to a soft reference.
+message Operator {
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  option (google.api.resource) = {
+    type: "venue.v1/Operator"
+    pattern: "operators/{operator}"
+    singular: "operator"
+    plural: "operators"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Display name, searchable.
+  string display_name = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (orm.v1.query) = {search: true}
+  ];
+}

@@ -101,6 +101,13 @@ func main() {
 		"gorm target only: fold an OpenTelemetry tracing helper into the migration "+
 			"Registry (Instrument); on by default, takes effect with go_module. "+
 			"Set otel=false to omit it. orm.yaml otel: tunes it further")
+	filters := flags.Bool("filters", false,
+		"gorm target only: also generate AIP-160 filter / AIP-132 order_by specs per "+
+			"schema plus the shared filterx engine packages (a backend-neutral core and "+
+			"gorm + hasura engines); requires go_module")
+	pulse := flags.Bool("pulse", false,
+		"gorm target only: with filters, also emit a pulse-go Observer adapter so the "+
+			"filterx list engines can trace and log through machanirobotics/pulse")
 
 	protogen.Options{ParamFunc: flags.Set}.Run(func(p *protogen.Plugin) error {
 		// Proto3 `optional` is fully supported (presence is read via field_behavior,
@@ -116,6 +123,6 @@ func main() {
 			Target:  *target,
 			Strict:  *strict,
 			Version: v,
-		}, generator.Targets(), backend.New(cfg, *goModule, *stores, *otel, *converters))
+		}, generator.Targets(), backend.New(cfg, *goModule, *stores, *otel, *converters, *filters, *pulse))
 	})
 }

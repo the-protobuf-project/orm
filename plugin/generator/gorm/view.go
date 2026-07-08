@@ -75,27 +75,38 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 			// BelongsTo association: emitted alongside the FK column. The field is
 			// named after the FK column (minus _id) so multiple references to the
 			// same model stay distinct; GORM resolves the link via foreignKey.
+			// A column named without the _id suffix (references store bare ids)
+			// would give the association the same json name as the column itself,
+			// so the association's json tag takes a _rel suffix on collision.
 			if bt, ok := btByCol[col]; ok {
 				typ := loc(col.FKModel)
 				if bt.CrossPkg != "" {
 					typ = bt.CrossPkg + "." + bt.Target.LocalName
 					assocImports[dbGoModule(db)+"/"+db.Name+"/"+bt.CrossPkg] = true
 				}
+				jsonName := strings.ToLower(bt.Field)
+				if jsonName == col.Name {
+					jsonName += "_rel"
+				}
 				m.Fields = append(m.Fields, fieldView{
 					Decl: bt.Field + " *" + typ +
 						" `gorm:\"foreignKey:" + goField + constraintTag(t, col.Name) +
-						"\" json:\"" + strings.ToLower(bt.Field) + ",omitempty\"`",
+						"\" json:\"" + jsonName + ",omitempty\"`",
 				})
 			}
 		}
 		// HasMany back-references (e.g. Author.Books []Book). Same-schema only:
 		// the child type lives in another package otherwise (see assocPlan).
+		// foreignKey names the child's Go FK FIELD, which carries an ID suffix
+		// even when the column doesn't (references store bare ids in a column
+		// named without _id) — naming the bare column would resolve to the
+		// child's belongs-to struct field instead and break the relation.
 		for _, hm := range hms {
 			childModel := loc(hm.Ref.Model)
 			m.Fields = append(m.Fields, fieldView{
 				Comment: "Back-relation: " + childModel + " records that reference this via " + hm.Ref.ViaFK + ".",
 				Decl: hm.Field + " []" + childModel +
-					" `gorm:\"foreignKey:" + naming.PascalGo(hm.Ref.ViaFK) + "\" json:\"" + strings.ToLower(hm.Field) + ",omitempty\"`",
+					" `gorm:\"foreignKey:" + naming.PascalGo(naming.FKFieldBase(hm.Ref.ViaFK, true)) + "\" json:\"" + strings.ToLower(hm.Field) + ",omitempty\"`",
 			})
 		}
 		models = append(models, m)

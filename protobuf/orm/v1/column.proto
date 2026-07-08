@@ -55,22 +55,6 @@ message ColumnOptions {
   // on_update sets the FK ON UPDATE referential action for a field carrying
   // google.api.resource_reference. Ignored on non-reference fields.
   ReferentialAction on_update = 11;
-
-  // filterable overrides the type-derived default in generated AIP-160 filter
-  // specs (scalar columns are filterable by default, with operators inferred
-  // from the column type). Explicit presence matters: `filterable: false`
-  // removes the field from the spec; unset keeps the default.
-  optional bool filterable = 12;
-
-  // sortable overrides the type-derived default in generated AIP-132 order_by
-  // allowlists (scalar, date, timestamp, and numeric columns are sortable by
-  // default). Explicit presence matters, as with filterable.
-  optional bool sortable = 13;
-
-  // search includes this column in the bareword free-text search: a filter
-  // term with no field (e.g. `beach resort`) matches it with a
-  // case-insensitive contains. Off by default.
-  bool search = 14;
 }
 
 // ReferentialAction is the ON DELETE / ON UPDATE behavior of a foreign key

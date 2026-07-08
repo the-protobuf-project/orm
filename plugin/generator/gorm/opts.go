@@ -24,3 +24,11 @@ func dbOTel(db *schema.Database) bool { return db.Opt("otel") == "true" }
 // dbOTelMetrics reports whether the generated Instrument emits metrics in
 // addition to spans (only meaningful when dbOTel is true).
 func dbOTelMetrics(db *schema.Database) bool { return db.Opt("otel_metrics") == "true" }
+
+// dbFilters reports whether to emit AIP-160 filter / AIP-132 order_by specs per
+// schema plus the shared filterx engine packages.
+func dbFilters(db *schema.Database) bool { return db.Opt("filters") == "true" }
+
+// dbPulse reports whether the filterx tree also gets the pulse-go Observer
+// adapter (only meaningful when dbFilters is true).
+func dbPulse(db *schema.Database) bool { return db.Opt("pulse") == "true" }

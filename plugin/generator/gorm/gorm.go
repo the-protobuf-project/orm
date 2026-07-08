@@ -32,8 +32,9 @@ const gormxPkg = "gormx"
 
 // Generate writes one Go package per schema into the plugin response.
 func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
-	gormxEmitted := false // the shared runtime is emitted once for the whole tree
-	var pbIdx *pbIndex    // built lazily: only the converters emitter needs it
+	gormxEmitted := false   // the shared runtime is emitted once for the whole tree
+	filterxEmitted := false // likewise the shared filter engine packages
+	var pbIdx *pbIndex      // built lazily: only the converters emitter needs it
 	for _, db := range dbs {
 		if types.Provider(db.Provider) != types.Postgres {
 			return fmt.Errorf("gorm: database %q uses provider %q — the gorm target only supports postgres", db.Name, db.Provider)
@@ -44,6 +45,11 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			return fmt.Errorf("gorm: database %q has the stores opt set but no go_module opt; "+
 				"the generated stores import the shared %q runtime package by its import path, "+
 				"so set go_module to the import path of the gorm output directory", db.Name, gormxPkg)
+		}
+		if dbFilters(db) && dbGoModule(db) == "" {
+			return fmt.Errorf("gorm: database %q has the filters opt set but no go_module opt; "+
+				"the generated specs import the shared %q engine package by its import path, "+
+				"so set go_module to the import path of the gorm output directory", db.Name, filterxPkg)
 		}
 		for _, s := range db.Schemas {
 			pkg := naming.GoPackage(s.Name)
@@ -65,6 +71,38 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 					cf := p.NewGeneratedFile(fmt.Sprintf("%s/%s/protobuf.go", db.Name, pkg), "")
 					if err := renderGo(cf, "protobuf.go.tpl", view); err != nil {
 						return fmt.Errorf("gorm: %s/%s/protobuf.go: %w", db.Name, pkg, err)
+					}
+				}
+			}
+			// Opt-in: AIP-160 filter / AIP-132 order_by specs per schema, plus the
+			// shared filterx package once for the whole tree (the backend-neutral
+			// core with the chainable Gorm and Hasura engines, and — with the
+			// pulse opt — a pulse-go Observer adapter).
+			if dbFilters(db) && len(s.Tables) > 0 {
+				if view := filtersView(db, s, pkg); view != nil {
+					ff := p.NewGeneratedFile(fmt.Sprintf("%s/%s/filters.go", db.Name, pkg), "")
+					if err := renderGo(ff, "filters.go.tpl", view); err != nil {
+						return fmt.Errorf("gorm: %s/%s/filters.go: %w", db.Name, pkg, err)
+					}
+					if !filterxEmitted {
+						fv := filterxView(db)
+						for path, tpl := range map[string]string{
+							filterxPkg + "/filterx.go": "filterx.go.tpl",
+							filterxPkg + "/gorm.go":    "filterx_gorm.go.tpl",
+							filterxPkg + "/hasura.go":  "filterx_hasura.go.tpl",
+						} {
+							xf := p.NewGeneratedFile(path, "")
+							if err := renderGo(xf, tpl, fv); err != nil {
+								return fmt.Errorf("gorm: %s: %w", path, err)
+							}
+						}
+						if dbPulse(db) {
+							pf := p.NewGeneratedFile(filterxPkg+"/pulse.go", "")
+							if err := renderGo(pf, "filterx_pulse.go.tpl", fv); err != nil {
+								return fmt.Errorf("gorm: %s/pulse.go: %w", filterxPkg, err)
+							}
+						}
+						filterxEmitted = true
 					}
 				}
 			}

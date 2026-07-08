@@ -125,20 +125,7 @@ type ColumnOptions struct {
 	OnDelete ReferentialAction `protobuf:"varint,10,opt,name=on_delete,json=onDelete,proto3,enum=orm.v1.ReferentialAction" json:"on_delete,omitempty"`
 	// on_update sets the FK ON UPDATE referential action for a field carrying
 	// google.api.resource_reference. Ignored on non-reference fields.
-	OnUpdate ReferentialAction `protobuf:"varint,11,opt,name=on_update,json=onUpdate,proto3,enum=orm.v1.ReferentialAction" json:"on_update,omitempty"`
-	// filterable overrides the type-derived default in generated AIP-160 filter
-	// specs (scalar columns are filterable by default, with operators inferred
-	// from the column type). Explicit presence matters: `filterable: false`
-	// removes the field from the spec; unset keeps the default.
-	Filterable *bool `protobuf:"varint,12,opt,name=filterable,proto3,oneof" json:"filterable,omitempty"`
-	// sortable overrides the type-derived default in generated AIP-132 order_by
-	// allowlists (scalar, date, timestamp, and numeric columns are sortable by
-	// default). Explicit presence matters, as with filterable.
-	Sortable *bool `protobuf:"varint,13,opt,name=sortable,proto3,oneof" json:"sortable,omitempty"`
-	// search includes this column in the bareword free-text search: a filter
-	// term with no field (e.g. `beach resort`) matches it with a
-	// case-insensitive contains. Off by default.
-	Search        bool `protobuf:"varint,14,opt,name=search,proto3" json:"search,omitempty"`
+	OnUpdate      ReferentialAction `protobuf:"varint,11,opt,name=on_update,json=onUpdate,proto3,enum=orm.v1.ReferentialAction" json:"on_update,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -250,32 +237,11 @@ func (x *ColumnOptions) GetOnUpdate() ReferentialAction {
 	return ReferentialAction_REFERENTIAL_ACTION_UNSPECIFIED
 }
 
-func (x *ColumnOptions) GetFilterable() bool {
-	if x != nil && x.Filterable != nil {
-		return *x.Filterable
-	}
-	return false
-}
-
-func (x *ColumnOptions) GetSortable() bool {
-	if x != nil && x.Sortable != nil {
-		return *x.Sortable
-	}
-	return false
-}
-
-func (x *ColumnOptions) GetSearch() bool {
-	if x != nil {
-		return x.Search
-	}
-	return false
-}
-
 var File_orm_v1_column_proto protoreflect.FileDescriptor
 
 const file_orm_v1_column_proto_rawDesc = "" +
 	"\n" +
-	"\x13orm/v1/column.proto\x12\x06orm.v1\"\xdf\x03\n" +
+	"\x13orm/v1/column.proto\x12\x06orm.v1\"\xe5\x02\n" +
 	"\rColumnOptions\x12\x16\n" +
 	"\x06column\x18\x01 \x01(\tR\x06column\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12#\n" +
@@ -289,14 +255,7 @@ const file_orm_v1_column_proto_rawDesc = "" +
 	"\x05scale\x18\t \x01(\x05R\x05scale\x126\n" +
 	"\ton_delete\x18\n" +
 	" \x01(\x0e2\x19.orm.v1.ReferentialActionR\bonDelete\x126\n" +
-	"\ton_update\x18\v \x01(\x0e2\x19.orm.v1.ReferentialActionR\bonUpdate\x12#\n" +
-	"\n" +
-	"filterable\x18\f \x01(\bH\x00R\n" +
-	"filterable\x88\x01\x01\x12\x1f\n" +
-	"\bsortable\x18\r \x01(\bH\x01R\bsortable\x88\x01\x01\x12\x16\n" +
-	"\x06search\x18\x0e \x01(\bR\x06searchB\r\n" +
-	"\v_filterableB\v\n" +
-	"\t_sortable*\xdf\x01\n" +
+	"\ton_update\x18\v \x01(\x0e2\x19.orm.v1.ReferentialActionR\bonUpdate*\xdf\x01\n" +
 	"\x11ReferentialAction\x12\"\n" +
 	"\x1eREFERENTIAL_ACTION_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aREFERENTIAL_ACTION_CASCADE\x10\x01\x12\x1f\n" +
@@ -340,7 +299,6 @@ func file_orm_v1_column_proto_init() {
 	if File_orm_v1_column_proto != nil {
 		return
 	}
-	file_orm_v1_column_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

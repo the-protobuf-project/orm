@@ -69,10 +69,14 @@ func configView(db *schema.Database) map[string]any {
 // scaffoldFiles maps each scaffold output path suffix to its template name.
 // scaffoldFiles are the static project files; the README.md tree is generated
 // separately by writeReadmes (one per folder, with a Mermaid ER diagram).
+// Both .env.example and a ready-to-use .env are emitted: the datasource url
+// declared in the proto pre-populates them, so no copy-and-edit step is needed
+// before the prisma scripts run (.env stays git-ignored for local overrides).
 var scaffoldFiles = []struct{ name, tpl string }{
 	{"package.json", "package.json.tpl"},
 	{"tsconfig.json", "tsconfig.json.tpl"},
 	{".env.example", "env.example.tpl"},
+	{".env", "env.tpl"},
 	{".gitignore", "gitignore.tpl"},
 }
 

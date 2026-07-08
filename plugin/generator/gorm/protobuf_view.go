@@ -73,7 +73,7 @@ func newConvImports() *convImports {
 	return &convImports{std: map[string]string{}, third: map[string]string{}}
 }
 
-func (ci *convImports) addStd(path string)  { ci.std[path] = "" }
+func (ci *convImports) addStd(path string) { ci.std[path] = "" }
 func (ci *convImports) add(path, pkg string) string {
 	alias := ""
 	if seg := path[strings.LastIndex(path, "/")+1:]; seg != pkg {
@@ -119,13 +119,6 @@ func (ci *convImports) render() string {
 	}
 	b.WriteString(")")
 	return b.String()
-}
-
-// pbRef qualifies a protogen ident for use in the generated file, registering
-// its import.
-func (ci *convImports) pbRef(f *protogen.File, ident protogen.GoIdent) string {
-	pkg := ci.add(string(ident.GoImportPath), string(f.GoPackageName))
-	return pkg + "." + ident.GoName
 }
 
 type convEnumPair struct{ ModelConst, PbConst string }

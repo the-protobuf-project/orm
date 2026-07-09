@@ -1,0 +1,1141 @@
+{
+  "data": {
+    "__schema": {
+      "queryType": {
+        "name": "Query"
+      },
+      "mutationType": {
+        "name": "Mutation"
+      },
+      "subscriptionType": {
+        "name": "Subscription"
+      },
+      "types": [
+        {
+          "kind": "SCALAR",
+          "name": "ID",
+          "description": "",
+          "fields": null,
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "SCALAR",
+          "name": "String",
+          "description": "",
+          "fields": null,
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "SCALAR",
+          "name": "Int",
+          "description": "",
+          "fields": null,
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "SCALAR",
+          "name": "Boolean",
+          "description": "",
+          "fields": null,
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "OrderBy",
+          "description": "",
+          "fields": null,
+          "inputFields": null,
+          "enumValues": [
+            {
+              "name": "ASC",
+              "description": ""
+            },
+            {
+              "name": "DESC",
+              "description": ""
+            }
+          ],
+          "interfaces": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "VenueKind",
+          "description": "",
+          "fields": null,
+          "inputFields": null,
+          "enumValues": [
+            {
+              "name": "VENUE_KIND_HALL",
+              "description": ""
+            },
+            {
+              "name": "VENUE_KIND_ARENA",
+              "description": ""
+            }
+          ],
+          "interfaces": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "Venue",
+          "description": "",
+          "fields": [
+            {
+              "name": "id",
+              "description": "",
+              "args": null,
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "name": "displayName",
+              "description": "",
+              "args": null,
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "name": "capacity",
+              "description": "",
+              "args": null,
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            {
+              "name": "openAir",
+              "description": "",
+              "args": null,
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            {
+              "name": "kind",
+              "description": "",
+              "args": null,
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              }
+            }
+          ],
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "VenueMutationResponse",
+          "description": "",
+          "fields": [
+            {
+              "name": "affectedRows",
+              "description": "",
+              "args": null,
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "name": "returning",
+              "description": "",
+              "args": null,
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "LIST",
+                  "name": "",
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "OBJECT",
+                      "name": "Venue",
+                      "ofType": null
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "VenueAggregate",
+          "description": "",
+          "fields": [
+            {
+              "name": "count",
+              "description": "",
+              "args": null,
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "StringComparisonExp",
+          "description": "",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "_eq",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_neq",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_in",
+              "description": "",
+              "type": {
+                "kind": "LIST",
+                "name": "",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": "",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_gt",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_lt",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_gte",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_lte",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_like",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "IntComparisonExp",
+          "description": "",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "_eq",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_neq",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_in",
+              "description": "",
+              "type": {
+                "kind": "LIST",
+                "name": "",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": "",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  }
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_gt",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_lt",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_gte",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_lte",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_like",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "BooleanComparisonExp",
+          "description": "",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "_eq",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_neq",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_in",
+              "description": "",
+              "type": {
+                "kind": "LIST",
+                "name": "",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": "",
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "Boolean",
+                    "ofType": null
+                  }
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_gt",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_lt",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_gte",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_lte",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_like",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "VenueKindComparisonExp",
+          "description": "",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "_eq",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_neq",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_in",
+              "description": "",
+              "type": {
+                "kind": "LIST",
+                "name": "",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": "",
+                  "ofType": {
+                    "kind": "ENUM",
+                    "name": "VenueKind",
+                    "ofType": null
+                  }
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_gt",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_lt",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_gte",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_lte",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_like",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "VenueBoolExp",
+          "description": "",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "_and",
+              "description": "",
+              "type": {
+                "kind": "LIST",
+                "name": "",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": "",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "VenueBoolExp",
+                    "ofType": null
+                  }
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_or",
+              "description": "",
+              "type": {
+                "kind": "LIST",
+                "name": "",
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": "",
+                  "ofType": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "VenueBoolExp",
+                    "ofType": null
+                  }
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "_not",
+              "description": "",
+              "type": {
+                "kind": "INPUT_OBJECT",
+                "name": "VenueBoolExp",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "id",
+              "description": "",
+              "type": {
+                "kind": "INPUT_OBJECT",
+                "name": "StringComparisonExp",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "displayName",
+              "description": "",
+              "type": {
+                "kind": "INPUT_OBJECT",
+                "name": "StringComparisonExp",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "capacity",
+              "description": "",
+              "type": {
+                "kind": "INPUT_OBJECT",
+                "name": "IntComparisonExp",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "openAir",
+              "description": "",
+              "type": {
+                "kind": "INPUT_OBJECT",
+                "name": "BooleanComparisonExp",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "kind",
+              "description": "",
+              "type": {
+                "kind": "INPUT_OBJECT",
+                "name": "VenueKindComparisonExp",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "VenueOrderByExp",
+          "description": "",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "displayName",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "OrderBy",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "capacity",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "OrderBy",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "VenueInsertInput",
+          "description": "",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "displayName",
+              "description": "",
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "capacity",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "openAir",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "kind",
+              "description": "",
+              "type": {
+                "kind": "ENUM",
+                "name": "VenueKind",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "VenueSetInput",
+          "description": "",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "displayName",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "capacity",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "openAir",
+              "description": "",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "Query",
+          "description": "",
+          "fields": [
+            {
+              "name": "venues",
+              "description": "",
+              "args": [
+                {
+                  "name": "where",
+                  "description": "",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "VenueBoolExp",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "orderBy",
+                  "description": "",
+                  "type": {
+                    "kind": "LIST",
+                    "name": "",
+                    "ofType": {
+                      "kind": "NON_NULL",
+                      "name": "",
+                      "ofType": {
+                        "kind": "INPUT_OBJECT",
+                        "name": "VenueOrderByExp",
+                        "ofType": null
+                      }
+                    }
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "limit",
+                  "description": "",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "offset",
+                  "description": "",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "LIST",
+                  "name": "",
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "OBJECT",
+                      "name": "Venue",
+                      "ofType": null
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "venuesById",
+              "description": "",
+              "args": [
+                {
+                  "name": "id",
+                  "description": "",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "ID",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Venue",
+                "ofType": null
+              }
+            },
+            {
+              "name": "venuesAggregate",
+              "description": "",
+              "args": [
+                {
+                  "name": "where",
+                  "description": "",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "VenueBoolExp",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "VenueAggregate",
+                  "ofType": null
+                }
+              }
+            }
+          ],
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "Mutation",
+          "description": "",
+          "fields": [
+            {
+              "name": "insertVenues",
+              "description": "",
+              "args": [
+                {
+                  "name": "objects",
+                  "description": "",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "LIST",
+                      "name": "",
+                      "ofType": {
+                        "kind": "NON_NULL",
+                        "name": "",
+                        "ofType": {
+                          "kind": "INPUT_OBJECT",
+                          "name": "VenueInsertInput",
+                          "ofType": null
+                        }
+                      }
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "VenueMutationResponse",
+                  "ofType": null
+                }
+              }
+            },
+            {
+              "name": "updateVenuesById",
+              "description": "",
+              "args": [
+                {
+                  "name": "id",
+                  "description": "",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "ID",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "_set",
+                  "description": "",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "VenueSetInput",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "preCheck",
+                  "description": "",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "VenueBoolExp",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "VenueMutationResponse",
+                "ofType": null
+              }
+            },
+            {
+              "name": "deleteVenuesById",
+              "description": "",
+              "args": [
+                {
+                  "name": "id",
+                  "description": "",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "ID",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "VenueMutationResponse",
+                "ofType": null
+              }
+            }
+          ],
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "Subscription",
+          "description": "",
+          "fields": [
+            {
+              "name": "venues",
+              "description": "",
+              "args": [
+                {
+                  "name": "where",
+                  "description": "",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "VenueBoolExp",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": "",
+                "ofType": {
+                  "kind": "LIST",
+                  "name": "",
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": "",
+                    "ofType": {
+                      "kind": "OBJECT",
+                      "name": "Venue",
+                      "ofType": null
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "inputFields": null,
+          "enumValues": null,
+          "interfaces": null
+        }
+      ]
+    }
+  },
+  "errors": null
+}

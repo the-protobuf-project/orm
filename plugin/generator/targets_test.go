@@ -9,7 +9,7 @@ import (
 
 	"github.com/the-protobuf-project/orm/plugin/generator"
 	"github.com/the-protobuf-project/orm/plugin/generator/backend"
-	core "github.com/the-protobuf-project/protokit"
+	"github.com/the-protobuf-project/protokit"
 	"github.com/the-protobuf-project/protokit/golden"
 )
 
@@ -24,7 +24,7 @@ func TestRelationalTargetsRejectMongo(t *testing.T) {
 		if err != nil {
 			t.Fatalf("protogen: %v", err)
 		}
-		err = core.Run(p, core.Options{Target: target}, generator.Targets(), backend.Backend{})
+		err = protokit.Run(p, protokit.Options{Target: target}, generator.Targets(), backend.Backend{})
 		if err == nil || !strings.Contains(err.Error(), "mongodb") {
 			t.Errorf("%s on mongodb provider: want provider error, got %v", target, err)
 		}
@@ -40,7 +40,7 @@ func TestUnknownTarget(t *testing.T) {
 		if err != nil {
 			t.Fatalf("protogen: %v", err)
 		}
-		if err := core.Run(p, core.Options{Target: target}, generator.Targets(), backend.Backend{}); err == nil {
+		if err := protokit.Run(p, protokit.Options{Target: target}, generator.Targets(), backend.Backend{}); err == nil {
 			t.Errorf("target %q: want error, got nil", target)
 		}
 	}

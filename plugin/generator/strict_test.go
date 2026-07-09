@@ -14,7 +14,7 @@ import (
 
 	"github.com/the-protobuf-project/orm/plugin/generator"
 	"github.com/the-protobuf-project/orm/plugin/generator/backend"
-	core "github.com/the-protobuf-project/protokit"
+	"github.com/the-protobuf-project/protokit"
 	"github.com/the-protobuf-project/protokit/golden"
 )
 
@@ -64,5 +64,5 @@ func generateStrict(t *testing.T, dir, strict string) error {
 	if err != nil {
 		t.Fatalf("protogen: %v", err)
 	}
-	return core.Run(p, core.Options{Target: "sql", Strict: strict}, generator.Targets(), backend.Backend{})
+	return protokit.Run(p, protokit.Options{Target: "sql", Strict: strict}, generator.Targets(), backend.Backend{})
 }

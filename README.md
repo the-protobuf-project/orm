@@ -20,6 +20,7 @@
 - [Install](#install)
 - [Quick start](#quick-start)
 - [Output layout](#output-layout)
+- [GraphQL client SDK](#graphql-client-sdk)
 - [Annotations reference](#annotations-reference)
 - [Configuration — `orm.yaml`](#configuration--ormyaml)
 - [Plugin options](#plugin-options)
@@ -49,6 +50,14 @@ three database backends from one source of truth.
 Every target also emits a `README.md` with a Mermaid ER diagram and a per-model
 column reference, so the generated tree is self-documenting regardless of backend.
 Postgres and MongoDB providers are both supported.
+
+Beyond proto → database, `protoc-gen-orm` doubles as a **GraphQL client generator**:
+add a `target=graphql-client` plugin entry and, on `buf generate`, it introspects the
+GraphQL endpoint from your `orm.yaml` (Hasura / Hasura DDN / Grafbase / Prisma-backed
+engines) and emits a typed Go client — the same binary, a second source, no separate
+CLI. See [GraphQL client SDK](#graphql-client-sdk). Internally both flows run through
+one **co-generation factory** (a source → target × language pipeline), so proto and
+GraphQL inputs share the config, dialect, and emit machinery.
 
 ## Features
 
@@ -455,6 +464,70 @@ re-apply**. The per-schema files remain as clean, readable reference DDL.
 psql "$BOOKSTORE_DB_DATABASE_URL" -f generated/sql/bookstore_db/migrate.sql
 ```
 
+## GraphQL client SDK
+
+The same `protoc-gen-orm` binary also generates a **typed Go GraphQL client** from
+a live server. Where the proto flow is `proto → database schema`, this flow is
+`GraphQL introspection → Go client` — a second *source* into the same
+co-generation factory. There is **no separate CLI**: it runs as a normal target
+during `buf generate`. Add a plugin entry with `target=graphql-client` and point
+it at the endpoint via `orm.yaml`:
+
+```yaml
+# orm.yaml
+graphql:
+  endpoint: https://api.example.com/graphql   # or `schema: schema.json` (cached introspection)
+  admin_secret: env:HASURA_ADMIN_SECRET       # sent under the dialect's auth header
+  dialect: hasura
+generate:
+  - target: graphql-client
+    go_module: github.com/me/app/gql          # import path of the emitted package
+    # package: appql            # defaults to base(go_module)+"ql"
+    # dump_schema: true         # also write <package>/schema.json
+```
+
+```yaml
+# buf.gen.yaml — the endpoint/output details live in orm.yaml; the entry is minimal
+plugins:
+  - local: protoc-gen-orm
+    out: gen                    # buf writes the client tree here
+    opt: [target=graphql-client, config=orm.yaml]
+```
+
+`buf generate` then introspects the endpoint and writes the client through the
+plugin response into `out:`. The output is a self-contained library — typed row
+models, a fluent predicate DSL (`Id.Eq(x)`, `And`/`Or`/`Not`), single-object
+create/update inputs, and one method per query/mutation/subscription, in
+per-domain `…ql` packages on a small transport runtime. Every handler satisfies
+the generic `graphql.QueryHandler[M]` / `graphql.MutationHandler[…]` interfaces
+from [`runtime-go`](https://github.com/the-protobuf-project/runtime-go) — the
+**same interface the gorm target's [`filterx.Hasura[M]`](#aip-160-filters-and-list-engines-sql--hasura)
+list engine consumes** — so a generated client plugs straight into the AIP-160
+filter engine with zero glue.
+
+> [!NOTE]
+> Because this runs under buf, the buf module's protos still need a Go import path
+> (a `go_package` option or an `M` mapping) even though the graphql-client target
+> ignores them — buf compiles the module before invoking any plugin.
+
+### Dialects
+
+The engine-specific conventions (bool_exp combinators, `_eq`/`_in` comparisons,
+`insert`/`update`/`delete` verb prefixes, `returning` / `affectedRows` mutation
+responses, the `x-hasura-admin-secret` auth header, scalar mappings) live behind
+a pluggable **dialect**. The built-in `hasura` dialect covers the Hasura / DDN /
+Grafbase / Prisma-GraphQL lineage; select it (or a future engine) with
+`--dialect` or the `graphql.dialect` key in `orm.yaml`. Adding another GraphQL
+database is a new dialect value plus a registry entry — the IR builder and
+renderer never hardcode a convention. CRUD/filter/aggregate detection itself is
+derived from introspection, not hardcoded, so unconventional schemas still
+generate compiling code.
+
+Generated files are collision-proof: if a schema name would clash with the
+runtime `graphql`/`runtime` import identifiers, the import is deterministically
+aliased (`gqlnet`/`rtnet`) and its references rewritten, so the output always
+compiles regardless of the source schema's naming.
+
 ## Annotations reference
 
 Schema options live in `orm/v1/annotations.proto`; the list-query options live
@@ -563,6 +636,14 @@ datasources:
 | `strip_version` | bool | Drop a trailing API version from derived schema names — `bookstore.v1` → schema `bookstore` instead of `bookstore_v1`. Applies to resource-type-derived and config-derived schema names, **never** to an explicit `(orm.v1.datasource).schema` annotation. A per-rule `strip_version` overrides this default. |
 | `dedupe_schema_table` | bool | Rename a table whose name would stutter with its schema in a schema-qualified identifier (`booking` schema + `bookings` table → `bookingBookings` in tools that join schema+table, e.g. Hasura). The redundant leading schema word is stripped; for the schema's primary table — where stripping leaves nothing — the table is renamed to a generic word (`resource`, then `entity`, …). Only the generated table name changes; proto/model names are untouched. |
 | `otel` | map | **gorm only.** Tune the OpenTelemetry tracing helper folded into the migration registry (see the [`otel` plugin opt](#plugin-options)). `enabled` (bool) overrides the opt's master switch — set `false` to omit `Instrument` even when the opt defaults it on. `metrics` (bool, default `true`) — set `false` to emit spans only, baking `tracing.WithoutMetrics()` into the generated default. |
+| `graphql` | map | Configures the [GraphQL client source](#graphql-client-sdk): `endpoint` **xor** `schema` (a cached introspection file), `admin_secret` (`env:VAR` or literal), `headers` (`Key: Value` list), `dialect` (default `hasura`), `max_depth`, `scalars` (`Name=GoType` list). Used by the `target=graphql-client` plugin entry. |
+| `generate` | list | The daisy chain: one entry per target to emit — `target`, `source`, `lang`, `out`, plus target knobs (`go_module`, `stores`/`filters`/`converters`/`otel` for gorm; `package`/`runtime_module`/`dump_schema` for graphql-client). |
+
+Config is **validated** on load: unknown keys are rejected (strict decode), and
+each `generate` entry is checked for a known `target`/`source`/`lang`/`dialect`,
+a present `out`, `endpoint`-xor-`schema`, and the knob prerequisites (e.g. gorm
+`stores`/`filters` require `go_module`; `pulse` requires `filters`) — every
+problem reported at once with its key path.
 
 ### Datasource rules
 
@@ -636,7 +717,7 @@ Passed via `opt:` in `buf.gen.yaml`.
 
 | Option | Description |
 | --- | --- |
-| `target` | Output backend: `prisma` \| `gorm` \| `sql`. Required. |
+| `target` | Output backend: `prisma` \| `gorm` \| `sql` \| `graphql-client`. Required. (`graphql-client` reads its endpoint from `orm.yaml`'s [`graphql`](#top-level-keys) block — see [GraphQL client SDK](#graphql-client-sdk).) |
 | `go_module` | **gorm only.** Go import path of the output directory (e.g. `github.com/me/gen`). Enables the `migrate.go` factory registry, whose package imports each per-schema models package. Omit it and the per-schema model packages still generate, just without the aggregator. |
 | `stores` | **gorm only.** Also emit a typed CRUD store per resource — one `<model>_store.go` file each (see [GORM stores](#gorm-stores-and-tracing)). Off by default; turning it on adds a `gorm.io/gorm` dependency to each models package. |
 | `filters` | **gorm only.** Emit AIP-160 filter / AIP-132 order_by specs per schema (`filters.go`) plus the shared `filterx` engine package serving both **SQL (GORM)** and **Hasura DDN GraphQL** (see [filters and list engines](#aip-160-filters-and-list-engines-sql--hasura)). Off by default; requires `go_module`. The Hasura engine adds a `github.com/the-protobuf-project/runtime-go` dependency. |

@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/the-protobuf-project/protokit/graphql/ir"
 	"github.com/the-protobuf-project/orm/plugin/factory/target/graphql/golang/typemap"
+	"github.com/the-protobuf-project/protokit/graphql/ir"
 	"github.com/the-protobuf-project/protokit/naming"
 )
 
@@ -63,7 +63,7 @@ func (r *Renderer) field(f ir.Field, depth int, visited map[string]bool) (string
 	if r.mapper.UsesJSON(f.Type.Base) {
 		tag = fmt.Sprintf("`graphql:%q scalar:\"true\"`", f.Name)
 	}
-	goName := naming.PascalGo(f.Name)
+	goName := export(f.Name)
 	doc := naming.Doc(f.Description)
 
 	if r.schema.IsScalarOrEnum(f.Type.Base) || r.isUnknownLeaf(f.Type.Base) {

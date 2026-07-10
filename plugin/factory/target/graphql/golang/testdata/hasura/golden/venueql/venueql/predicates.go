@@ -12,7 +12,7 @@ import (
 var (
 	Capacity    = graphql.Int64Field{Col: "capacity"}
 	DisplayName = graphql.StringField{Col: "displayName"}
-	ID          = graphql.StringField{Col: "id"}
+	Id          = graphql.StringField{Col: "id"}
 	Kind        = graphql.EnumField[enumsql.VenueKind]{Col: "kind"}
 	OpenAir     = graphql.BoolField{Col: "openAir"}
 )

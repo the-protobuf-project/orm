@@ -17,10 +17,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/the-protobuf-project/orm/plugin/factory/target/graphql/golang"
 	"github.com/the-protobuf-project/protokit/graphql/dialect"
 	"github.com/the-protobuf-project/protokit/graphql/introspect"
 	"github.com/the-protobuf-project/protokit/graphql/ir"
-	"github.com/the-protobuf-project/orm/plugin/factory/target/graphql/golang"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files from current output")

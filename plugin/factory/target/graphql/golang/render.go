@@ -13,11 +13,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/the-protobuf-project/protokit/graphql/dialect"
-	"github.com/the-protobuf-project/protokit/graphql/ir"
 	"github.com/the-protobuf-project/orm/plugin/factory/target/graphql/golang/selection"
 	"github.com/the-protobuf-project/orm/plugin/factory/target/graphql/golang/typemap"
-	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/graphql/dialect"
+	"github.com/the-protobuf-project/protokit/graphql/ir"
 )
 
 // Qualifiers for referencing generated types from each writing context. Models inline
@@ -80,7 +79,7 @@ func (r *renderer) enum(e *ir.Enum) string {
 	if len(e.Values) > 0 {
 		b.WriteString("const (\n")
 		for _, v := range e.Values {
-			fmt.Fprintf(&b, "\t%s%s %s = %q\n", e.Name, naming.PascalGo(v), e.Name, v)
+			fmt.Fprintf(&b, "\t%s%s %s = %q\n", e.Name, export(v), e.Name, v)
 		}
 		b.WriteString(")\n")
 	}

@@ -51,7 +51,7 @@ func (g *generator) plan() {
 		if !ok {
 			dg = &domainGen{
 				name:       domain,
-				field:      naming.PascalGo(rawDomain),
+				field:      export(rawDomain),
 				importPath: g.opts.GoModule + "/" + domain,
 				usedPkg:    map[string]bool{},
 				usedField:  map[string]bool{},
@@ -65,7 +65,7 @@ func (g *generator) plan() {
 		dg.reses = append(dg.reses, &resGen{
 			res:        res,
 			domain:     domain,
-			field:      naming.Unique(naming.PascalGo(rest), dg.usedField),
+			field:      naming.Unique(export(rest), dg.usedField),
 			pkg:        pkg,
 			importPath: g.opts.GoModule + "/" + domain + "/" + pkg,
 			queries:    pairOps(res.Queries, res.Name, g.opts.Dialect),
@@ -132,10 +132,10 @@ func queryShort(name, resCamel string, d dialect.Dialect) string {
 		case d.ByIdSuffix():
 			return "Get"
 		default:
-			return naming.PascalGo(rest)
+			return export(rest)
 		}
 	}
-	return naming.PascalGo(name)
+	return export(name)
 }
 
 // mutationShort maps insert/update/delete root fields to CRUD verbs, dropping the trailing
@@ -148,10 +148,10 @@ func mutationShort(name, resource string, d dialect.Dialect) string {
 			if rest == "" {
 				return v.Friendly
 			}
-			return v.Friendly + naming.PascalGo(rest)
+			return v.Friendly + export(rest)
 		}
 	}
-	return naming.PascalGo(name)
+	return export(name)
 }
 
 // identifier lowercases a name and keeps only [a-z0-9] for use as a package name,

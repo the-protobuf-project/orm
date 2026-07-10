@@ -6,8 +6,3 @@ use .
 // Examples are a separate module so their transitive deps (generated gRPC
 // stubs, etc.) don't pollute the plugin's dependency graph.
 use ./examples
-
-// // protokit is a separate module (released as v1.0.0); include it in the workspace
-// // so orm co-develops against the local copy. A protokit release + a go.mod require
-// // bump replaces this for CI.
-// use ./protokit

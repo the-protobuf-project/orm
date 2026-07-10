@@ -21,9 +21,18 @@ import (
 	"github.com/the-protobuf-project/protokit/graphql/dialect"
 	"github.com/the-protobuf-project/protokit/graphql/introspect"
 	"github.com/the-protobuf-project/protokit/graphql/ir"
+	"github.com/the-protobuf-project/protokit/header"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files from current output")
+
+// TestMain stamps the orm tool name into generated banners so goldens match
+// what the protoc-gen-orm binary produces (every target shares the exact same
+// header format and tool stamp).
+func TestMain(m *testing.M) {
+	header.SetTool("protoc-gen-orm")
+	os.Exit(m.Run())
+}
 
 // fixed generation options, so goldens are stable across runs.
 const (

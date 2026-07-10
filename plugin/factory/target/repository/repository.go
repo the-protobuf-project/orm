@@ -75,10 +75,24 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			if view == nil {
 				continue
 			}
+			gormViews, err := gormResourceViews(db, s, resources, view.Resources)
+			if err != nil {
+				return err
+			}
 			pkg := naming.GoPackage(s.Name)
-			f := p.NewGeneratedFile(fmt.Sprintf("%s/%s/repository.go", db.Name, pkg), "")
-			if err := renderGo(f, "repository.go.tpl", view); err != nil {
-				return fmt.Errorf("repository: %s/%s: %w", db.Name, pkg, err)
+			for name, render := range map[string]struct {
+				tpl  string
+				view any
+			}{
+				"repository.go": {"repository.go.tpl", view},
+				"names.go":      {"names.go.tpl", namesView(db, s, pkg, gormViews)},
+				"mask.go":       {"mask.go.tpl", maskView(pb, db, s, pkg, gormViews)},
+				"gorm.go":       {"gorm.go.tpl", gormFileView(pb, db, s, pkg, gormViews)},
+			} {
+				f := p.NewGeneratedFile(fmt.Sprintf("%s/%s/%s", db.Name, pkg, name), "")
+				if err := renderGo(f, render.tpl, render.view); err != nil {
+					return fmt.Errorf("repository: %s/%s/%s: %w", db.Name, pkg, name, err)
+				}
 			}
 		}
 	}
@@ -97,6 +111,7 @@ func repoxView(db *schema.Database) map[string]any {
 			Schema:        repoxPkg,
 			Notes:         []string{"Shared runtime for the generated proto-facing repositories."},
 		}),
+		"FilterxImport": dbGormModule(db) + "/filterx",
 		"GraphQLModule": dbGraphQLModule(db),
 		"GraphQLPkg":    clientPkgName(dbGraphQLModule(db)),
 	}
@@ -125,7 +140,9 @@ func lastIndexByte(s string, b byte) int {
 
 // pbIndex resolves proto message descriptors to protogen messages so the
 // generated interfaces name the exact generated Go types.
-type pbIndex struct{ msgs map[protoreflect.FullName]*protogen.Message }
+type pbIndex struct {
+	msgs map[protoreflect.FullName]*protogen.Message
+}
 
 func newPbIndex(p *protogen.Plugin) *pbIndex {
 	idx := &pbIndex{msgs: map[protoreflect.FullName]*protogen.Message{}}

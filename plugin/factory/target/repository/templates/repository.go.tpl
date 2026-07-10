@@ -55,3 +55,59 @@ type {{.Model}}Hooks struct {
 	BeforeDelete func(ctx context.Context, name string) error
 }
 {{- end}}
+
+// Repositories bundles this schema's repository surfaces behind one factory.
+type Repositories struct {
+{{- range .Resources}}
+	{{.PluralField}} {{.Model}}Repository
+{{- end}}
+}
+
+// options collects the per-resource customizations the factories thread into
+// the adapters they build.
+type options struct {
+{{- range .Resources}}
+	{{.LowerModel}}Hooks     {{.Model}}Hooks
+	{{.LowerModel}}Overrides map[string]filterx.SQLHandler
+{{- end}}
+}
+
+// Option customizes the adapters a factory builds.
+type Option func(*options)
+
+{{- range .Resources}}
+
+// With{{.Model}}Hooks installs h on the {{.Model}} adapters.
+func With{{.Model}}Hooks(h {{.Model}}Hooks) Option {
+	return func(o *options) { o.{{.LowerModel}}Hooks = h }
+}
+
+// With{{.Model}}ListOverride substitutes the generated filter dispatch for one
+// {{.Model}} filter field (e.g. a derived state computed via subqueries).
+func With{{.Model}}ListOverride(field string, h filterx.SQLHandler) Option {
+	return func(o *options) {
+		if o.{{.LowerModel}}Overrides == nil {
+			o.{{.LowerModel}}Overrides = map[string]filterx.SQLHandler{}
+		}
+		o.{{.LowerModel}}Overrides[field] = h
+	}
+}
+{{- end}}
+
+// New picks the adapter set for the live handle in conn.
+func New(conn repox.Conn, opts ...Option) Repositories {
+	return NewGorm(conn.Gorm, opts...)
+}
+
+// NewGorm builds the GORM adapter set over db.
+func NewGorm(db *gorm.DB, opts ...Option) Repositories {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return Repositories{
+{{- range .Resources}}
+		{{.PluralField}}: &Gorm{{.Model}}Repository{DB: db, Hooks: o.{{.LowerModel}}Hooks, ListOverrides: o.{{.LowerModel}}Overrides},
+{{- end}}
+	}
+}

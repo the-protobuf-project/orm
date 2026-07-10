@@ -16,10 +16,12 @@ import (
 
 // resourceView is the template data for one resource's interface + hooks.
 type resourceView struct {
-	Model    string // bare model name, e.g. "Organisation"
-	PB       string // qualified proto type, e.g. "orgpbv1.Organisation"
-	Parented bool   // Create/List take a parent resource name
-	Pattern  string // resource pattern, for doc comments
+	Model       string // bare model name, e.g. "Organisation"
+	LowerModel  string // camelCase model name, for option struct fields
+	PluralField string // Repositories field name, e.g. "Organisations"
+	PB          string // qualified proto type, e.g. "orgpbv1.Organisation"
+	Parented    bool   // Create/List take a parent resource name
+	Pattern     string // resource pattern, for doc comments
 }
 
 // schemaPkgView is the template data for one schema's repository.go.
@@ -40,8 +42,10 @@ func schemaView(pb *pbIndex, db *schema.Database, s *schema.Schema, resources ma
 	}
 	pkg := naming.GoPackage(s.Name)
 	imports := map[string]string{ // path -> alias ("" = none)
-		"context": "",
+		"context":                       "",
+		"gorm.io/gorm":                  "",
 		dbGoModule(db) + "/" + repoxPkg: "",
+		dbGormModule(db) + "/filterx":   "",
 	}
 	var views []resourceView
 	for _, r := range rs {
@@ -53,10 +57,12 @@ func schemaView(pb *pbIndex, db *schema.Database, s *schema.Schema, resources ma
 		pkgName := goPackageName(pbPkg)
 		imports[pbPkg] = pkgName
 		views = append(views, resourceView{
-			Model:    r.Table.LocalName,
-			PB:       pkgName + "." + msg.GoIdent.GoName,
-			Parented: r.Parent != nil || len(r.Segments) > 1,
-			Pattern:  r.Pattern,
+			Model:       r.Table.LocalName,
+			LowerModel:  naming.CamelFirst(r.Table.LocalName),
+			PluralField: naming.PascalGo(naming.Pluralize(naming.SnakeCase(r.Table.LocalName))),
+			PB:          pkgName + "." + msg.GoIdent.GoName,
+			Parented:    r.Parent != nil || len(r.Segments) > 1,
+			Pattern:     r.Pattern,
 		})
 	}
 	return &schemaPkgView{

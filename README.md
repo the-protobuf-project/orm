@@ -1,8 +1,10 @@
 # ORM
 
-> **Protobuf → Database** — generate production-grade Prisma, GORM, and PostgreSQL
-> schemas directly from the [Google AIP](https://google.aip.dev/) annotations you
-> already use. One source of truth, three backends that always agree.
+> **One contract, many targets.** `protoc-gen-orm` is a co-generation factory:
+> feed it **Protobuf** (annotated with [Google AIP](https://google.aip.dev/)) and it
+> emits production-grade **Prisma, GORM, and PostgreSQL** schemas; feed it a
+> **GraphQL** endpoint or `.graphql` SDL and it emits a typed **Go client**. One
+> binary, one `orm.yaml`, outputs that always agree.
 
 [![Release](https://img.shields.io/github/v/release/the-protobuf-project/orm?sort=semver&logo=github)](https://github.com/the-protobuf-project/orm/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/the-protobuf-project/orm.svg)](https://pkg.go.dev/github.com/the-protobuf-project/orm)
@@ -34,40 +36,51 @@
 
 ## Overview
 
-**orm** is a [protoc](https://protobuf.dev/) plugin (`protoc-gen-orm`) that
-turns Protobuf service definitions into database schemas. Annotate your messages
-with the [Google AIP](https://google.aip.dev/) standards you already use
-(`google.api.resource`, `field_behavior`, `resource_reference`) and orm infers
-tables, columns, primary keys, foreign keys, and relations — then emits them for
-three database backends from one source of truth.
+**orm** is a single binary, `protoc-gen-orm`, built as a **co-generation factory** —
+a `source → target × language` pipeline. A *source* turns a contract into a neutral
+model; a *target* renders that model into code. Two sources ship today:
 
-| Target | Output | Notes |
+- **proto** — a [protoc](https://protobuf.dev/) plugin. Annotate messages with the
+  [Google AIP](https://google.aip.dev/) standards you already use
+  (`google.api.resource`, `field_behavior`, `resource_reference`) and orm infers
+  tables, columns, primary keys, foreign keys, and relations.
+- **graphql** — point it at a live GraphQL endpoint (or a cached `.graphql` SDL file)
+  and it introspects the schema.
+
+Both run through the same binary on `buf generate`, selected per output by a
+`target=` plugin entry; everything else lives in one [`orm.yaml`](#configuration--ormyaml).
+
+| Source | Target | Output |
 | --- | --- | --- |
-| **prisma** | A complete, runnable Prisma 7 project | multi-file schema, `package.json`, `tsconfig.json`, config, a pre-filled `.env` + `.env.example` |
-| **gorm** | Go structs with GORM tags + a migration registry | one package per schema, pointer types for nullables, relation fields, a `migrate.go` factory `Registry`; optional [per-resource CRUD stores and OpenTelemetry tracing](#gorm-stores-and-tracing), [AIP-160 filter / AIP-132 order_by list engines for **SQL and Hasura GraphQL**](#aip-160-filters-and-list-engines-sql--hasura), and [proto ↔ model converters](#proto--model-converters) |
-| **sql** | PostgreSQL DDL | per-schema reference files **and** a single transactional, **idempotent** `migrate.sql` (safe to re-apply); FK constraints, indexes, `updated_at` triggers, `COMMENT ON` |
+| proto | **prisma** | A complete, runnable Prisma 7 project — multi-file schema, `package.json`, `tsconfig.json`, config, a pre-filled `.env` + `.env.example`. |
+| proto | **gorm** | Go structs with GORM tags + a migration registry; optional [CRUD stores + OpenTelemetry tracing](#gorm-stores-and-tracing), [AIP-160 filter / AIP-132 order_by list engines for **SQL and Hasura GraphQL**](#aip-160-filters-and-list-engines-sql--hasura), and [proto ↔ model converters](#proto--model-converters). |
+| proto | **sql** | PostgreSQL DDL — per-schema reference files **and** one transactional, **idempotent** `migrate.sql`; FK constraints, indexes, `updated_at` triggers, `COMMENT ON`. |
+| graphql | **graphql** | A typed Go GraphQL client — row models, a fluent predicate DSL, CRUD/subscription methods (see [GraphQL client SDK](#graphql-client-sdk)). |
 
-Every target also emits a `README.md` with a Mermaid ER diagram and a per-model
-column reference, so the generated tree is self-documenting regardless of backend.
-Postgres and MongoDB providers are both supported.
-
-Beyond proto → database, `protoc-gen-orm` doubles as a **GraphQL client generator**:
-add a `target=graphql-client` plugin entry and, on `buf generate`, it introspects the
-GraphQL endpoint from your `orm.yaml` (Hasura / Hasura DDN / Grafbase / Prisma-backed
-engines) and emits a typed Go client — the same binary, a second source, no separate
-CLI. See [GraphQL client SDK](#graphql-client-sdk). Internally both flows run through
-one **co-generation factory** (a source → target × language pipeline), so proto and
-GraphQL inputs share the config, dialect, and emit machinery.
+Each database target also emits a `README.md` with a Mermaid ER diagram and a
+per-model column reference, so the generated tree is self-documenting. Postgres and
+MongoDB providers are both supported, and the GraphQL client speaks the
+Hasura/DDN/Grafbase lineage through a pluggable [dialect](#dialects). Code emitters
+are organized per language (Go today), so a target can grow Python/TypeScript/… output
+by adding a template set beside the shared, language-agnostic parsing.
 
 ## Features
 
-- **AIP-native.** ~80% of the schema is read straight from standard AIP
+- **A co-generation factory.** One `source → target × language` pipeline. Sources
+  (proto, GraphQL) turn a contract into a neutral model; targets render it. Adding a
+  target or a source is a self-contained addition — the shared parsing, config, and
+  emit machinery are reused. The proto IR engine
+  ([protokit](https://github.com/the-protobuf-project/protokit)) is itself generic, so
+  a sibling plugin ([web3](https://github.com/the-protobuf-project/web3)) renders a
+  blockchain backend from the same model.
+- **AIP-native.** ~80% of the proto schema is read straight from standard AIP
   annotations; only the remaining ~20% needs `orm.v1.*` options.
-- **Three backends, one IR.** A single intermediate representation renders to
-  Prisma, GORM, and SQL — so every output always agrees. The IR engine
-  ([protokit](https://github.com/the-protobuf-project/protokit)) is a shared,
-  generic library, so a sibling plugin ([web3](https://github.com/the-protobuf-project/web3))
-  adds a blockchain backend from the same model without touching your protos.
+- **GraphQL client from a schema.** Point the `graphql` target at an endpoint or a
+  `.graphql` SDL file and get a typed Go client — models, a predicate DSL, CRUD and
+  subscriptions — behind a pluggable [dialect](#dialects) (Hasura/DDN/Grafbase today).
+- **Ready for more languages.** Each code target keeps its language-specific templates
+  under a per-language folder (Go now), so Python/Rust/TypeScript output is a new
+  template set over the same parsing — not a rewrite.
 - **Production defaults.** ULID surrogate keys, auto-managed timestamps,
   FK indexing, soft-delete markers, and enum hygiene — all overridable.
 - **List queries built in — SQL and Hasura.** Opt-in [AIP-160](https://google.aip.dev/160)
@@ -88,34 +101,43 @@ GraphQL inputs share the config, dialect, and emit machinery.
 
 ## Architecture
 
+The factory is a `source → model → target` pipeline. A **source** turns an input
+contract into a neutral model; a **target** renders that model. All of it lives in one
+binary, configured by one [`orm.yaml`](#configuration--ormyaml).
+
 ```mermaid
 flowchart LR
-    subgraph Source["Source of truth"]
+    subgraph Sources
         direction TB
-        P[".proto files"]
-        A["AIP annotations<br/>google.api.resource<br/>field_behavior<br/>resource_reference"]
-        O["orm.v1.* options<br/>(the ~20% AIP can't express)"]
-        C["orm.yaml<br/>(optional layout config)"]
+        P[".proto + AIP annotations<br/>+ orm.v1.* options"]
+        Q["GraphQL endpoint<br/>or .graphql SDL"]
     end
 
-    Source --> G["protoc-gen-orm<br/>plugin"]
-    G --> IR[("Intermediate<br/>Representation<br/>(protokit)")]
+    P --> PS["proto source<br/>(protokit IR)"]
+    Q --> QS["graphql source<br/>(introspect / SDL → IR)"]
+    PS --> M[("core model<br/>+ typed facets")]
+    QS --> M
 
-    IR --> PR["prisma<br/>Prisma 7 project"]
-    IR --> GO["gorm<br/>Go structs + registry"]
-    IR --> SQL["sql<br/>PostgreSQL DDL"]
+    M --> T{{"target × language"}}
+    T --> PR["prisma"]
+    T --> GO["gorm"]
+    T --> SQL["sql"]
+    T --> GQL["graphql<br/>(Go client)"]
 
     PR --> DB[("PostgreSQL /<br/>MongoDB")]
     GO --> DB
     SQL --> DB
+    GQL --> APP["your Go app"]
 ```
 
-orm builds everything into one IR, then each target renders it independently.
-Files that declare the **same datasource name merge into one database**, so a
-multi-file proto package becomes a single schema tree. The IR itself is built by
-[protokit](https://github.com/the-protobuf-project/protokit), a generic engine, so
-the blockchain plugin ([web3](https://github.com/the-protobuf-project/web3))
-renders from the exact same model.
+Each source builds the model, then the selected target renders it independently. The
+**parsing is language-agnostic** — a target's language-specific templates live under a
+per-language folder, so adding Python/TypeScript output reuses the same model. On the
+proto side, files that declare the **same datasource name merge into one database**, so
+a multi-file proto package becomes a single schema tree; the proto IR is built by the
+generic [protokit](https://github.com/the-protobuf-project/protokit) engine, which a
+sibling plugin ([web3](https://github.com/the-protobuf-project/web3)) reuses for a
+blockchain backend.
 
 ## How it works
 
@@ -470,17 +492,17 @@ The same `protoc-gen-orm` binary also generates a **typed Go GraphQL client** fr
 a live server. Where the proto flow is `proto → database schema`, this flow is
 `GraphQL introspection → Go client` — a second *source* into the same
 co-generation factory. There is **no separate CLI**: it runs as a normal target
-during `buf generate`. Add a plugin entry with `target=graphql-client` and point
-it at the endpoint via `orm.yaml`:
+during `buf generate`. Add a plugin entry with `target=graphql` and point it at the
+endpoint via `orm.yaml`:
 
 ```yaml
 # orm.yaml
 graphql:
-  endpoint: https://api.example.com/graphql   # or `schema: schema.json` (cached introspection)
+  endpoint: https://api.example.com/graphql   # or `schema: schema.graphql` (a cached GraphQL SDL file)
   admin_secret: env:HASURA_ADMIN_SECRET       # sent under the dialect's auth header
   dialect: hasura
 generate:
-  - target: graphql-client
+  - target: graphql
     go_module: github.com/me/app/gql          # import path of the emitted package
     # package: appql            # defaults to base(go_module)+"ql"
     # dump_schema: true         # also write <package>/schema.json
@@ -491,7 +513,7 @@ generate:
 plugins:
   - local: protoc-gen-orm
     out: gen                    # buf writes the client tree here
-    opt: [target=graphql-client, config=orm.yaml]
+    opt: [target=graphql, config=orm.yaml]
 ```
 
 `buf generate` then introspects the endpoint and writes the client through the
@@ -507,7 +529,7 @@ filter engine with zero glue.
 
 > [!NOTE]
 > Because this runs under buf, the buf module's protos still need a Go import path
-> (a `go_package` option or an `M` mapping) even though the graphql-client target
+> (a `go_package` option or an `M` mapping) even though the `graphql` target
 > ignores them — buf compiles the module before invoking any plugin.
 
 ### Dialects
@@ -636,14 +658,15 @@ datasources:
 | `strip_version` | bool | Drop a trailing API version from derived schema names — `bookstore.v1` → schema `bookstore` instead of `bookstore_v1`. Applies to resource-type-derived and config-derived schema names, **never** to an explicit `(orm.v1.datasource).schema` annotation. A per-rule `strip_version` overrides this default. |
 | `dedupe_schema_table` | bool | Rename a table whose name would stutter with its schema in a schema-qualified identifier (`booking` schema + `bookings` table → `bookingBookings` in tools that join schema+table, e.g. Hasura). The redundant leading schema word is stripped; for the schema's primary table — where stripping leaves nothing — the table is renamed to a generic word (`resource`, then `entity`, …). Only the generated table name changes; proto/model names are untouched. |
 | `otel` | map | **gorm only.** Tune the OpenTelemetry tracing helper folded into the migration registry (see the [`otel` plugin opt](#plugin-options)). `enabled` (bool) overrides the opt's master switch — set `false` to omit `Instrument` even when the opt defaults it on. `metrics` (bool, default `true`) — set `false` to emit spans only, baking `tracing.WithoutMetrics()` into the generated default. |
-| `graphql` | map | Configures the [GraphQL client source](#graphql-client-sdk): `endpoint` **xor** `schema` (a cached introspection file), `admin_secret` (`env:VAR` or literal), `headers` (`Key: Value` list), `dialect` (default `hasura`), `max_depth`, `scalars` (`Name=GoType` list). Used by the `target=graphql-client` plugin entry. |
-| `generate` | list | The daisy chain: one entry per target to emit — `target`, `source`, `lang`, `out`, plus target knobs (`go_module`, `stores`/`filters`/`converters`/`otel` for gorm; `package`/`runtime_module`/`dump_schema` for graphql-client). |
+| `graphql` | map | Configures the [GraphQL source](#graphql-client-sdk): `endpoint` **xor** `schema` (a cached GraphQL SDL `.graphql` file), `admin_secret` (`env:VAR` or literal), `headers` (`Key: Value` list), `dialect` (default `hasura`), `max_depth`, `scalars` (`Name=GoType` list). Read by the `target=graphql` plugin entry. |
+| `generate` | list | Per-target settings, keyed by `target`: `go_module`, `package`, `runtime_module`, `dump_schema` for the `graphql` target; the gorm knobs are set as plugin opts instead. buf owns each entry's output dir (`out:`), so it isn't set here. |
 
 Config is **validated** on load: unknown keys are rejected (strict decode), and
-each `generate` entry is checked for a known `target`/`source`/`lang`/`dialect`,
-a present `out`, `endpoint`-xor-`schema`, and the knob prerequisites (e.g. gorm
-`stores`/`filters` require `go_module`; `pulse` requires `filters`) — every
-problem reported at once with its key path.
+each `generate` entry is checked for a known `target` / `source` / `lang` and, for
+the `graphql` target, a `graphql` source and a top-level `graphql:` block; the
+`graphql` block requires exactly one of `endpoint`/`schema` and a registered
+`dialect`; `pulse` requires `filters`. Every problem is reported at once with its
+key path.
 
 ### Datasource rules
 
@@ -717,7 +740,7 @@ Passed via `opt:` in `buf.gen.yaml`.
 
 | Option | Description |
 | --- | --- |
-| `target` | Output backend: `prisma` \| `gorm` \| `sql` \| `graphql-client`. Required. (`graphql-client` reads its endpoint from `orm.yaml`'s [`graphql`](#top-level-keys) block — see [GraphQL client SDK](#graphql-client-sdk).) |
+| `target` | What to emit: `prisma` \| `gorm` \| `sql` \| `graphql`. Required. (`graphql` reads its endpoint from `orm.yaml`'s [`graphql`](#top-level-keys) block — see [GraphQL client SDK](#graphql-client-sdk).) |
 | `go_module` | **gorm only.** Go import path of the output directory (e.g. `github.com/me/gen`). Enables the `migrate.go` factory registry, whose package imports each per-schema models package. Omit it and the per-schema model packages still generate, just without the aggregator. |
 | `stores` | **gorm only.** Also emit a typed CRUD store per resource — one `<model>_store.go` file each (see [GORM stores](#gorm-stores-and-tracing)). Off by default; turning it on adds a `gorm.io/gorm` dependency to each models package. |
 | `filters` | **gorm only.** Emit AIP-160 filter / AIP-132 order_by specs per schema (`filters.go`) plus the shared `filterx` engine package serving both **SQL (GORM)** and **Hasura DDN GraphQL** (see [filters and list engines](#aip-160-filters-and-list-engines-sql--hasura)). Off by default; requires `go_module`. The Hasura engine adds a `github.com/the-protobuf-project/runtime-go` dependency. |

@@ -1,0 +1,127 @@
+enum OrderBy {
+  ASC
+  DESC
+}
+
+enum VenueKind {
+  VENUE_KIND_HALL
+  VENUE_KIND_ARENA
+}
+
+type Venue {
+  id: ID!
+  "Human-readable name shown to guests."
+  displayName: String!
+  """
+  Maximum seated capacity.
+  Must be a positive integer.
+  """
+  capacity: Int
+  openAir: Boolean
+  kind: VenueKind
+}
+
+type VenueMutationResponse {
+  affectedRows: Int!
+  returning: [Venue!]!
+}
+
+type VenueAggregate {
+  count: Int!
+}
+
+input StringComparisonExp {
+  _eq: String
+  _neq: String
+  _in: [String!]
+  _gt: String
+  _lt: String
+  _gte: String
+  _lte: String
+  _like: String
+}
+
+input IntComparisonExp {
+  _eq: Int
+  _neq: Int
+  _in: [Int!]
+  _gt: Int
+  _lt: Int
+  _gte: Int
+  _lte: Int
+  _like: Int
+}
+
+input BooleanComparisonExp {
+  _eq: Boolean
+  _neq: Boolean
+  _in: [Boolean!]
+  _gt: Boolean
+  _lt: Boolean
+  _gte: Boolean
+  _lte: Boolean
+  _like: Boolean
+}
+
+input VenueKindComparisonExp {
+  _eq: VenueKind
+  _neq: VenueKind
+  _in: [VenueKind!]
+  _gt: VenueKind
+  _lt: VenueKind
+  _gte: VenueKind
+  _lte: VenueKind
+  _like: VenueKind
+}
+
+input VenueBoolExp {
+  _and: [VenueBoolExp!]
+  _or: [VenueBoolExp!]
+  _not: VenueBoolExp
+  id: StringComparisonExp
+  displayName: StringComparisonExp
+  capacity: IntComparisonExp
+  openAir: BooleanComparisonExp
+  kind: VenueKindComparisonExp
+}
+
+input VenueOrderByExp {
+  displayName: OrderBy
+  capacity: OrderBy
+}
+
+input VenueInsertInput {
+  "Human-readable name shown to guests."
+  displayName: String!
+  capacity: Int
+  openAir: Boolean
+  kind: VenueKind
+}
+
+input VenueSetInput {
+  displayName: String
+  capacity: Int
+  openAir: Boolean
+}
+
+type Query {
+  venues(where: VenueBoolExp, orderBy: [VenueOrderByExp!], limit: Int, offset: Int): [Venue!]!
+  venuesById(id: ID!): Venue
+  venuesAggregate(where: VenueBoolExp): VenueAggregate!
+}
+
+type Mutation {
+  insertVenues(objects: [VenueInsertInput!]!): VenueMutationResponse!
+  updateVenuesById(id: ID!, _set: VenueSetInput, preCheck: VenueBoolExp): VenueMutationResponse
+  deleteVenuesById(id: ID!): VenueMutationResponse
+}
+
+type Subscription {
+  venues(where: VenueBoolExp): [Venue!]!
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

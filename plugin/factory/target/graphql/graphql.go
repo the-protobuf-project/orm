@@ -29,6 +29,7 @@ type Config struct {
 	MaxDepth      int               // relation inlining depth (default 1)
 	Scalars       map[string]string // GraphQL scalar -> Go type overrides
 	Dialect       dialect.Dialect   // engine conventions; default dialect.Default()
+	Version       string            // plugin version stamped into generated banners
 
 	// Sink, when set, receives each generated file (path relative to the package
 	// root, content) instead of writing to OutDir. The plugin sets it to route
@@ -96,6 +97,7 @@ func (t *Target) Generate(_ factory.Ctx, m *coreir.Model, lang string) error {
 			MaxDepth:      t.cfg.MaxDepth,
 			Scalars:       t.cfg.Scalars,
 			Dialect:       t.cfg.Dialect,
+			Version:       t.cfg.Version,
 			Sink:          t.cfg.Sink,
 		})
 	default:

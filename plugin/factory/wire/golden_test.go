@@ -13,6 +13,7 @@ package wire_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/the-protobuf-project/orm/plugin/factory/source/proto/backend"
@@ -45,7 +46,18 @@ func ormBackend(dir string) schema.Backend {
 	converters := fileExists(filepath.Join(dir, "converters"))
 	filters := fileExists(filepath.Join(dir, "filters"))
 	pulse := fileExists(filepath.Join(dir, "pulse"))
-	return backend.New(cfg, "example.com/test/gen", stores, true, converters, filters, pulse)
+	return backend.New(cfg, "example.com/test/gen", stores, true, converters, filters, pulse).
+		WithRepositoryModules(optFile(dir, "gorm_module"), optFile(dir, "graphql_module"))
+}
+
+// optFile reads a valued marker file (e.g. gorm_module holding a module path),
+// returning "" when the case doesn't ship it.
+func optFile(dir, name string) string {
+	b, err := os.ReadFile(filepath.Join(dir, name))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 func fileExists(path string) bool {

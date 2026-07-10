@@ -26,6 +26,13 @@ type Backend struct {
 	converters bool    // gorm: also emit proto↔model converters per schema
 	filters    bool    // gorm: also emit AIP filter/order specs + the filterx engines
 	pulse      bool    // gorm: with filters, emit the pulse-go Observer adapter
+
+	// gormModule / graphqlModule are the repository target's knobs: the import
+	// paths of the generated gorm output and the generated GraphQL client the
+	// repository adapters compose. Empty graphqlModule means gorm-only
+	// repositories (the open-source posture).
+	gormModule    string
+	graphqlModule string
 }
 
 // New builds an orm Backend from the resolved plugin options. The zero value
@@ -33,6 +40,13 @@ type Backend struct {
 // non-gorm targets need.
 func New(cfg *Config, goModule string, stores, otel, converters, filters, pulse bool) Backend {
 	return Backend{cfg: cfg, goModule: goModule, stores: stores, otel: otel, converters: converters, filters: filters, pulse: pulse}
+}
+
+// WithRepositoryModules returns a copy of b carrying the repository target's
+// module paths (see the gorm_module / graphql_module plugin opts).
+func (b Backend) WithRepositoryModules(gormModule, graphqlModule string) Backend {
+	b.gormModule, b.graphqlModule = gormModule, graphqlModule
+	return b
 }
 
 // ReadDatasource resolves the file's grouping from orm.v1.datasource and orm.yaml,
@@ -139,6 +153,8 @@ func (b Backend) Enrich(dbs []*schema.Database) error {
 		db.Opts["otel_metrics"] = boolStr(otelMetrics)
 		db.Opts["filters"] = boolStr(b.filters)
 		db.Opts["pulse"] = boolStr(b.pulse)
+		db.Opts["gorm_module"] = b.gormModule
+		db.Opts["graphql_module"] = b.graphqlModule
 	}
 	return nil
 }

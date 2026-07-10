@@ -15,7 +15,7 @@ import (
 // It returns the concrete *graphql.Target so callers can read PackageName; a caller
 // obtains it via this constructor and uses its methods without importing the
 // graphql target package (Go needs the import only to name the package).
-func NewGraphQLTarget(pkg, goModule, runtimeModule string, maxDepth int, scalars map[string]string, d dialect.Dialect, sink func(relPath string, content []byte) error) *graphql.Target {
+func NewGraphQLTarget(pkg, goModule, runtimeModule, version string, maxDepth int, scalars map[string]string, d dialect.Dialect, sink func(relPath string, content []byte) error) *graphql.Target {
 	return graphql.New(graphql.Config{
 		Package:       pkg,
 		GoModule:      goModule,
@@ -23,6 +23,7 @@ func NewGraphQLTarget(pkg, goModule, runtimeModule string, maxDepth int, scalars
 		MaxDepth:      maxDepth,
 		Scalars:       scalars,
 		Dialect:       d,
+		Version:       version,
 		Sink:          sink,
 	})
 }

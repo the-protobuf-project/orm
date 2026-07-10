@@ -115,6 +115,12 @@ func main() {
 	pulse := flags.Bool("pulse", false,
 		"gorm target only: with filters, also emit a pulse-go Observer adapter so the "+
 			"filterx list engines can trace and log through machanirobotics/pulse")
+	gormModule := flags.String("gorm_module", "",
+		"repository target only: Go import path of the generated gorm output the "+
+			"repository adapters compose (models, stores, filterx)")
+	graphqlModule := flags.String("graphql_module", "",
+		"repository target only: Go import path of the generated GraphQL client the "+
+			"graphql repository adapters compose; empty emits gorm-only repositories")
 
 	protogen.Options{ParamFunc: flags.Set}.Run(func(p *protogen.Plugin) error {
 		// Proto3 `optional` is fully supported (presence is read via field_behavior,
@@ -125,7 +131,7 @@ func main() {
 		// proto descriptors, so it takes its own path — but still runs as part of a
 		// normal plugin invocation and returns files through the protoc response.
 		if *target == "graphql" {
-			return runGraphQL(p, *config, *goModule)
+			return runGraphQL(p, *config, *goModule, v)
 		}
 
 		// orm owns its layout config (protokit has none): load it here and hand the
@@ -139,7 +145,8 @@ func main() {
 		// buf selects exactly one target via opt: [target=...] and owns the output dir.
 		reg := wire.Registry(
 			protokit.Options{Target: *target, Strict: *strict, Version: v},
-			backend.New(cfg, *goModule, *stores, *otel, *converters, *filters, *pulse))
+			backend.New(cfg, *goModule, *stores, *otel, *converters, *filters, *pulse).
+				WithRepositoryModules(*gormModule, *graphqlModule))
 
 		tgt, ok := reg.Targets[*target]
 		if !ok {
@@ -162,7 +169,7 @@ func main() {
 // endpoint (or cached schema) and conventions from orm.yaml's graphql block,
 // introspects, and returns the generated files through the protoc response so buf
 // writes them to the plugin entry's out: directory.
-func runGraphQL(p *protogen.Plugin, configPath, goModuleOpt string) error {
+func runGraphQL(p *protogen.Plugin, configPath, goModuleOpt, version string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return err
@@ -210,7 +217,7 @@ func runGraphQL(p *protogen.Plugin, configPath, goModuleOpt string) error {
 	// Construct the graphql source and target through wire so main imports neither
 	// same-named graphql package (see wire/graphqlsource.go, graphqltarget.go).
 	source := wire.NewGraphQLSource(g.Endpoint, g.Schema, secret, g.Headers, dl)
-	target := wire.NewGraphQLTarget(entry.Package, goModule, entry.RuntimeModule, maxDepth, parseScalars(g.Scalars), dl, sink)
+	target := wire.NewGraphQLTarget(entry.Package, goModule, entry.RuntimeModule, version, maxDepth, parseScalars(g.Scalars), dl, sink)
 
 	model, err := source.Build(factory.Ctx{})
 	if err != nil {

@@ -17,6 +17,7 @@ import (
 	"github.com/the-protobuf-project/orm/plugin/factory/target/graphql/golang/typemap"
 	"github.com/the-protobuf-project/protokit/graphql/dialect"
 	"github.com/the-protobuf-project/protokit/graphql/ir"
+	"github.com/the-protobuf-project/protokit/header"
 )
 
 //go:embed templates/file.go.tmpl
@@ -32,6 +33,7 @@ type Options struct {
 	MaxDepth      int               // relation inlining depth
 	Scalars       map[string]string // GraphQL scalar -> Go type overrides
 	Dialect       dialect.Dialect   // engine conventions; defaults to dialect.Default()
+	Version       string            // plugin version stamped into generated banners
 
 	// Sink, when set, receives each generated file as (path relative to the
 	// package root, formatted content) instead of writing to OutDir on disk. The
@@ -42,6 +44,7 @@ type Options struct {
 
 // fileData is the data passed to the file template.
 type fileData struct {
+	Header  string
 	Package string
 	Imports []string
 	Body    string
@@ -107,8 +110,16 @@ func Generate(opts Options) error {
 // whole project is nested under a folder named after the service (the root package), so
 // foldername == package == import root.
 func (g *generator) writeFile(subdir, name, pkg string, imports []string, body string) error {
+	// The banner matches every other target's (protokit header.Render): same
+	// stamp format across gorm, prisma, sql, graphql, and repository output.
+	h := header.Render("//", header.Info{
+		PluginVersion: g.opts.Version,
+		Database:      g.opts.Package,
+		SchemaLabel:   "package",
+		Schema:        pkg,
+	})
 	var raw strings.Builder
-	if err := g.tmpl.Execute(&raw, fileData{Package: pkg, Imports: imports, Body: body}); err != nil {
+	if err := g.tmpl.Execute(&raw, fileData{Header: h, Package: pkg, Imports: imports, Body: body}); err != nil {
 		return fmt.Errorf("template exec for %s: %w", name, err)
 	}
 	formatted, err := format.Source([]byte(raw.String()))

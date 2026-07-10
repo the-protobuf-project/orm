@@ -99,6 +99,135 @@ type Spec struct {
 	Sort map[string]string
 }
 
+// --- filter parsing --------------------------------------------------------------
+
+// Parse parses a pragmatic subset of the AIP-160 filter language into a flat,
+// AND-combined list of conditions. It supports:
+//
+//   - `field = value`, `field != value`, `field : value`
+//   - `field <= value`, `field >= value` (ordered fields, e.g. dates)
+//   - quoted values ("two words") and barewords (SUMMER25)
+//   - a bare term with no operator, treated as a free-text search
+//   - terms separated by whitespace or an explicit `AND`
+//
+// It validates only syntax; the engines validate each Field against the spec.
+// A malformed expression yields ErrInvalid. The empty string parses to no
+// conditions (an unfiltered list).
+func Parse(filter string) ([]Condition, error) {
+	toks, err := tokenize(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	var conds []Condition
+	for i := 0; i < len(toks); {
+		t := toks[i]
+		if t.op {
+			return nil, fmt.Errorf("%w: unexpected operator %q in filter", ErrInvalid, t.text)
+		}
+		if strings.EqualFold(t.text, "AND") && !t.quoted {
+			i++
+			continue
+		}
+		// A value token followed by an operator is a `field op value` term.
+		if i+1 < len(toks) && toks[i+1].op {
+			if i+2 >= len(toks) || toks[i+2].op {
+				return nil, fmt.Errorf("%w: filter operator %q is missing a value", ErrInvalid, toks[i+1].text)
+			}
+			op, err := parseOp(toks[i+1].text)
+			if err != nil {
+				return nil, err
+			}
+			conds = append(conds, Condition{Field: t.text, Op: op, Value: toks[i+2].text})
+			i += 3
+			continue
+		}
+		// Otherwise it's a free-text term.
+		conds = append(conds, Condition{Op: OpHas, Value: t.text})
+		i++
+	}
+	return conds, nil
+}
+
+func parseOp(s string) (Op, error) {
+	switch s {
+	case "=":
+		return OpEq, nil
+	case "!=":
+		return OpNeq, nil
+	case ":":
+		return OpHas, nil
+	case "<=":
+		return OpLte, nil
+	case ">=":
+		return OpGte, nil
+	default:
+		return 0, fmt.Errorf("%w: unsupported filter operator %q", ErrInvalid, s)
+	}
+}
+
+// token is a lexed unit: a value (bareword or quoted string) or an operator.
+type token struct {
+	text   string
+	op     bool // true for =, !=, :, <=, >=
+	quoted bool // true when the value came from a quoted string literal
+}
+
+// tokenize splits a filter expression into value and operator tokens, honoring
+// double-quoted string literals (which may contain spaces and operators).
+func tokenize(s string) ([]token, error) {
+	var toks []token
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		switch c {
+		case ' ', '\t':
+			i++
+		case '"':
+			j := i + 1
+			var b strings.Builder
+			for j < len(s) && s[j] != '"' {
+				b.WriteByte(s[j])
+				j++
+			}
+			if j >= len(s) {
+				return nil, fmt.Errorf("%w: unterminated quoted string in filter", ErrInvalid)
+			}
+			toks = append(toks, token{text: b.String(), quoted: true})
+			i = j + 1
+		case '=', ':':
+			toks = append(toks, token{text: string(c), op: true})
+			i++
+		case '!':
+			if i+1 < len(s) && s[i+1] == '=' {
+				toks = append(toks, token{text: "!=", op: true})
+				i += 2
+			} else {
+				return nil, fmt.Errorf("%w: unexpected %q in filter (did you mean !=?)", ErrInvalid, "!")
+			}
+		case '<', '>':
+			if i+1 < len(s) && s[i+1] == '=' {
+				toks = append(toks, token{text: string(c) + "=", op: true})
+				i += 2
+			} else {
+				return nil, fmt.Errorf("%w: unexpected %q in filter (only <= and >= are supported)", ErrInvalid, string(c))
+			}
+		default:
+			j := i
+			for j < len(s) && !isDelim(s[j]) {
+				j++
+			}
+			toks = append(toks, token{text: s[i:j]})
+			i = j
+		}
+	}
+	return toks, nil
+}
+
+func isDelim(c byte) bool {
+	return c == ' ' || c == '\t' || c == '=' || c == ':' || c == '!' || c == '"' || c == '<' || c == '>'
+}
+
 // --- value normalization and validation ---------------------------------------
 
 // NormalizeEnum maps a filter value onto the stored enum form: uppercase with

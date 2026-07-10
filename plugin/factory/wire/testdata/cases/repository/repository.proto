@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+package org.v1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "orm/v1/annotations.proto";
+
+option go_package = "example.com/test/gen;orgv1";
+option java_multiple_files = true;
+option java_outer_classname = "RepositoryProto";
+option java_package = "com.org.v1";
+
+// Role a member holds, exercising enum handling in adapters and masks.
+enum MemberRole {
+  MEMBER_ROLE_UNSPECIFIED = 0;
+  MEMBER_ROLE_ADMIN = 1;
+  MEMBER_ROLE_STAFF = 2;
+}
+
+// Lifecycle state, exercising an OUTPUT_ONLY (non-mutable) enum column.
+enum OrgState {
+  ORG_STATE_UNSPECIFIED = 0;
+  ORG_STATE_ACTIVE = 1;
+  ORG_STATE_ARCHIVED = 2;
+}
+
+// User exercises the simplest repository shape: a root resource another
+// resource references (Member.user), so the ref name↔id fragments render.
+message User {
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  option (google.api.resource) = {
+    type: "org.v1/User"
+    pattern: "users/{user}"
+    singular: "user"
+    plural: "users"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Human-friendly name.
+  string display_name = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Creation timestamp.
+  google.protobuf.Timestamp create_time = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Last-modification timestamp.
+  google.protobuf.Timestamp update_time = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Opaque version for optimistic concurrency.
+  string etag = 5;
+}
+
+// Organisation exercises a root resource with an etag, an OUTPUT_ONLY derived
+// column (state), and a message-typed mutable field (settings — GroupTouched
+// mask semantics).
+message Organisation {
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  option (google.api.resource) = {
+    type: "org.v1/Organisation"
+    pattern: "organisations/{organisation}"
+    singular: "organisation"
+    plural: "organisations"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Human-friendly name.
+  string display_name = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // URL slug, unique across organisations.
+  string slug = 3 [
+    (google.api.field_behavior) = OPTIONAL,
+    (orm.v1.column) = {unique: true}
+  ];
+
+  // Lifecycle state, derived server-side.
+  OrgState state = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Arbitrary settings blob.
+  google.protobuf.Struct settings = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Creation timestamp.
+  google.protobuf.Timestamp create_time = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Last-modification timestamp.
+  google.protobuf.Timestamp update_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Opaque version for optimistic concurrency.
+  string etag = 8;
+}
+
+// Member exercises a parented resource (Create/List take the organisation
+// parent) with a reference to a root resource (user) and an optional one
+// (inviter) — both directions of the name↔bare-id ref mapping.
+message Member {
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  option (google.api.resource) = {
+    type: "org.v1/Member"
+    pattern: "organisations/{organisation}/members/{member}"
+    singular: "member"
+    plural: "members"
+  };
+
+  // Resource name; the AIP identifier.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Contact email.
+  string email = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // The account this membership belongs to.
+  // Format: users/{user}
+  string user = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "org.v1/User"}
+  ];
+
+  // The member who sent the invite, when any.
+  // Format: users/{user}
+  string inviter = 4 [
+    (google.api.field_behavior) = OPTIONAL,
+    (google.api.resource_reference) = {type: "org.v1/User"}
+  ];
+
+  // Role within the organisation.
+  MemberRole role = 5 [(google.api.field_behavior) = REQUIRED];
+
+  // Creation timestamp.
+  google.protobuf.Timestamp create_time = 6 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Last-modification timestamp.
+  google.protobuf.Timestamp update_time = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Opaque version for optimistic concurrency.
+  string etag = 8;
+}

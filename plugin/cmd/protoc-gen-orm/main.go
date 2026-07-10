@@ -115,6 +115,12 @@ func main() {
 	pulse := flags.Bool("pulse", false,
 		"gorm target only: with filters, also emit a pulse-go Observer adapter so the "+
 			"filterx list engines can trace and log through machanirobotics/pulse")
+	gormModule := flags.String("gorm_module", "",
+		"repository target only: Go import path of the generated gorm output the "+
+			"repository adapters compose (models, stores, filterx)")
+	graphqlModule := flags.String("graphql_module", "",
+		"repository target only: Go import path of the generated GraphQL client the "+
+			"graphql repository adapters compose; empty emits gorm-only repositories")
 
 	protogen.Options{ParamFunc: flags.Set}.Run(func(p *protogen.Plugin) error {
 		// Proto3 `optional` is fully supported (presence is read via field_behavior,
@@ -139,7 +145,8 @@ func main() {
 		// buf selects exactly one target via opt: [target=...] and owns the output dir.
 		reg := wire.Registry(
 			protokit.Options{Target: *target, Strict: *strict, Version: v},
-			backend.New(cfg, *goModule, *stores, *otel, *converters, *filters, *pulse))
+			backend.New(cfg, *goModule, *stores, *otel, *converters, *filters, *pulse).
+				WithRepositoryModules(*gormModule, *graphqlModule))
 
 		tgt, ok := reg.Targets[*target]
 		if !ok {

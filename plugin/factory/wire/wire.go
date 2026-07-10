@@ -17,6 +17,7 @@ import (
 	"github.com/the-protobuf-project/orm/plugin/factory/target/database"
 	"github.com/the-protobuf-project/orm/plugin/factory/target/gorm"
 	"github.com/the-protobuf-project/orm/plugin/factory/target/prisma"
+	"github.com/the-protobuf-project/orm/plugin/factory/target/repository"
 	"github.com/the-protobuf-project/orm/plugin/factory/target/sql"
 	"github.com/the-protobuf-project/protokit"
 	"github.com/the-protobuf-project/protokit/factory"
@@ -30,9 +31,10 @@ import (
 // This subset exists because the golden test harness drives schema.Target directly.
 func ProtoTargets() map[string]schema.Target {
 	return map[string]schema.Target{
-		"gorm":   &gorm.Generator{},
-		"sql":    &sql.Generator{},
-		"prisma": &prisma.Generator{},
+		"gorm":       &gorm.Generator{},
+		"sql":        &sql.Generator{},
+		"prisma":     &prisma.Generator{},
+		"repository": &repository.Generator{},
 	}
 }
 

@@ -6,8 +6,6 @@ package golang
 import (
 	"fmt"
 	"strings"
-
-	"github.com/the-protobuf-project/protokit/naming"
 )
 
 // An update mutation that accepts a preCheck row filter and returns an affected-rows count can
@@ -43,7 +41,7 @@ func (r *renderer) affectedRowsField(o op) string {
 	for _, f := range obj.Fields {
 		for _, name := range r.dialect.AffectedRowsFields() {
 			if f.Name == name {
-				return naming.PascalGo(f.Name)
+				return export(f.Name)
 			}
 		}
 	}

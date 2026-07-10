@@ -8,7 +8,7 @@ import (
 
 // Venue is the Venue model.
 type Venue struct {
-	ID string `graphql:"id"`
+	Id string `graphql:"id"`
 	// Human-readable name shown to guests.
 	DisplayName string `graphql:"displayName"`
 	// Maximum seated capacity.
@@ -27,7 +27,7 @@ type VenueAggregate struct {
 type VenueMutationResponse struct {
 	AffectedRows int `graphql:"affectedRows"`
 	Returning    []struct {
-		ID string `graphql:"id"`
+		Id string `graphql:"id"`
 		// Human-readable name shown to guests.
 		DisplayName string `graphql:"displayName"`
 		// Maximum seated capacity.

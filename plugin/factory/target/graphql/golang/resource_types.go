@@ -175,7 +175,7 @@ func (r *renderer) renderInputStruct(name, doc string, fields []ir.Field, setOpe
 		} else if !f.Type.NonNull {
 			tag += ",omitzero"
 		}
-		fmt.Fprintf(&b, "\t%s %s `json:%q`\n", naming.PascalGo(f.Name), goType, tag)
+		fmt.Fprintf(&b, "\t%s %s `json:%q`\n", export(f.Name), goType, tag)
 	}
 	b.WriteString("}\n")
 	return b.String()

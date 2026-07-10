@@ -48,11 +48,11 @@ func (r *renderer) renderPredicates(rg *resGen) (body string, usesEnums bool) {
 			if enum {
 				usesEnums = true
 			}
-			vars = append(vars, fv{naming.Unique(naming.PascalGo(f.Name), used), expr})
+			vars = append(vars, fv{naming.Unique(export(f.Name), used), expr})
 			continue
 		}
 		if r.isBoolExp(f.Type.Base) {
-			relations = append(relations, rel{naming.Unique(naming.PascalGo(f.Name), used), f.Name})
+			relations = append(relations, rel{naming.Unique(export(f.Name), used), f.Name})
 		}
 	}
 	if len(vars) == 0 && len(relations) == 0 {

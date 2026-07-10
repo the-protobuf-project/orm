@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/the-protobuf-project/protokit/graphql/ir"
-	"github.com/the-protobuf-project/protokit/naming"
 )
 
 // argRole classifies how an operation argument surfaces in the generated Go API.
@@ -180,7 +179,7 @@ func (r *renderer) sharedRequestType(o op, specs []argSpec) string {
 
 // getterName is the accessor a handler calls to read an optional argument from its request
 // (e.g. "where" -> "GetWhere"), matching the Get* methods on the shared and local request types.
-func getterName(goName string) string { return "Get" + naming.PascalGo(goName) }
+func getterName(goName string) string { return "Get" + export(goName) }
 
 // requestType renders the chained <Method>Request builder for an operation's optional
 // arguments, or "" when it has none. When the arguments fit a shared runtime type the request is
@@ -208,7 +207,7 @@ func (r *renderer) requestType(o op) string {
 	b.WriteString("}\n\n")
 	fmt.Fprintf(&b, "// %s starts a builder for the optional arguments of %s.\nfunc %s() *%sRequest { return &%sRequest{} }\n\n", o.Name, o.Name, o.Name, o.Name, o.Name)
 	for _, s := range specs {
-		setter := naming.PascalGo(s.argName)
+		setter := export(s.argName)
 		if s.role == roleOrder {
 			fmt.Fprintf(&b, "// %s sets the result ordering.\nfunc (r *%sRequest) %s(v ...graphql.OrderTerm) *%sRequest { r.%s = v; return r }\n\n", setter, o.Name, setter, o.Name, s.goName)
 		} else {

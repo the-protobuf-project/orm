@@ -32,14 +32,11 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/the-protobuf-project/orm/plugin/factory"
+	"github.com/the-protobuf-project/protokit/factory"
 	"github.com/the-protobuf-project/orm/plugin/factory/config"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql/dialect"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/proto"
-	"github.com/the-protobuf-project/orm/plugin/factory/target/graphqlclient"
-	"github.com/the-protobuf-project/orm/plugin/generator"
-	"github.com/the-protobuf-project/orm/plugin/generator/backend"
+	"github.com/the-protobuf-project/protokit/graphql/dialect"
+	"github.com/the-protobuf-project/orm/plugin/factory/source/proto/backend"
+	"github.com/the-protobuf-project/orm/plugin/factory/wire"
 	"github.com/the-protobuf-project/protokit"
 	"github.com/the-protobuf-project/protokit/header"
 	"google.golang.org/protobuf/compiler/protogen"
@@ -124,11 +121,11 @@ func main() {
 		// not synthetic oneofs); declare it so buf/protoc don't warn.
 		p.SupportedFeatures = uint64(pluginpb.CodeGeneratorResponse_FEATURE_PROTO3_OPTIONAL)
 
-		// The graphql-client target reads a GraphQL endpoint from orm.yaml rather than
-		// the proto descriptors, so it takes its own path — but still runs as part of a
+		// The graphql target reads a GraphQL endpoint from orm.yaml rather than the
+		// proto descriptors, so it takes its own path — but still runs as part of a
 		// normal plugin invocation and returns files through the protoc response.
-		if *target == "graphql-client" {
-			return runGraphQLClient(p, *config, *goModule)
+		if *target == "graphql" {
+			return runGraphQL(p, *config, *goModule)
 		}
 
 		// orm owns its layout config (protokit has none): load it here and hand the
@@ -140,13 +137,9 @@ func main() {
 
 		// Drive the proto build + render through the factory registry. In plugin mode
 		// buf selects exactly one target via opt: [target=...] and owns the output dir.
-		reg := factory.NewRegistry()
-		reg.AddSource(proto.New(protokit.Options{Target: *target, Strict: *strict, Version: v},
-			backend.New(cfg, *goModule, *stores, *otel, *converters, *filters, *pulse)))
-		for _, t := range generator.FactoryDBTargets() {
-			reg.AddTarget(t)
-		}
-		reg.AddTarget(graphqlclient.New(graphqlclient.Config{})) // listed as a valid target
+		reg := wire.Registry(
+			protokit.Options{Target: *target, Strict: *strict, Version: v},
+			backend.New(cfg, *goModule, *stores, *otel, *converters, *filters, *pulse))
 
 		tgt, ok := reg.Targets[*target]
 		if !ok {
@@ -165,19 +158,20 @@ func main() {
 	})
 }
 
-// runGraphQLClient generates the typed GraphQL client during a plugin run. It reads
-// the endpoint (or cached schema) and conventions from orm.yaml's graphql block,
+// runGraphQL generates the typed GraphQL client during a plugin run. It reads the
+// endpoint (or cached schema) and conventions from orm.yaml's graphql block,
 // introspects, and returns the generated files through the protoc response so buf
 // writes them to the plugin entry's out: directory.
-func runGraphQLClient(p *protogen.Plugin, configPath, goModuleOpt string) error {
+func runGraphQL(p *protogen.Plugin, configPath, goModuleOpt string) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return err
 	}
 	if cfg == nil || cfg.GraphQL == nil {
-		return fmt.Errorf("target=graphql-client needs a `graphql:` block in orm.yaml (set the config=<path> opt)")
+		return fmt.Errorf("target=graphql needs a `graphql:` block in orm.yaml (set the config=<path> opt)")
 	}
-	if err := cfg.Validate(graphQLRegistry()); err != nil {
+	validationReg := wire.Registry(protokit.Options{}, backend.New(nil, "", false, false, false, false, false))
+	if err := cfg.Validate(validationReg); err != nil {
 		return err
 	}
 
@@ -195,13 +189,13 @@ func runGraphQLClient(p *protogen.Plugin, configPath, goModuleOpt string) error 
 		}
 	}
 
-	entry := cfg.GraphQLClientEntry()
+	entry := cfg.GraphQLEntry()
 	goModule := goModuleOpt
 	if goModule == "" {
 		goModule = entry.GoModule
 	}
 	if goModule == "" {
-		return fmt.Errorf("graphql-client needs go_module (the go_module opt or a generate[].go_module in orm.yaml)")
+		return fmt.Errorf("the graphql target needs go_module (the go_module opt or a generate[].go_module in orm.yaml)")
 	}
 	maxDepth := 1
 	if g.MaxDepth != nil {
@@ -213,22 +207,10 @@ func runGraphQLClient(p *protogen.Plugin, configPath, goModuleOpt string) error 
 		return err
 	}
 
-	source := graphql.New(graphql.Config{
-		Endpoint:    g.Endpoint,
-		SchemaFile:  g.Schema,
-		AdminSecret: secret,
-		Headers:     g.Headers,
-		Dialect:     dl,
-	})
-	target := graphqlclient.New(graphqlclient.Config{
-		Package:       entry.Package,
-		GoModule:      goModule,
-		RuntimeModule: entry.RuntimeModule,
-		MaxDepth:      maxDepth,
-		Scalars:       parseScalars(g.Scalars),
-		Dialect:       dl,
-		Sink:          sink,
-	})
+	// Construct the graphql source and target through wire so main imports neither
+	// same-named graphql package (see wire/graphqlsource.go, graphqltarget.go).
+	source := wire.NewGraphQLSource(g.Endpoint, g.Schema, secret, g.Headers, dl)
+	target := wire.NewGraphQLTarget(entry.Package, goModule, entry.RuntimeModule, maxDepth, parseScalars(g.Scalars), dl, sink)
 
 	model, err := source.Build(factory.Ctx{})
 	if err != nil {
@@ -245,20 +227,6 @@ func runGraphQLClient(p *protogen.Plugin, configPath, goModuleOpt string) error 
 		return sink(filepath.Join(target.PackageName(), "schema.json"), data)
 	}
 	return nil
-}
-
-// graphQLRegistry is the source/target set used to validate orm.yaml on a
-// graphql-client run: the graphql + proto sources and every target (proto targets
-// are listed so a `generate:` entry referencing them still validates).
-func graphQLRegistry() *factory.Registry {
-	reg := factory.NewRegistry()
-	reg.AddSource(graphql.New(graphql.Config{}))
-	reg.AddSource(proto.New(protokit.Options{}, backend.New(nil, "", false, false, false, false, false)))
-	reg.AddTarget(graphqlclient.New(graphqlclient.Config{}))
-	for _, t := range generator.FactoryDBTargets() {
-		reg.AddTarget(t)
-	}
-	return reg
 }
 
 // parseScalars converts "Name=GoType" entries into a map.

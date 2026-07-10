@@ -8,8 +8,8 @@
 package coreir
 
 import (
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql/introspect"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql/ir"
+	"github.com/the-protobuf-project/protokit/graphql/introspect"
+	"github.com/the-protobuf-project/protokit/graphql/ir"
 	"github.com/the-protobuf-project/protokit/schema"
 )
 

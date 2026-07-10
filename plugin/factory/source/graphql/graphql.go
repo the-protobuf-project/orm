@@ -1,6 +1,6 @@
 // Package graphql is the factory Source that reads a GraphQL server: it
-// introspects a live endpoint (or decodes a cached schema.json), then builds the
-// GraphQL IR under the configured dialect. Unlike the proto Source it runs
+// introspects a live endpoint (or reads a cached GraphQL SDL schema, .graphql),
+// then builds the GraphQL IR under the configured dialect. Unlike the proto Source it runs
 // outside protoc — its input is an endpoint or a file, supplied via Config — so
 // it drives the CLI (`protoc-gen-orm graphql …`) rather than plugin mode.
 package graphql
@@ -9,20 +9,22 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/the-protobuf-project/orm/plugin/factory"
+	"github.com/the-protobuf-project/protokit/factory"
 	"github.com/the-protobuf-project/orm/plugin/factory/coreir"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql/dialect"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql/introspect"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql/ir"
+	"github.com/the-protobuf-project/protokit/graphql/dialect"
+	"github.com/the-protobuf-project/protokit/graphql/introspect"
+	"github.com/the-protobuf-project/protokit/graphql/ir"
 )
 
 // Config selects the introspection input and conventions for a GraphQL build.
 type Config struct {
 	// Endpoint is a live GraphQL URL to introspect (used when SchemaFile is empty).
 	Endpoint string
-	// SchemaFile is a cached introspection JSON file (skips the live fetch).
+	// SchemaFile is a cached schema file that skips the live fetch: a GraphQL SDL
+	// document (.graphql/.gql), or a .json introspection dump for back-compat.
 	SchemaFile string
 	// AdminSecret, when set, is sent under the dialect's auth header.
 	AdminSecret string
@@ -65,7 +67,12 @@ func (s *Source) loadSchema() (*introspect.Schema, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read schema file: %w", err)
 		}
-		return introspect.Decode(raw)
+		// A cached schema is authored as GraphQL SDL (.graphql/.gql); a .json file is
+		// treated as a raw introspection dump for backward compatibility.
+		if strings.EqualFold(filepath.Ext(s.cfg.SchemaFile), ".json") {
+			return introspect.Decode(raw)
+		}
+		return introspect.ParseSDL(s.cfg.SchemaFile, string(raw))
 	}
 	if s.cfg.Endpoint == "" {
 		return nil, fmt.Errorf("graphql source needs an endpoint or a schema file")

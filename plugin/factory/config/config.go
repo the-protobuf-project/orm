@@ -14,9 +14,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/the-protobuf-project/orm/plugin/factory"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql/dialect"
-	"github.com/the-protobuf-project/orm/plugin/generator/backend"
+	"github.com/the-protobuf-project/orm/plugin/factory/coreir"
+	"github.com/the-protobuf-project/protokit/graphql/dialect"
+	"github.com/the-protobuf-project/orm/plugin/factory/source/proto/backend"
+	"github.com/the-protobuf-project/protokit/factory"
 )
 
 // Config is the whole orm.yaml. The proto/DB keys (datasources, strip_version,
@@ -66,12 +67,12 @@ type GenerateEntry struct {
 	OTel       *bool `yaml:"otel"`
 }
 
-// GraphQLClientEntry returns the first `generate:` entry targeting the
-// graphql-client, or a zero entry when none is configured (the caller then falls
-// back to plugin opts / defaults for go_module and package).
-func (c *Config) GraphQLClientEntry() GenerateEntry {
+// GraphQLEntry returns the first `generate:` entry targeting the graphql client,
+// or a zero entry when none is configured (the caller then falls back to plugin
+// opts / defaults for go_module and package).
+func (c *Config) GraphQLEntry() GenerateEntry {
 	for _, e := range c.Generate {
-		if e.Target == "graphql-client" {
+		if e.Target == "graphql" {
 			return e
 		}
 	}
@@ -99,7 +100,7 @@ func Load(path string) (*Config, error) {
 
 // langOK reports whether lang is in the target's supported set (empty lang means
 // the target default, always allowed).
-func langOK(t factory.Target, lang string) bool {
+func langOK(t factory.Target[*coreir.Model], lang string) bool {
 	if lang == "" {
 		return true
 	}
@@ -113,7 +114,7 @@ func langOK(t factory.Target, lang string) bool {
 
 // Validate checks the config against the registered sources/targets and the
 // dialect registry, returning all problems joined into one error (nil if valid).
-func (c *Config) Validate(reg *factory.Registry) error {
+func (c *Config) Validate(reg *factory.Registry[*coreir.Model]) error {
 	var errs []string
 	add := func(format string, a ...any) { errs = append(errs, fmt.Sprintf(format, a...)) }
 
@@ -164,13 +165,13 @@ func (c *Config) Validate(reg *factory.Registry) error {
 		if ok && !langOK(tgt, e.Lang) {
 			add("%s.lang: target %q does not support %q (supports: %s)", at, e.Target, e.Lang, strings.Join(tgt.Languages(), ", "))
 		}
-		// graphql-client must be fed by a configured graphql source.
-		if e.Target == "graphql-client" {
+		// the graphql target must be fed by a configured graphql source.
+		if e.Target == "graphql" {
 			if e.Source != "" && e.Source != "graphql" {
-				add("%s.source: graphql-client requires source `graphql` (got %q)", at, e.Source)
+				add("%s.source: the graphql target requires source `graphql` (got %q)", at, e.Source)
 			}
 			if c.GraphQL == nil {
-				add("%s: graphql-client target requires a top-level `graphql:` block", at)
+				add("%s: the graphql target requires a top-level `graphql:` block", at)
 			}
 		}
 		if e.Pulse && !e.Filters {

@@ -6,25 +6,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/the-protobuf-project/orm/plugin/factory"
 	"github.com/the-protobuf-project/orm/plugin/factory/config"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/graphql"
-	"github.com/the-protobuf-project/orm/plugin/factory/source/proto"
-	"github.com/the-protobuf-project/orm/plugin/factory/target/graphqlclient"
-	"github.com/the-protobuf-project/orm/plugin/generator"
-	"github.com/the-protobuf-project/orm/plugin/generator/backend"
+	"github.com/the-protobuf-project/orm/plugin/factory/coreir"
+	"github.com/the-protobuf-project/orm/plugin/factory/source/proto/backend"
+	"github.com/the-protobuf-project/orm/plugin/factory/wire"
 	"github.com/the-protobuf-project/protokit"
+	"github.com/the-protobuf-project/protokit/factory"
 )
 
-func testRegistry() *factory.Registry {
-	reg := factory.NewRegistry()
-	reg.AddSource(graphql.New(graphql.Config{}))
-	reg.AddSource(proto.New(protokit.Options{}, backend.New(nil, "", false, false, false, false, false)))
-	reg.AddTarget(graphqlclient.New(graphqlclient.Config{}))
-	for _, t := range generator.FactoryDBTargets() {
-		reg.AddTarget(t)
-	}
-	return reg
+func testRegistry() *factory.Registry[*coreir.Model] {
+	return wire.Registry(protokit.Options{}, backend.New(nil, "", false, false, false, false, false))
 }
 
 // loadFrom writes yaml to a temp file and loads it (exercising strict decode).
@@ -57,7 +48,7 @@ func TestValidate(t *testing.T) {
   endpoint: http://x/graphql
   dialect: hasura
 generate:
-  - {target: graphql-client, source: graphql, out: gen, go_module: example.com/gen}
+  - {target: graphql, source: graphql, out: gen, go_module: example.com/gen}
   - {target: gorm, source: proto, out: gen/gorm, go_module: example.com/gen, stores: true}
 `,
 		},
@@ -82,13 +73,13 @@ generate:
 			wantErr: "unknown target",
 		},
 		{
-			name:    "graphql-client without graphql block",
-			yaml:    "generate:\n  - {target: graphql-client, source: graphql, go_module: m}\n",
+			name:    "graphql without graphql block",
+			yaml:    "generate:\n  - {target: graphql, source: graphql, go_module: m}\n",
 			wantErr: "requires a top-level `graphql:` block",
 		},
 		{
-			name:    "graphql-client wrong source",
-			yaml:    "graphql:\n  endpoint: http://x\ngenerate:\n  - {target: graphql-client, source: proto}\n",
+			name:    "graphql wrong source",
+			yaml:    "graphql:\n  endpoint: http://x\ngenerate:\n  - {target: graphql, source: proto}\n",
 			wantErr: "requires source `graphql`",
 		},
 		{

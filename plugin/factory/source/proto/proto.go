@@ -10,7 +10,7 @@ import (
 	"github.com/the-protobuf-project/protokit"
 	"github.com/the-protobuf-project/protokit/schema"
 
-	"github.com/the-protobuf-project/orm/plugin/factory"
+	"github.com/the-protobuf-project/protokit/factory"
 	"github.com/the-protobuf-project/orm/plugin/factory/coreir"
 )
 

@@ -13,7 +13,6 @@ import (
 	"google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/the-protobuf-project/protokit/naming"
 	"github.com/the-protobuf-project/protokit/schema"
 )
 
@@ -188,7 +187,3 @@ func outputOnly(c *schema.Column) bool {
 	}
 	return false
 }
-
-// goField is the Go field/ident for a column in generated proto accessors:
-// the PascalGo form protoc-gen-go uses ("display_name" → "DisplayName").
-func goField(c *schema.Column) string { return naming.PascalGo(c.Name) }

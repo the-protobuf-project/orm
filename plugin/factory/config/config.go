@@ -15,9 +15,9 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/the-protobuf-project/orm/plugin/factory/coreir"
-	"github.com/the-protobuf-project/protokit/graphql/dialect"
 	"github.com/the-protobuf-project/orm/plugin/factory/source/proto/backend"
 	"github.com/the-protobuf-project/protokit/factory"
+	"github.com/the-protobuf-project/protokit/graphql/dialect"
 )
 
 // Config is the whole orm.yaml. The proto/DB keys (datasources, strip_version,

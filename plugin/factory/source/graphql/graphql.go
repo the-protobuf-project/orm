@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/the-protobuf-project/protokit/factory"
 	"github.com/the-protobuf-project/orm/plugin/factory/coreir"
+	"github.com/the-protobuf-project/protokit/factory"
 	"github.com/the-protobuf-project/protokit/graphql/dialect"
 	"github.com/the-protobuf-project/protokit/graphql/introspect"
 	"github.com/the-protobuf-project/protokit/graphql/ir"

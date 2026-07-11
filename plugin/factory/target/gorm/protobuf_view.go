@@ -139,9 +139,12 @@ type convModel struct {
 }
 
 // helperNeeds tracks which shared helper groups the schema's converters use, so
-// convert.go only carries the helpers (and imports) it references.
+// convert.go only carries the helpers (and imports) it references. The Val
+// variants are the NOT NULL forms of the temporal codecs; EnumCSV is the
+// repeated-enum ↔ comma-joined-names codec.
 type helperNeeds struct {
-	Ptr, Ts, Date, Tod, Dur, JSON bool
+	Ptr, Ts, Date, Tod, Dur, JSON    bool
+	DateVal, TodVal, DurVal, EnumCSV bool
 }
 
 // convertView assembles the template data for one schema's convert.go, or nil
@@ -223,10 +226,27 @@ func convertView(idx *pbIndex, db *schema.Database, s *schema.Schema, pkg string
 				continue
 			}
 
-			// Enums (single-valued; repeated enums stay with the caller).
+			// A repeated enum is stored as a comma-joined list of proto value
+			// names in a nullable text column. Detected off the proto field —
+			// the IR may have already flattened the column to a plain string.
+			if f.Desc.IsList() && f.Enum != nil {
+				if goType(col) != "*string" {
+					toSkips, fromSkips = skipBoth(toSkips, fromSkips, col)
+					continue
+				}
+				needs.EnumCSV = true
+				imports.addStd("fmt")
+				imports.addStd("strings")
+				pbType := imports.add(string(f.Enum.GoIdent.GoImportPath), fileOf(f.Enum.GoIdent)) + "." + f.Enum.GoIdent.GoName
+				cm.FromLines = append(cm.FromLines, mField+" = enumsToCSV("+getter+")")
+				cm.ToLines = append(cm.ToLines, pField+" = enumsFromCSV["+pbType+"]("+mField+", "+pbType+"_value)")
+				continue
+			}
+
+			// Single-valued enums map through the schema-local label mappers.
 			if col.Enum != nil {
 				local, ok := emittedEnums[col.Enum.ProtoName]
-				if !ok || col.List {
+				if !ok {
 					toSkips = append(toSkips, string(col.Source.Name())+" (enum)")
 					fromSkips = append(fromSkips, string(col.Source.Name())+" (enum)")
 					continue
@@ -264,37 +284,55 @@ func convertView(idx *pbIndex, db *schema.Database, s *schema.Schema, pkg string
 				cm.ToLines = append(cm.ToLines, pField+" = "+tsOut(col, mField))
 				continue
 			case schema.TypeDate:
-				if fullNameOf(f) != "google.type.Date" || !col.Optional {
+				if fullNameOf(f) != "google.type.Date" {
 					toSkips, fromSkips = skipBoth(toSkips, fromSkips, col)
 					continue
 				}
-				needs.Date = true
 				imports.add("google.golang.org/genproto/googleapis/type/date", "date")
 				imports.addStd("time")
-				cm.FromLines = append(cm.FromLines, mField+" = dateToGo("+getter+")")
-				cm.ToLines = append(cm.ToLines, pField+" = goToDate("+mField+")")
+				if col.Optional {
+					needs.Date = true
+					cm.FromLines = append(cm.FromLines, mField+" = dateToGo("+getter+")")
+					cm.ToLines = append(cm.ToLines, pField+" = goToDate("+mField+")")
+				} else {
+					needs.DateVal = true
+					cm.FromLines = append(cm.FromLines, mField+" = dateToGoVal("+getter+")")
+					cm.ToLines = append(cm.ToLines, pField+" = goValToDate("+mField+")")
+				}
 				continue
 			case schema.TypeTimeOfDay:
-				if fullNameOf(f) != "google.type.TimeOfDay" || !col.Optional {
+				if fullNameOf(f) != "google.type.TimeOfDay" {
 					toSkips, fromSkips = skipBoth(toSkips, fromSkips, col)
 					continue
 				}
-				needs.Tod = true
 				imports.add("google.golang.org/genproto/googleapis/type/timeofday", "timeofday")
 				imports.addStd("time")
-				cm.FromLines = append(cm.FromLines, mField+" = todToGo("+getter+")")
-				cm.ToLines = append(cm.ToLines, pField+" = goToTod("+mField+")")
+				if col.Optional {
+					needs.Tod = true
+					cm.FromLines = append(cm.FromLines, mField+" = todToGo("+getter+")")
+					cm.ToLines = append(cm.ToLines, pField+" = goToTod("+mField+")")
+				} else {
+					needs.TodVal = true
+					cm.FromLines = append(cm.FromLines, mField+" = todToGoVal("+getter+")")
+					cm.ToLines = append(cm.ToLines, pField+" = goValToTod("+mField+")")
+				}
 				continue
 			case schema.TypeDuration:
-				if fullNameOf(f) != "google.protobuf.Duration" || !col.Optional {
+				if fullNameOf(f) != "google.protobuf.Duration" {
 					toSkips, fromSkips = skipBoth(toSkips, fromSkips, col)
 					continue
 				}
-				needs.Dur = true
 				imports.add("google.golang.org/protobuf/types/known/durationpb", "durationpb")
 				imports.addStd("time")
-				cm.FromLines = append(cm.FromLines, mField+" = durToGo("+getter+")")
-				cm.ToLines = append(cm.ToLines, pField+" = goToDur("+mField+")")
+				if col.Optional {
+					needs.Dur = true
+					cm.FromLines = append(cm.FromLines, mField+" = durToGo("+getter+")")
+					cm.ToLines = append(cm.ToLines, pField+" = goToDur("+mField+")")
+				} else {
+					needs.DurVal = true
+					cm.FromLines = append(cm.FromLines, mField+" = durToGoVal("+getter+")")
+					cm.ToLines = append(cm.ToLines, pField+" = goValToDur("+mField+")")
+				}
 				continue
 			case schema.TypeJSON:
 				if fullNameOf(f) != "google.protobuf.Struct" {
@@ -312,13 +350,47 @@ func convertView(idx *pbIndex, db *schema.Database, s *schema.Schema, pkg string
 				continue
 			}
 
+			// Well-known wrapper types: a nil-able scalar on both sides. The
+			// pointer column preserves explicit absence; the value is copied so
+			// the row never aliases proto memory.
+			if wrapGo, wrapCtor := wrapperScalar(fullNameOf(f)); wrapGo != "" {
+				if goType(col) != "*"+wrapGo {
+					toSkips, fromSkips = skipBoth(toSkips, fromSkips, col)
+					continue
+				}
+				imports.add("google.golang.org/protobuf/types/known/wrapperspb", "wrapperspb")
+				cm.FromLines = append(cm.FromLines,
+					"if v := "+getter+"; v != nil {",
+					"\tval := v.GetValue()",
+					"\t"+mField+" = &val",
+					"}")
+				cm.ToLines = append(cm.ToLines,
+					"if "+mField+" != nil {",
+					"\t"+pField+" = wrapperspb."+wrapCtor+"(*"+mField+")",
+					"}")
+				continue
+			}
+
 			// Scalars and scalar lists.
 			protoGo := protoGoScalar(f.Desc.Kind())
-			if protoGo == "" || (f.Desc.HasOptionalKeyword() && f.Desc.Kind() != protoreflect.MessageKind) {
+			if protoGo == "" {
 				toSkips, fromSkips = skipBoth(toSkips, fromSkips, col)
 				continue
 			}
 			modelType := goType(col)
+			if f.Desc.HasOptionalKeyword() && f.Desc.Kind() != protoreflect.MessageKind {
+				// A proto3 `optional` scalar is a pointer on both sides: copy it
+				// through so explicit absence survives (toPtr would erase an
+				// explicit zero). Width-converted or non-pointer layouts stay
+				// with the caller.
+				if modelType != "*"+protoGo {
+					toSkips, fromSkips = skipBoth(toSkips, fromSkips, col)
+					continue
+				}
+				cm.FromLines = append(cm.FromLines, mField+" = pb."+f.GoName)
+				cm.ToLines = append(cm.ToLines, pField+" = "+mField)
+				continue
+			}
 			if col.List {
 				elem, ok := pqElem(modelType)
 				if !ok {
@@ -505,6 +577,31 @@ func zeroLit(protoGo string) string {
 	default:
 		return "0"
 	}
+}
+
+// wrapperScalar maps a google.protobuf wrapper message name to its Go scalar
+// type and the wrapperspb constructor that rebuilds it ("" for non-wrappers).
+// BytesValue is excluded: a []byte column is already nil-able.
+func wrapperScalar(fullName string) (goType, ctor string) {
+	switch fullName {
+	case "google.protobuf.Int32Value":
+		return "int32", "Int32"
+	case "google.protobuf.Int64Value":
+		return "int64", "Int64"
+	case "google.protobuf.UInt32Value":
+		return "uint32", "UInt32"
+	case "google.protobuf.UInt64Value":
+		return "uint64", "UInt64"
+	case "google.protobuf.FloatValue":
+		return "float32", "Float"
+	case "google.protobuf.DoubleValue":
+		return "float64", "Double"
+	case "google.protobuf.BoolValue":
+		return "bool", "Bool"
+	case "google.protobuf.StringValue":
+		return "string", "String"
+	}
+	return "", ""
 }
 
 // protoGoScalar maps a scalar proto kind to its generated Go type ("" for

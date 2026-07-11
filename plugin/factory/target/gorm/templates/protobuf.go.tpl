@@ -137,6 +137,22 @@ func goToDate(t *time.Time) *date.Date {
 	}
 	return &date.Date{Year: int32(t.Year()), Month: int32(t.Month()), Day: int32(t.Day())}
 }
+{{end}}{{if .Needs.DateVal}}
+// dateToGoVal maps a proto date onto a NOT NULL DATE value (UTC midnight).
+func dateToGoVal(d *date.Date) time.Time {
+	if d == nil || (d.GetYear() == 0 && d.GetMonth() == 0 && d.GetDay() == 0) {
+		return time.Time{}
+	}
+	return time.Date(int(d.GetYear()), time.Month(d.GetMonth()), int(d.GetDay()), 0, 0, 0, 0, time.UTC)
+}
+
+// goValToDate maps a NOT NULL DATE value back onto a proto date.
+func goValToDate(t time.Time) *date.Date {
+	if t.IsZero() {
+		return nil
+	}
+	return &date.Date{Year: int32(t.Year()), Month: int32(t.Month()), Day: int32(t.Day())}
+}
 {{end}}{{if .Needs.Tod}}
 // todToGo maps a proto time-of-day onto a nullable TIME value (carried on the
 // zero date).
@@ -151,6 +167,23 @@ func todToGo(t *timeofday.TimeOfDay) *time.Time {
 // goToTod maps a nullable TIME value back onto a proto time-of-day.
 func goToTod(t *time.Time) *timeofday.TimeOfDay {
 	if t == nil || t.IsZero() {
+		return nil
+	}
+	return &timeofday.TimeOfDay{Hours: int32(t.Hour()), Minutes: int32(t.Minute()), Seconds: int32(t.Second())}
+}
+{{end}}{{if .Needs.TodVal}}
+// todToGoVal maps a proto time-of-day onto a NOT NULL TIME value (carried on
+// the zero date).
+func todToGoVal(t *timeofday.TimeOfDay) time.Time {
+	if t == nil {
+		return time.Time{}
+	}
+	return time.Date(0, time.January, 1, int(t.GetHours()), int(t.GetMinutes()), int(t.GetSeconds()), 0, time.UTC)
+}
+
+// goValToTod maps a NOT NULL TIME value back onto a proto time-of-day.
+func goValToTod(t time.Time) *timeofday.TimeOfDay {
+	if t.IsZero() {
 		return nil
 	}
 	return &timeofday.TimeOfDay{Hours: int32(t.Hour()), Minutes: int32(t.Minute()), Seconds: int32(t.Second())}
@@ -176,6 +209,60 @@ func goToDur(s *string) *durationpb.Duration {
 		return nil
 	}
 	return durationpb.New(d)
+}
+{{end}}{{if .Needs.DurVal}}
+// durToGoVal maps a proto duration onto a NOT NULL INTERVAL-as-text value
+// (Go duration syntax, e.g. "1h30m0s").
+func durToGoVal(d *durationpb.Duration) string {
+	if d == nil {
+		return ""
+	}
+	return d.AsDuration().String()
+}
+
+// goValToDur parses a NOT NULL stored Go duration string back onto a proto
+// duration.
+func goValToDur(s string) *durationpb.Duration {
+	if s == "" {
+		return nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return nil
+	}
+	return durationpb.New(d)
+}
+{{end}}{{if .Needs.EnumCSV}}
+// enumsToCSV stores a repeated proto enum as the comma-joined list of its
+// value names; nil for an empty list, so the column stays NULL.
+func enumsToCSV[E interface {
+	~int32
+	fmt.Stringer
+}](vs []E) *string {
+	if len(vs) == 0 {
+		return nil
+	}
+	parts := make([]string, 0, len(vs))
+	for _, v := range vs {
+		parts = append(parts, v.String())
+	}
+	s := strings.Join(parts, ",")
+	return &s
+}
+
+// enumsFromCSV parses a stored comma-joined list of proto enum value names
+// back onto the repeated enum, resolving each name through the enum's value
+// map; unknown names map to 0.
+func enumsFromCSV[E ~int32](s *string, byName map[string]int32) []E {
+	if s == nil || *s == "" {
+		return nil
+	}
+	names := strings.Split(*s, ",")
+	out := make([]E, 0, len(names))
+	for _, n := range names {
+		out = append(out, E(byName[strings.TrimSpace(n)]))
+	}
+	return out
 }
 {{end}}{{if .Needs.JSON}}
 // structToJSON maps a proto struct onto a nullable JSONB value.

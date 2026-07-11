@@ -55,7 +55,10 @@ type columnPlan struct {
 
 // planResources returns the repository resources of db keyed by table, in
 // schema order. Tables without a google.api.resource pattern (value objects,
-// join tables, embedded children) are not repository resources.
+// join tables, embedded children) are not repository resources, and neither
+// are patterns the flat CRUD shape cannot express — AIP-156 singletons
+// ("channels/{channel}/syncStatus") and multi-var segments — which stay
+// hand-written (Tier-2), like the custom logic that usually accompanies them.
 func planResources(db *schema.Database) (map[*schema.Table]*resource, error) {
 	byTable := map[*schema.Table]*resource{}
 	byLeaf := map[string]*resource{} // leaf collection var -> resource, for parent linking
@@ -70,10 +73,13 @@ func planResources(db *schema.Database) (map[*schema.Table]*resource, error) {
 			}
 			segs, err := parsePattern(pattern)
 			if err != nil {
-				return nil, fmt.Errorf("repository: %s: %w", t.ProtoMessage, err)
+				continue // unsupported shape: no generated repository
 			}
 			r := &resource{Table: t, Schema: s, Pattern: pattern, Segments: segs}
 			r.Cols = planColumns(t)
+			if r.Cols.PK == nil {
+				continue // no generated surrogate key: the adapters need one to mint ids
+			}
 			byTable[t] = r
 			byLeaf[segs[len(segs)-1].Var] = r
 		}

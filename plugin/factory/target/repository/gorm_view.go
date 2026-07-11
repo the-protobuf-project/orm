@@ -53,7 +53,7 @@ type maskFieldView struct {
 }
 
 // gormResourceViews builds the adapter views for schema s in table order.
-func gormResourceViews(db *schema.Database, s *schema.Schema, resources map[*schema.Table]*resource, ifaceViews []resourceView) ([]gormResourceView, error) {
+func gormResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resources map[*schema.Table]*resource, ifaceViews []resourceView) ([]gormResourceView, error) {
 	rs := sortedResources(s, resources)
 	out := make([]gormResourceView, 0, len(rs))
 	for i, r := range rs {
@@ -95,14 +95,14 @@ func gormResourceViews(db *schema.Database, s *schema.Schema, resources map[*sch
 			v.FormatCallRoot = fmt.Sprintf("Format%sName(id)", r.Table.LocalName)
 		}
 		for _, c := range r.Cols.Refs {
-			ref, ok := refFragments(db, resources, r, c)
+			ref, ok := refFragments(pb, db, resources, r, c)
 			if !ok {
 				continue // nested-resource reference: Tier-2 territory
 			}
 			v.RefsCreate = append(v.RefsCreate, ref.create)
 			v.RefsToProto = append(v.RefsToProto, ref.toProto)
 		}
-		v.MutableAssigns, v.MaskFields = mutableFragments(db, resources, r)
+		v.MutableAssigns, v.MaskFields = mutableFragments(pb, db, resources, r)
 		out = append(out, v)
 	}
 	return out, nil
@@ -115,15 +115,15 @@ type refFragment struct{ create, toProto string }
 // references to ROOT resources (single-segment patterns) are generated — a
 // nested resource's name cannot be rebuilt from the stored leaf id alone, so
 // those stay with Tier-2 overrides, mirroring the gorm converters' contract.
-func refFragments(db *schema.Database, resources map[*schema.Table]*resource, r *resource, c *schema.Column) (refFragment, bool) {
+func refFragments(pb *pbIndex, db *schema.Database, resources map[*schema.Table]*resource, r *resource, c *schema.Column) (refFragment, bool) {
 	target := findResourceByModel(db, resources, c.FKModel)
 	if target == nil || len(target.Segments) != 1 {
 		return refFragment{}, false
 	}
 	collection := target.Segments[0].Collection
-	field := gormField(c)                                   // e.g. "UserID"
-	acc := "in.Get" + naming.PascalGo(protoField(c)) + "()" // e.g. in.GetUser()
-	outField := "out." + naming.PascalGo(protoField(c))
+	field := gormField(c)                     // e.g. "UserID"
+	acc := "in.Get" + pbGoField(pb, c) + "()" // e.g. in.GetUser()
+	outField := "out." + pbGoField(pb, c)
 	var frag refFragment
 	if c.Optional {
 		frag.create = fmt.Sprintf("if v := %s; v != \"\" {\n\t\tm.%s = repox.Ptr(repox.LastSegment(v))\n\t}", acc, field)
@@ -139,7 +139,7 @@ func refFragments(db *schema.Database, resources map[*schema.Table]*resource, r 
 // field list for r's mutable columns. Plain columns copy from the re-converted
 // model (same Go types on both sides); reference columns re-derive the bare id
 // from the merged proto (the converters skip them).
-func mutableFragments(db *schema.Database, resources map[*schema.Table]*resource, r *resource) ([]string, []maskFieldView) {
+func mutableFragments(pb *pbIndex, db *schema.Database, resources map[*schema.Table]*resource, r *resource) ([]string, []maskFieldView) {
 	var assigns []string
 	var masks []maskFieldView
 	for _, c := range r.Cols.Mutable {
@@ -149,7 +149,7 @@ func mutableFragments(db *schema.Database, resources map[*schema.Table]*resource
 				continue // nested-resource reference: Tier-2
 			}
 			field := gormField(c)
-			acc := "merged.Get" + naming.PascalGo(pf) + "()"
+			acc := "merged.Get" + pbGoField(pb, c) + "()"
 			if c.Optional {
 				assigns = append(assigns, fmt.Sprintf("if v := %s; v != \"\" {\n\t\t\texisting.%s = repox.Ptr(repox.LastSegment(v))\n\t\t} else {\n\t\t\texisting.%s = nil\n\t\t}", acc, field, field))
 			} else {
@@ -161,7 +161,7 @@ func mutableFragments(db *schema.Database, resources map[*schema.Table]*resource
 		}
 		masks = append(masks, maskFieldView{
 			Path:    pf,
-			GoField: naming.PascalGo(pf),
+			GoField: pbGoField(pb, c),
 			Message: isMessageField(c),
 		})
 	}
@@ -196,6 +196,31 @@ func protoField(c *schema.Column) string {
 // (dates, structs, nested messages) — mask-matched with prefix semantics.
 func isMessageField(c *schema.Column) bool {
 	return c.Source != nil && c.Source.Message() != nil
+}
+
+// pbGoField is the generated PROTO Go field for a column — resolved from
+// protogen's authoritative GoName (protoc-gen-go does not Go-normalize
+// initialisms: avatar_url → AvatarUrl, never AvatarURL), with a plain
+// per-part capitalization fallback for fields protogen didn't load.
+func pbGoField(pb *pbIndex, c *schema.Column) string {
+	if c.Source != nil {
+		if m, ok := pb.msgs[c.Source.ContainingMessage().FullName()]; ok {
+			for _, f := range m.Fields {
+				if f.Desc.FullName() == c.Source.FullName() {
+					return f.GoName
+				}
+			}
+		}
+	}
+	parts := strings.Split(protoField(c), "_")
+	var b strings.Builder
+	for _, p := range parts {
+		if p == "" {
+			continue
+		}
+		b.WriteString(strings.ToUpper(p[:1]) + p[1:])
+	}
+	return b.String()
 }
 
 // gormField is the generated gorm model's Go field for a column, mirroring the

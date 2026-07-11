@@ -75,7 +75,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			if view == nil {
 				continue
 			}
-			gormViews, err := gormResourceViews(db, s, resources, view.Resources)
+			gormViews, err := gormResourceViews(pb, db, s, resources, view.Resources)
 			if err != nil {
 				return err
 			}

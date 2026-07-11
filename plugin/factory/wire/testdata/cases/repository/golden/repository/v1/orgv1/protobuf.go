@@ -17,13 +17,17 @@ import (
 	"encoding/json"
 	"example.com/test/gen"
 	"example.com/test/gen/repox"
+	"example.com/test/genql/orgv1ql/datestretchesql"
+	"example.com/test/genql/orgv1ql/locationsql"
 	"example.com/test/genql/orgv1ql/membersql"
 	"example.com/test/genql/orgv1ql/organisationsql"
 	"example.com/test/genql/orgv1ql/schemaql"
+	"example.com/test/genql/orgv1ql/timewindowsql"
 	"example.com/test/genql/orgv1ql/usersql"
 	"github.com/the-protobuf-project/runtime-go/network/graphql"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"strings"
 	"time"
 )
@@ -207,5 +211,73 @@ func userFromRow(row *schemaql.OrgV1Users) *gen.User {
 	out.Etag = repox.Deref(row.Etag)
 	out.CreateTime = strToTs(row.CreateTime)
 	out.UpdateTime = strToTs(row.UpdateTime)
+	return out
+}
+
+// orgV1TimeWindowToCreateInput maps the value-object proto onto its client
+// insert input; the adapter mints the id and wires the reference.
+func orgV1TimeWindowToCreateInput(in *gen.TimeWindow) timewindowsql.CreateInput {
+	var ci timewindowsql.CreateInput
+	ci.StartTime = tsToStr(in.GetStartTime())
+	ci.EndTime = tsToStr(in.GetEndTime())
+	return ci
+}
+
+// orgV1TimeWindowFromRow re-hydrates the value-object proto from a client row.
+func orgV1TimeWindowFromRow(row *schemaql.OrgV1TimeWindows) *gen.TimeWindow {
+	if row == nil {
+		return nil
+	}
+	out := &gen.TimeWindow{}
+	out.StartTime = strToTs(row.StartTime)
+	out.EndTime = strToTs(row.EndTime)
+	return out
+}
+
+// orgV1DateStretchToCreateInput maps the value-object proto onto its client
+// insert input; the adapter mints the id and wires the reference.
+func orgV1DateStretchToCreateInput(in *gen.DateStretch) datestretchesql.CreateInput {
+	var ci datestretchesql.CreateInput
+	ci.StartDay = in.GetStartDay()
+	ci.EndDay = in.GetEndDay()
+	if v := in.GetMaxNights(); v != nil {
+		ci.MaxNights = graphql.Int64(v.GetValue())
+	}
+	return ci
+}
+
+// orgV1DateStretchFromRow re-hydrates the value-object proto from a client row.
+func orgV1DateStretchFromRow(row *schemaql.OrgV1DateStretches) *gen.DateStretch {
+	if row == nil {
+		return nil
+	}
+	out := &gen.DateStretch{}
+	out.StartDay = row.StartDay
+	out.EndDay = repox.Deref(row.EndDay)
+	if row.MaxNights != nil {
+		out.MaxNights = wrapperspb.Int64(int64(*row.MaxNights))
+	}
+	return out
+}
+
+// orgV1LocationToCreateInput maps the value-object proto onto its client
+// insert input; the adapter mints the id and wires the reference.
+func orgV1LocationToCreateInput(in *gen.Location) locationsql.CreateInput {
+	var ci locationsql.CreateInput
+	ci.Line1 = in.GetLine1()
+	ci.City = in.GetCity()
+	ci.Floor = int32(in.GetFloor())
+	return ci
+}
+
+// orgV1LocationFromRow re-hydrates the value-object proto from a client row.
+func orgV1LocationFromRow(row *schemaql.OrgV1Locations) *gen.Location {
+	if row == nil {
+		return nil
+	}
+	out := &gen.Location{}
+	out.Line1 = row.Line1
+	out.City = repox.Deref(row.City)
+	out.Floor = int32(repox.Deref(row.Floor))
 	return out
 }

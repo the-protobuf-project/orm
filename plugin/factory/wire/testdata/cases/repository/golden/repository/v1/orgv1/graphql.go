@@ -87,11 +87,29 @@ func (r *GraphQLMemberRepository) Create(ctx context.Context, parent string, in 
 	}
 	ci := memberToCreateInput(in)
 	ci.Id = id
-	ci.OrganisationId = parentIDs[len(parentIDs)-1]
+	ci.OrganisationId = parentIDs[0]
 	ci.Etag = repox.NewULID()
 	now := tsToStr(timestamppb.New(time.Now().UTC()))
 	ci.CreateTime = now
 	ci.UpdateTime = now
+	if v := in.GetWindow(); v != nil {
+		vi := orgV1TimeWindowToCreateInput(v)
+		vi.Id = repox.NewULID()
+		if _, err := r.Svc.Mutation.OrgV1.TimeWindows.Create(ctx, vi); err != nil {
+			return nil, mapGraphQLErr(err)
+		}
+		ci.WindowId = vi.Id
+		ci.SpanCase = "WINDOW"
+	}
+	if v := in.GetDateRange(); v != nil {
+		vi := orgV1DateStretchToCreateInput(v)
+		vi.Id = repox.NewULID()
+		if _, err := r.Svc.Mutation.OrgV1.DateStretches.Create(ctx, vi); err != nil {
+			return nil, mapGraphQLErr(err)
+		}
+		ci.DateRangeId = vi.Id
+		ci.SpanCase = "DATE_RANGE"
+	}
 	if _, err := r.Svc.Mutation.OrgV1.Members.Create(ctx, ci); err != nil {
 		return nil, mapGraphQLErr(err)
 	}
@@ -120,9 +138,28 @@ func (r *GraphQLMemberRepository) get(ctx context.Context, id string) (*gen.Memb
 	return r.toProto(ctx, row)
 }
 
-// toProto converts a loaded row and runs the AfterRead hook.
+// toProto converts a loaded row, hydrating value objects through their
+// stored references, and runs the AfterRead hook.
 func (r *GraphQLMemberRepository) toProto(ctx context.Context, row *schemaql.OrgV1Members) (*gen.Member, error) {
 	out := memberFromRow(row)
+	if id := repox.Deref(row.WindowId); id != "" {
+		w, err := r.Svc.Query.OrgV1.TimeWindows.Get(ctx, id)
+		if err != nil {
+			return nil, mapGraphQLErr(err)
+		}
+		if w != nil {
+			out.Span = &gen.Member_Window{Window: orgV1TimeWindowFromRow(w)}
+		}
+	}
+	if id := repox.Deref(row.DateRangeId); id != "" {
+		w, err := r.Svc.Query.OrgV1.DateStretches.Get(ctx, id)
+		if err != nil {
+			return nil, mapGraphQLErr(err)
+		}
+		if w != nil {
+			out.Span = &gen.Member_DateRange{DateRange: orgV1DateStretchFromRow(w)}
+		}
+	}
 	if h := r.Hooks.AfterRead; h != nil {
 		if err := h(ctx, out); err != nil {
 			return nil, err
@@ -185,6 +222,8 @@ func (r *GraphQLMemberRepository) Update(ctx context.Context, in *gen.Member, pa
 	if row == nil {
 		return nil, repox.ErrNotFound
 	}
+	var staleWindow string
+	var staleDateRange string
 	existingPB := memberFromRow(row)
 	merged := proto.Clone(existingPB).(*gen.Member)
 	applyMemberMask(merged, in, paths)
@@ -196,9 +235,44 @@ func (r *GraphQLMemberRepository) Update(ctx context.Context, in *gen.Member, pa
 	patch := memberToUpdatePatch(merged)
 	patch.Etag = graphql.Value(repox.NewULID())
 	patch.UpdateTime = graphql.Value(tsToStr(timestamppb.New(time.Now().UTC())))
+	if repox.GroupTouched(paths, "window") || repox.GroupTouched(paths, "date_range") {
+		staleWindow = repox.Deref(row.WindowId)
+		patch.WindowId = graphql.Null[string]()
+		staleDateRange = repox.Deref(row.DateRangeId)
+		patch.DateRangeId = graphql.Null[string]()
+		patch.SpanCase = graphql.Null[string]()
+		if v := merged.GetWindow(); v != nil {
+			vi := orgV1TimeWindowToCreateInput(v)
+			vi.Id = repox.NewULID()
+			if _, err := r.Svc.Mutation.OrgV1.TimeWindows.Create(ctx, vi); err != nil {
+				return nil, mapGraphQLErr(err)
+			}
+			patch.WindowId = graphql.Value(vi.Id)
+			patch.SpanCase = graphql.Value("WINDOW")
+		}
+		if v := merged.GetDateRange(); v != nil {
+			vi := orgV1DateStretchToCreateInput(v)
+			vi.Id = repox.NewULID()
+			if _, err := r.Svc.Mutation.OrgV1.DateStretches.Create(ctx, vi); err != nil {
+				return nil, mapGraphQLErr(err)
+			}
+			patch.DateRangeId = graphql.Value(vi.Id)
+			patch.SpanCase = graphql.Value("DATE_RANGE")
+		}
+	}
 	if in.GetEtag() != "" {
 		if _, err := r.Svc.Mutation.OrgV1.Members.UpdateIfMatch(ctx, id, patch, membersql.Etag.Eq(in.GetEtag())); err != nil {
 			return nil, mapGraphQLErr(err)
+		}
+		if staleWindow != "" {
+			if _, err := r.Svc.Mutation.OrgV1.TimeWindows.Delete(ctx, staleWindow); err != nil {
+				return nil, mapGraphQLErr(err)
+			}
+		}
+		if staleDateRange != "" {
+			if _, err := r.Svc.Mutation.OrgV1.DateStretches.Delete(ctx, staleDateRange); err != nil {
+				return nil, mapGraphQLErr(err)
+			}
 		}
 		return r.get(ctx, id)
 	}
@@ -208,6 +282,16 @@ func (r *GraphQLMemberRepository) Update(ctx context.Context, in *gen.Member, pa
 	}
 	if resp.AffectedRows == 0 {
 		return nil, repox.ErrNotFound
+	}
+	if staleWindow != "" {
+		if _, err := r.Svc.Mutation.OrgV1.TimeWindows.Delete(ctx, staleWindow); err != nil {
+			return nil, mapGraphQLErr(err)
+		}
+	}
+	if staleDateRange != "" {
+		if _, err := r.Svc.Mutation.OrgV1.DateStretches.Delete(ctx, staleDateRange); err != nil {
+			return nil, mapGraphQLErr(err)
+		}
 	}
 	return r.get(ctx, id)
 }
@@ -230,6 +314,20 @@ func (r *GraphQLMemberRepository) Delete(ctx context.Context, name string) error
 	}
 	if resp.AffectedRows == 0 {
 		return repox.ErrNotFound
+	}
+	for i := range resp.Returning {
+		if id := repox.Deref(resp.Returning[i].WindowId); id != "" {
+			if _, err := r.Svc.Mutation.OrgV1.TimeWindows.Delete(ctx, id); err != nil {
+				return mapGraphQLErr(err)
+			}
+		}
+	}
+	for i := range resp.Returning {
+		if id := repox.Deref(resp.Returning[i].DateRangeId); id != "" {
+			if _, err := r.Svc.Mutation.OrgV1.DateStretches.Delete(ctx, id); err != nil {
+				return mapGraphQLErr(err)
+			}
+		}
 	}
 	return nil
 }
@@ -275,6 +373,14 @@ func (r *GraphQLOrganisationRepository) Create(ctx context.Context, in *gen.Orga
 	now := tsToStr(timestamppb.New(time.Now().UTC()))
 	ci.CreateTime = now
 	ci.UpdateTime = now
+	if v := in.GetHq(); v != nil {
+		vi := orgV1LocationToCreateInput(v)
+		vi.Id = repox.NewULID()
+		if _, err := r.Svc.Mutation.OrgV1.Locations.Create(ctx, vi); err != nil {
+			return nil, mapGraphQLErr(err)
+		}
+		ci.HqId = vi.Id
+	}
 	if _, err := r.Svc.Mutation.OrgV1.Organisations.Create(ctx, ci); err != nil {
 		return nil, mapGraphQLErr(err)
 	}
@@ -303,9 +409,19 @@ func (r *GraphQLOrganisationRepository) get(ctx context.Context, id string) (*ge
 	return r.toProto(ctx, row)
 }
 
-// toProto converts a loaded row and runs the AfterRead hook.
+// toProto converts a loaded row, hydrating value objects through their
+// stored references, and runs the AfterRead hook.
 func (r *GraphQLOrganisationRepository) toProto(ctx context.Context, row *schemaql.OrgV1Organisations) (*gen.Organisation, error) {
 	out := organisationFromRow(row)
+	if id := repox.Deref(row.HqId); id != "" {
+		w, err := r.Svc.Query.OrgV1.Locations.Get(ctx, id)
+		if err != nil {
+			return nil, mapGraphQLErr(err)
+		}
+		if w != nil {
+			out.Hq = orgV1LocationFromRow(w)
+		}
+	}
 	if h := r.Hooks.AfterRead; h != nil {
 		if err := h(ctx, out); err != nil {
 			return nil, err
@@ -364,6 +480,7 @@ func (r *GraphQLOrganisationRepository) Update(ctx context.Context, in *gen.Orga
 	if row == nil {
 		return nil, repox.ErrNotFound
 	}
+	var staleHq string
 	existingPB := organisationFromRow(row)
 	merged := proto.Clone(existingPB).(*gen.Organisation)
 	applyOrganisationMask(merged, in, paths)
@@ -375,9 +492,26 @@ func (r *GraphQLOrganisationRepository) Update(ctx context.Context, in *gen.Orga
 	patch := organisationToUpdatePatch(merged)
 	patch.Etag = graphql.Value(repox.NewULID())
 	patch.UpdateTime = graphql.Value(tsToStr(timestamppb.New(time.Now().UTC())))
+	if repox.GroupTouched(paths, "hq") {
+		staleHq = repox.Deref(row.HqId)
+		patch.HqId = graphql.Null[string]()
+		if v := merged.GetHq(); v != nil {
+			vi := orgV1LocationToCreateInput(v)
+			vi.Id = repox.NewULID()
+			if _, err := r.Svc.Mutation.OrgV1.Locations.Create(ctx, vi); err != nil {
+				return nil, mapGraphQLErr(err)
+			}
+			patch.HqId = graphql.Value(vi.Id)
+		}
+	}
 	if in.GetEtag() != "" {
 		if _, err := r.Svc.Mutation.OrgV1.Organisations.UpdateIfMatch(ctx, id, patch, organisationsql.Etag.Eq(in.GetEtag())); err != nil {
 			return nil, mapGraphQLErr(err)
+		}
+		if staleHq != "" {
+			if _, err := r.Svc.Mutation.OrgV1.Locations.Delete(ctx, staleHq); err != nil {
+				return nil, mapGraphQLErr(err)
+			}
 		}
 		return r.get(ctx, id)
 	}
@@ -387,6 +521,11 @@ func (r *GraphQLOrganisationRepository) Update(ctx context.Context, in *gen.Orga
 	}
 	if resp.AffectedRows == 0 {
 		return nil, repox.ErrNotFound
+	}
+	if staleHq != "" {
+		if _, err := r.Svc.Mutation.OrgV1.Locations.Delete(ctx, staleHq); err != nil {
+			return nil, mapGraphQLErr(err)
+		}
 	}
 	return r.get(ctx, id)
 }
@@ -409,6 +548,13 @@ func (r *GraphQLOrganisationRepository) Delete(ctx context.Context, name string)
 	}
 	if resp.AffectedRows == 0 {
 		return repox.ErrNotFound
+	}
+	for i := range resp.Returning {
+		if id := repox.Deref(resp.Returning[i].HqId); id != "" {
+			if _, err := r.Svc.Mutation.OrgV1.Locations.Delete(ctx, id); err != nil {
+				return mapGraphQLErr(err)
+			}
+		}
 	}
 	return nil
 }
@@ -482,7 +628,8 @@ func (r *GraphQLUserRepository) get(ctx context.Context, id string) (*gen.User, 
 	return r.toProto(ctx, row)
 }
 
-// toProto converts a loaded row and runs the AfterRead hook.
+// toProto converts a loaded row, hydrating value objects through their
+// stored references, and runs the AfterRead hook.
 func (r *GraphQLUserRepository) toProto(ctx context.Context, row *schemaql.OrgV1Users) (*gen.User, error) {
 	out := userFromRow(row)
 	if h := r.Hooks.AfterRead; h != nil {

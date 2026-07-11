@@ -38,6 +38,9 @@ func applyMemberMask(merged, in *gen.Member, paths []string) {
 	if repox.InMask(paths, "role") {
 		merged.Role = in.GetRole()
 	}
+	if repox.GroupTouched(paths, "window") || repox.GroupTouched(paths, "date_range") {
+		merged.Span = in.Span
+	}
 }
 
 // applyOrganisationMask merges the masked fields of in onto merged. An empty
@@ -56,6 +59,9 @@ func applyOrganisationMask(merged, in *gen.Organisation, paths []string) {
 	}
 	if repox.GroupTouched(paths, "settings") {
 		merged.Settings = in.GetSettings()
+	}
+	if repox.GroupTouched(paths, "hq") {
+		merged.Hq = in.GetHq()
 	}
 }
 

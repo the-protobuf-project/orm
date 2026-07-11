@@ -15,13 +15,14 @@ import (
 
 // voGorm is the per-resource bundle of rendered gorm VO fragments.
 type voGorm struct {
-	Preloads  string   // .Preload("X") chain appended to read queries
-	Creates   []string // in → m fragments inside the create transaction
-	StaleVars []string // stale-id declarations at the top of the update transaction
-	Updates   []string // merged → existing fragments inside the update transaction
-	StaleDels []string // stale-row deletions after the row update
-	MaskLines []string // oneof group merges spliced into apply<X>Mask
-	CrossPkgs []string // gorm packages of cross-schema value objects (imports)
+	Preloads       string   // .Preload("X") chain appended to read queries
+	Creates        []string // in → m fragments inside the create transaction
+	StaleVars      []string // stale-id declarations at the top of the update transaction
+	Updates        []string // merged → existing fragments inside the update transaction
+	StaleDels      []string // stale-row deletions after the row update
+	DeleteCleanups []string // VO-row removals after the owner row's delete
+	MaskLines      []string // oneof group merges spliced into apply<X>Mask
+	CrossPkgs      []string // gorm packages of cross-schema value objects (imports)
 }
 
 // voGormFragments renders every VO fragment for r. pkg is the resource
@@ -43,6 +44,7 @@ func voGormFragments(pkg string, r *resource) voGorm {
 		out.Creates = append(out.Creates, voWriteFragment(pkg, v, "in", "m"))
 		out.StaleVars = append(out.StaleVars, fmt.Sprintf("var stale%s string", v.PBGoName))
 		out.StaleDels = append(out.StaleDels, voStaleDelete(pkg, v))
+		out.DeleteCleanups = append(out.DeleteCleanups, voDeleteCleanup(pkg, v))
 	}
 	out.Preloads = strings.Join(preloads, "")
 
@@ -164,6 +166,19 @@ func voUpdateFragment(pkg string, grp []voField) string {
 	}
 	b.WriteString("\t\t}")
 	return b.String()
+}
+
+// voDeleteCleanup renders the removal of a VO row after its owner's delete,
+// preserving the "no orphaned sub-rows" contract of the hand-written repos.
+func voDeleteCleanup(pkg string, v voField) string {
+	if v.Col.Optional {
+		return fmt.Sprintf(
+			"if existing.%s != nil {\n\t\t\tif err := tx.WithContext(ctx).Delete(&%s.%s{}, \"id = ?\", *existing.%s).Error; err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t}",
+			v.FKField, voQual(pkg, v), v.Target.LocalName, v.FKField)
+	}
+	return fmt.Sprintf(
+		"if existing.%s != \"\" {\n\t\t\tif err := tx.WithContext(ctx).Delete(&%s.%s{}, \"id = ?\", existing.%s).Error; err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t}",
+		v.FKField, voQual(pkg, v), v.Target.LocalName, v.FKField)
 }
 
 // voStaleDelete renders the post-update removal of a replaced VO row.

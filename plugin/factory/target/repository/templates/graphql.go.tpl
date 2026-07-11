@@ -67,7 +67,9 @@ func (r *GraphQL{{.Model}}Repository) Create(ctx context.Context, parent string,
 	}
 	ci := {{.LowerModelV}}ToCreateInput(in)
 	ci.Id = id
-	ci.{{.ParentInputField}} = parentIDs[len(parentIDs)-1]
+	{{- range .GQLParentAssigns}}
+	{{.}}
+	{{- end}}
 	{{- if .EtagInputField}}
 	ci.{{.EtagInputField}} = repox.NewULID()
 	{{- end}}
@@ -79,6 +81,9 @@ func (r *GraphQL{{.Model}}Repository) Create(ctx context.Context, parent string,
 	{{- end}}
 	{{- if .UpdateTimeField}}
 	ci.{{.UpdateTimeField}} = now
+	{{- end}}
+	{{- range .GQLVOCreates}}
+	{{.}}
 	{{- end}}
 	if _, err := r.Svc.Mutation.{{.Domain}}.{{.Resource}}.Create(ctx, ci); err != nil {
 		return nil, mapGraphQLErr(err)
@@ -117,6 +122,9 @@ func (r *GraphQL{{.Model}}Repository) Create(ctx context.Context, in *{{.PB}}) (
 	{{- if .UpdateTimeField}}
 	ci.{{.UpdateTimeField}} = now
 	{{- end}}
+	{{- range .GQLVOCreates}}
+	{{.}}
+	{{- end}}
 	if _, err := r.Svc.Mutation.{{.Domain}}.{{.Resource}}.Create(ctx, ci); err != nil {
 		return nil, mapGraphQLErr(err)
 	}
@@ -146,9 +154,13 @@ func (r *GraphQL{{.Model}}Repository) get(ctx context.Context, id string) (*{{.P
 	return r.toProto(ctx, row)
 }
 
-// toProto converts a loaded row and runs the AfterRead hook.
+// toProto converts a loaded row, hydrating value objects through their
+// stored references, and runs the AfterRead hook.
 func (r *GraphQL{{.Model}}Repository) toProto(ctx context.Context, row *{{.Row}}) (*{{.PB}}, error) {
 	out := {{.LowerModelV}}FromRow(row)
+	{{- range .GQLVOHydrates}}
+	{{.}}
+	{{- end}}
 	if h := r.Hooks.AfterRead; h != nil {
 		if err := h(ctx, out); err != nil {
 			return nil, err
@@ -218,6 +230,9 @@ func (r *GraphQL{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, p
 	if row == nil {
 		return nil, repox.ErrNotFound
 	}
+	{{- range .GQLVOStaleVars}}
+	{{.}}
+	{{- end}}
 	existingPB := {{.LowerModelV}}FromRow(row)
 	merged := proto.Clone(existingPB).(*{{.PB}})
 	apply{{.Model}}Mask(merged, in, paths)
@@ -233,11 +248,17 @@ func (r *GraphQL{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, p
 	{{- if .UpdateTimeField}}
 	patch.{{.UpdateTimeField}} = graphql.Value(tsToStr(timestamppb.New(time.Now().UTC())))
 	{{- end}}
+	{{- range .GQLVOUpdates}}
+	{{.}}
+	{{- end}}
 	{{- if .HasEtag}}
 	if in.GetEtag() != "" {
 		if _, err := r.Svc.Mutation.{{.Domain}}.{{.Resource}}.UpdateIfMatch(ctx, id, patch, {{.EtagPred}}.Eq(in.GetEtag())); err != nil {
 			return nil, mapGraphQLErr(err)
 		}
+		{{- range .GQLVOStaleDels}}
+		{{.}}
+		{{- end}}
 		return r.get(ctx, id)
 	}
 	{{- end}}
@@ -248,6 +269,9 @@ func (r *GraphQL{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, p
 	if resp.AffectedRows == 0 {
 		return nil, repox.ErrNotFound
 	}
+	{{- range .GQLVOStaleDels}}
+	{{.}}
+	{{- end}}
 	return r.get(ctx, id)
 }
 
@@ -270,6 +294,9 @@ func (r *GraphQL{{.Model}}Repository) Delete(ctx context.Context, name string) e
 	if resp.AffectedRows == 0 {
 		return repox.ErrNotFound
 	}
+	{{- range .GQLVODeleteCleanups}}
+	{{.}}
+	{{- end}}
 	return nil
 }
 

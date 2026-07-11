@@ -33,6 +33,8 @@ type gormResourceView struct {
 	ParentVarList      string   // comma-joined parent vars (parented only)
 	ParentFKField      string   // gorm model field of the parent FK, e.g. "OrganisationID"
 	ParentFKColumn     string   // parent FK column name, e.g. "organisation_id"
+	ParentAssigns      []string // every ancestor FK assignment from the split parent name
+	GQLParentAssigns   []string // the same wiring on the client CreateInput
 	FormatCallParented string   // Format call from parentIDs + id (parented only)
 	FormatCallRoot     string   // Format call from the bare id (root only)
 
@@ -43,14 +45,15 @@ type gormResourceView struct {
 	MaskFields     []maskFieldView
 
 	// Value-object fragments (see vo_view.go).
-	HasVOs      bool
-	Preloads    string   // .Preload chain for get/list/update reads
-	VOCreates   []string // create-in-transaction fragments
-	VOStaleVars []string // stale-id declarations inside the update transaction
-	VOUpdates   []string // masked replace fragments
-	VOStaleDels []string // stale-row deletions after the row update
-	VOMaskLines []string // VO merge lines spliced into apply<X>Mask
-	CrossVOPkgs []string // cross-schema gorm packages the fragments reference
+	HasVOs           bool
+	Preloads         string   // .Preload chain for get/list/update reads
+	VOCreates        []string // create-in-transaction fragments
+	VOStaleVars      []string // stale-id declarations inside the update transaction
+	VOUpdates        []string // masked replace fragments
+	VOStaleDels      []string // stale-row deletions after the row update
+	VODeleteCleanups []string // VO-row removals inside the delete transaction
+	VOMaskLines      []string // VO merge lines spliced into apply<X>Mask
+	CrossVOPkgs      []string // cross-schema gorm packages the fragments reference
 }
 
 // maskFieldView is one mutable proto field in the generated mask-apply.
@@ -92,6 +95,10 @@ func gormResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resou
 			v.ParentVarList = strings.Join(v.Vars[:len(v.Vars)-1], ", ")
 			v.ParentFKField = gormFieldName(r.ParentFK, false)
 			v.ParentFKColumn = r.ParentFK
+			for _, a := range r.AncestorFKs {
+				v.ParentAssigns = append(v.ParentAssigns,
+					fmt.Sprintf("m.%s = parentIDs[%d]", gormFieldName(a.Column, false), a.Index))
+			}
 			args := make([]string, 0, len(r.Segments))
 			for i := range r.Segments[:len(r.Segments)-1] {
 				args = append(args, fmt.Sprintf("parentIDs[%d]", i))
@@ -116,6 +123,7 @@ func gormResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resou
 		v.VOStaleVars = vg.StaleVars
 		v.VOUpdates = vg.Updates
 		v.VOStaleDels = vg.StaleDels
+		v.VODeleteCleanups = vg.DeleteCleanups
 		v.VOMaskLines = vg.MaskLines
 		v.CrossVOPkgs = vg.CrossPkgs
 		out = append(out, v)

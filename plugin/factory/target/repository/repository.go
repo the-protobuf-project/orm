@@ -94,6 +94,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 				if err != nil {
 					return err
 				}
+				voConvs := gqlVOConvs(pb, db, s, resources, &needs)
 				view.HasGraphQL = true
 				view.ClientPkg = clientPkgName(dbGraphQLModule(db))
 				view.GQLResources = gqlViews
@@ -106,7 +107,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 				files["protobuf.go"] = struct {
 					tpl  string
 					view any
-				}{"graphql_protobuf.tpl", graphqlConvertView(pb, db, s, pkg, gqlViews, needs)}
+				}{"graphql_protobuf.tpl", graphqlConvertView(pb, db, s, pkg, gqlViews, voConvs, needs)}
 			}
 			for name, render := range files {
 				f := p.NewGeneratedFile(fmt.Sprintf("%s/%s/%s", db.Name, pkg, name), "")

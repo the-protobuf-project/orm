@@ -59,7 +59,9 @@ func (r *Gorm{{.Model}}Repository) Create(ctx context.Context, parent string, in
 	m := {{$.GormPkg}}.{{.Model}}FromProto(in)
 	m.{{.PKField}} = id
 	m.Name = in.GetName()
-	m.{{.ParentFKField}} = parentIDs[len(parentIDs)-1]
+	{{- range .ParentAssigns}}
+	{{.}}
+	{{- end}}
 	{{- range .RefsCreate}}
 	{{.}}
 	{{- end}}
@@ -289,7 +291,19 @@ func (r *Gorm{{.Model}}Repository) Delete(ctx context.Context, name string) erro
 	if err := r.DB.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 		return repox.MapGormErr(err)
 	}
+	{{- if .HasVOs}}
+	return repox.MapGormErr(r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := {{$.GormPkg}}.{{.Store}}(tx).DeleteByID(ctx, id); err != nil {
+			return err
+		}
+		{{- range .VODeleteCleanups}}
+		{{.}}
+		{{- end}}
+		return nil
+	}))
+	{{- else}}
 	return repox.MapGormErr({{$.GormPkg}}.{{.Store}}(r.DB).DeleteByID(ctx, id))
+	{{- end}}
 }
 
 // Compile-time proof the adapter satisfies the interface.

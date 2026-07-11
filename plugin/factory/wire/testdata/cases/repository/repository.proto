@@ -6,6 +6,7 @@ import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 import "orm/v1/annotations.proto";
 
 option go_package = "example.com/test/gen;orgv1";
@@ -25,6 +26,48 @@ enum OrgState {
   ORG_STATE_UNSPECIFIED = 0;
   ORG_STATE_ACTIVE = 1;
   ORG_STATE_ARCHIVED = 2;
+}
+
+// Location is a value object (no google.api.resource): it relationalizes to
+// its own keyed table referenced by a synthesized FK, exercising the plain
+// belongs-to VO path (create-in-tx, Preload, mask-replace, hydration).
+message Location {
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  // Street line.
+  string line1 = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // City name.
+  string city = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Floor number.
+  int32 floor = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// TimeWindow is a value object used as a oneof member (Member.span).
+message TimeWindow {
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  // Window start.
+  google.protobuf.Timestamp start_time = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Window end.
+  google.protobuf.Timestamp end_time = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// DateStretch is the second oneof member, carrying a wrapper field so the
+// nil-able scalar codecs render inside a value object.
+message DateStretch {
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  // First day (inclusive), as "2006-01-02".
+  string start_day = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Last day (inclusive), as "2006-01-02".
+  string end_day = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Cap on nights, absent = unlimited.
+  google.protobuf.Int64Value max_nights = 3 [(google.api.field_behavior) = OPTIONAL];
 }
 
 // User exercises the simplest repository shape: a root resource another
@@ -94,6 +137,9 @@ message Organisation {
 
   // Opaque version for optimistic concurrency.
   string etag = 8;
+
+  // Headquarters, a plain belongs-to value object.
+  Location hq = 9 [(google.api.field_behavior) = OPTIONAL];
 }
 
 // Member exercises a parented resource (Create/List take the organisation
@@ -140,4 +186,14 @@ message Member {
 
   // Opaque version for optimistic concurrency.
   string etag = 8;
+
+  // Membership span: a oneof of two value objects, exercising the synthesized
+  // case column and whole-group mask replacement.
+  oneof span {
+    // Exact time window.
+    TimeWindow window = 9;
+
+    // Whole-day stretch.
+    DateStretch date_range = 10;
+  }
 }

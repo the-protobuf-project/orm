@@ -34,6 +34,12 @@ type resource struct {
 	Parent   *resource
 	ParentFK string
 
+	// AncestorFKs are every ancestor's "<var>_id" columns present on the
+	// table, in pattern order — a nested resource often denormalizes its
+	// grandparents (e.g. an exception carries property_id AND unit_id), and
+	// Create must wire them all from the split parent name.
+	AncestorFKs []ancestorFK
+
 	// Cols classifies every column once for all emitters.
 	Cols columnPlan
 
@@ -71,6 +77,12 @@ type voCase struct {
 type patternSegment struct {
 	Collection string // "organisations"
 	Var        string // "organisation"
+}
+
+// ancestorFK is one ancestor id column and the parentIDs index that fills it.
+type ancestorFK struct {
+	Column string // "property_id"
+	Index  int    // position in the split parent name
 }
 
 // columnPlan buckets a resource's columns by the role each plays in the
@@ -132,6 +144,11 @@ func planResources(pb *pbIndex, db *schema.Database) (map[*schema.Table]*resourc
 		}
 		if r.Parent != nil && r.ParentFK == "" {
 			return nil, fmt.Errorf("repository: %s: parent pattern %q but no %q column (unsupported layout)", r.Table.ProtoMessage, r.Pattern, fk)
+		}
+		for i, seg := range r.Segments[:len(r.Segments)-1] {
+			if columnByName(r.Table, seg.Var+"_id") != nil {
+				r.AncestorFKs = append(r.AncestorFKs, ancestorFK{Column: seg.Var + "_id", Index: i})
+			}
 		}
 	}
 	// Third pass: plan the generated value objects (needs ParentFK resolved so

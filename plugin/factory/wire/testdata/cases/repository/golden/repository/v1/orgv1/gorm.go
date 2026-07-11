@@ -72,7 +72,7 @@ func (r *GormMemberRepository) Create(ctx context.Context, parent string, in *ge
 	m := orgv1.MemberFromProto(in)
 	m.ID = id
 	m.Name = in.GetName()
-	m.OrganisationID = parentIDs[len(parentIDs)-1]
+	m.OrganisationID = parentIDs[0]
 	if v := in.GetUser(); v != "" {
 		m.UserID = repox.LastSegment(v)
 	}
@@ -80,7 +80,29 @@ func (r *GormMemberRepository) Create(ctx context.Context, parent string, in *ge
 		m.InviterID = repox.Ptr(repox.LastSegment(v))
 	}
 	m.Etag = repox.Ptr(repox.NewULID())
-	if err := orgv1.NewMemberStore(r.DB).Create(ctx, m); err != nil {
+	if err := r.DB.Transaction(func(tx *gorm.DB) error {
+		if v := in.GetWindow(); v != nil {
+			vo := orgv1.TimeWindowFromProto(v)
+			vo.ID = repox.NewULID()
+			if err := tx.WithContext(ctx).Create(vo).Error; err != nil {
+				return err
+			}
+			m.WindowID = repox.Ptr(vo.ID)
+			c := orgv1.MemberSpanCaseWindow
+			m.SpanCase = &c
+		}
+		if v := in.GetDateRange(); v != nil {
+			vo := orgv1.DateStretchFromProto(v)
+			vo.ID = repox.NewULID()
+			if err := tx.WithContext(ctx).Create(vo).Error; err != nil {
+				return err
+			}
+			m.DateRangeID = repox.Ptr(vo.ID)
+			c := orgv1.MemberSpanCaseDateRange
+			m.SpanCase = &c
+		}
+		return orgv1.NewMemberStore(tx).Create(ctx, m)
+	}); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.get(ctx, id)
@@ -99,7 +121,7 @@ func (r *GormMemberRepository) Get(ctx context.Context, name string) (*gen.Membe
 // through, so Tier-2 overrides of Get never re-enter generated writes.
 func (r *GormMemberRepository) get(ctx context.Context, id string) (*gen.Member, error) {
 	var m orgv1.Member
-	if err := r.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	if err := r.DB.WithContext(ctx).Preload("Window").Preload("DateRange").First(&m, "id = ?", id).Error; err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.toProto(ctx, &m)
@@ -142,7 +164,7 @@ func (r *GormMemberRepository) list(ctx context.Context, scope *gorm.DB, in repo
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
-	rows, next, err := eng.List(ctx, scope, filterx.ListInput{
+	rows, next, err := eng.List(ctx, scope.Preload("Window").Preload("DateRange"), filterx.ListInput{
 		PageSize:  in.PageSize,
 		PageToken: in.PageToken,
 		OrderBy:   in.OrderBy,
@@ -172,9 +194,11 @@ func (r *GormMemberRepository) Update(ctx context.Context, in *gen.Member, paths
 	id := ids[len(ids)-1]
 	err = r.DB.Transaction(func(tx *gorm.DB) error {
 		var existing orgv1.Member
-		if err := tx.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
+		if err := tx.WithContext(ctx).Preload("Window").Preload("DateRange").First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
+		var staleWindow string
+		var staleDateRange string
 		if in.GetEtag() != "" && existing.Etag != nil && *existing.Etag != in.GetEtag() {
 			return repox.ErrConflict
 		}
@@ -206,8 +230,52 @@ func (r *GormMemberRepository) Update(ctx context.Context, in *gen.Member, paths
 			existing.InviterID = nil
 		}
 		existing.Role = next.Role
+		if repox.GroupTouched(paths, "window") || repox.GroupTouched(paths, "date_range") {
+			if existing.WindowID != nil {
+				staleWindow = *existing.WindowID
+			}
+			existing.WindowID = nil
+			if existing.DateRangeID != nil {
+				staleDateRange = *existing.DateRangeID
+			}
+			existing.DateRangeID = nil
+			existing.SpanCase = nil
+			if v := merged.GetWindow(); v != nil {
+				vo := orgv1.TimeWindowFromProto(v)
+				vo.ID = repox.NewULID()
+				if err := tx.WithContext(ctx).Create(vo).Error; err != nil {
+					return err
+				}
+				existing.WindowID = repox.Ptr(vo.ID)
+				c := orgv1.MemberSpanCaseWindow
+				existing.SpanCase = &c
+			}
+			if v := merged.GetDateRange(); v != nil {
+				vo := orgv1.DateStretchFromProto(v)
+				vo.ID = repox.NewULID()
+				if err := tx.WithContext(ctx).Create(vo).Error; err != nil {
+					return err
+				}
+				existing.DateRangeID = repox.Ptr(vo.ID)
+				c := orgv1.MemberSpanCaseDateRange
+				existing.SpanCase = &c
+			}
+		}
 		existing.Etag = repox.Ptr(repox.NewULID())
-		return orgv1.NewMemberStore(tx).Update(ctx, &existing)
+		if err := orgv1.NewMemberStore(tx).Update(ctx, &existing); err != nil {
+			return err
+		}
+		if staleWindow != "" {
+			if err := tx.WithContext(ctx).Delete(&orgv1.TimeWindow{}, "id = ?", staleWindow).Error; err != nil {
+				return err
+			}
+		}
+		if staleDateRange != "" {
+			if err := tx.WithContext(ctx).Delete(&orgv1.DateStretch{}, "id = ?", staleDateRange).Error; err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, repox.MapGormErr(err)
@@ -231,7 +299,22 @@ func (r *GormMemberRepository) Delete(ctx context.Context, name string) error {
 	if err := r.DB.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 		return repox.MapGormErr(err)
 	}
-	return repox.MapGormErr(orgv1.NewMemberStore(r.DB).DeleteByID(ctx, id))
+	return repox.MapGormErr(r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := orgv1.NewMemberStore(tx).DeleteByID(ctx, id); err != nil {
+			return err
+		}
+		if existing.WindowID != nil {
+			if err := tx.WithContext(ctx).Delete(&orgv1.TimeWindow{}, "id = ?", *existing.WindowID).Error; err != nil {
+				return err
+			}
+		}
+		if existing.DateRangeID != nil {
+			if err := tx.WithContext(ctx).Delete(&orgv1.DateStretch{}, "id = ?", *existing.DateRangeID).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
 }
 
 // Compile-time proof the adapter satisfies the interface.
@@ -277,7 +360,17 @@ func (r *GormOrganisationRepository) Create(ctx context.Context, in *gen.Organis
 	m.ID = id
 	m.Name = in.GetName()
 	m.Etag = repox.Ptr(repox.NewULID())
-	if err := orgv1.NewOrganisationStore(r.DB).Create(ctx, m); err != nil {
+	if err := r.DB.Transaction(func(tx *gorm.DB) error {
+		if v := in.GetHq(); v != nil {
+			vo := orgv1.LocationFromProto(v)
+			vo.ID = repox.NewULID()
+			if err := tx.WithContext(ctx).Create(vo).Error; err != nil {
+				return err
+			}
+			m.HqID = repox.Ptr(vo.ID)
+		}
+		return orgv1.NewOrganisationStore(tx).Create(ctx, m)
+	}); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.get(ctx, id)
@@ -296,7 +389,7 @@ func (r *GormOrganisationRepository) Get(ctx context.Context, name string) (*gen
 // through, so Tier-2 overrides of Get never re-enter generated writes.
 func (r *GormOrganisationRepository) get(ctx context.Context, id string) (*gen.Organisation, error) {
 	var m orgv1.Organisation
-	if err := r.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	if err := r.DB.WithContext(ctx).Preload("Hq").First(&m, "id = ?", id).Error; err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.toProto(ctx, &m)
@@ -328,7 +421,7 @@ func (r *GormOrganisationRepository) list(ctx context.Context, scope *gorm.DB, i
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
-	rows, next, err := eng.List(ctx, scope, filterx.ListInput{
+	rows, next, err := eng.List(ctx, scope.Preload("Hq"), filterx.ListInput{
 		PageSize:  in.PageSize,
 		PageToken: in.PageToken,
 		OrderBy:   in.OrderBy,
@@ -358,9 +451,10 @@ func (r *GormOrganisationRepository) Update(ctx context.Context, in *gen.Organis
 	id := ids[len(ids)-1]
 	err = r.DB.Transaction(func(tx *gorm.DB) error {
 		var existing orgv1.Organisation
-		if err := tx.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
+		if err := tx.WithContext(ctx).Preload("Hq").First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
+		var staleHq string
 		if in.GetEtag() != "" && existing.Etag != nil && *existing.Etag != in.GetEtag() {
 			return repox.ErrConflict
 		}
@@ -378,8 +472,30 @@ func (r *GormOrganisationRepository) Update(ctx context.Context, in *gen.Organis
 		existing.DisplayName = next.DisplayName
 		existing.Slug = next.Slug
 		existing.Settings = next.Settings
+		if repox.GroupTouched(paths, "hq") {
+			if existing.HqID != nil {
+				staleHq = *existing.HqID
+			}
+			existing.HqID = nil
+			if v := merged.GetHq(); v != nil {
+				vo := orgv1.LocationFromProto(v)
+				vo.ID = repox.NewULID()
+				if err := tx.WithContext(ctx).Create(vo).Error; err != nil {
+					return err
+				}
+				existing.HqID = repox.Ptr(vo.ID)
+			}
+		}
 		existing.Etag = repox.Ptr(repox.NewULID())
-		return orgv1.NewOrganisationStore(tx).Update(ctx, &existing)
+		if err := orgv1.NewOrganisationStore(tx).Update(ctx, &existing); err != nil {
+			return err
+		}
+		if staleHq != "" {
+			if err := tx.WithContext(ctx).Delete(&orgv1.Location{}, "id = ?", staleHq).Error; err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, repox.MapGormErr(err)
@@ -403,7 +519,17 @@ func (r *GormOrganisationRepository) Delete(ctx context.Context, name string) er
 	if err := r.DB.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 		return repox.MapGormErr(err)
 	}
-	return repox.MapGormErr(orgv1.NewOrganisationStore(r.DB).DeleteByID(ctx, id))
+	return repox.MapGormErr(r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := orgv1.NewOrganisationStore(tx).DeleteByID(ctx, id); err != nil {
+			return err
+		}
+		if existing.HqID != nil {
+			if err := tx.WithContext(ctx).Delete(&orgv1.Location{}, "id = ?", *existing.HqID).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
 }
 
 // Compile-time proof the adapter satisfies the interface.

@@ -67,7 +67,7 @@ func graphqlFileView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg str
 }
 
 // graphqlConvertView prepares graphql_convert.go: converters + scalar helpers.
-func graphqlConvertView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg string, rs []gqlResourceView, needs helperNeeds) map[string]any {
+func graphqlConvertView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg string, rs []gqlResourceView, voConvs []gqlVOConv, needs helperNeeds) map[string]any {
 	client := dbGraphQLModule(db)
 	domainPkg := identLower(s.Name) + "ql"
 	imports := map[string]string{
@@ -76,6 +76,16 @@ func graphqlConvertView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg 
 	}
 	for _, r := range rs {
 		imports[client+"/"+domainPkg+"/"+r.ResPkg] = r.ResPkg
+	}
+	for _, c := range voConvs {
+		imports[c.ResPkgPath] = c.ResPkgName
+		if c.RowPath != "" {
+			imports[c.RowPath] = c.RowAlias
+		}
+		imports[c.PBPath] = c.PBName
+	}
+	if needs.Wrappers {
+		imports["google.golang.org/protobuf/types/known/wrapperspb"] = "wrapperspb"
 	}
 	// The patch builders always speak graphql.Value/Null.
 	imports[graphqlDSLModule] = "graphql"
@@ -115,6 +125,7 @@ func graphqlConvertView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg 
 		"Package":   pkg,
 		"Imports":   renderImports(imports),
 		"Resources": rs,
+		"VOConvs":   voConvs,
 		"Needs":     needs,
 	}
 }

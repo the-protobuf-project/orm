@@ -205,3 +205,28 @@ func {{.LowerModelV}}FromRow(row *{{.Row}}) *{{.PB}} {
 	return out
 }
 {{- end}}
+
+{{- range .VOConvs}}
+
+// {{.ConvName}}ToCreateInput maps the value-object proto onto its client
+// insert input; the adapter mints the id and wires the reference.
+func {{.ConvName}}ToCreateInput(in *{{.PBType}}) {{.InputType}} {
+	var ci {{.InputType}}
+	{{- range .InputAssigns}}
+	{{.}}
+	{{- end}}
+	return ci
+}
+
+// {{.ConvName}}FromRow re-hydrates the value-object proto from a client row.
+func {{.ConvName}}FromRow(row *{{.RowType}}) *{{.PBType}} {
+	if row == nil {
+		return nil
+	}
+	out := &{{.PBType}}{}
+	{{- range .RowToProto}}
+	{{.}}
+	{{- end}}
+	return out
+}
+{{- end}}

@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/protobuf/compiler/protogen"
+
 	"github.com/the-protobuf-project/protokit/naming"
 	"github.com/the-protobuf-project/protokit/schema"
 )
@@ -36,11 +38,21 @@ type gqlResourceView struct {
 	PatchAssigns []string // UpdateInput (Nullable) assignments from the merged proto
 	RowToProto   []string // proto field assignments from the row
 	NeedsHelpers helperNeeds
+
+	// Value-object fragments (see vo_gql_view.go). Named apart from the
+	// embedded gorm fragments, which speak tx/gorm and must not leak here.
+	GQLVOCreates        []string // insert-then-reference before the resource insert
+	GQLVOHydrates       []string // follow-up reads inside toProto
+	GQLVOStaleVars      []string // stale-id declarations inside Update
+	GQLVOUpdates        []string // masked replacements on the patch
+	GQLVOStaleDels      []string // stale-row deletions after a successful update
+	GQLVODeleteCleanups []string // VO-row removals after the owner row's delete
 }
 
 // helperNeeds tracks which scalar helpers graphql_convert.go must include.
+// Wrappers marks google.protobuf wrapper fields (wrapperspb import).
 type helperNeeds struct {
-	Ts, Date, Struct, Bytes, Duration, StrSlice, Decimal, Enum bool
+	Ts, Date, Struct, Bytes, Duration, StrSlice, Decimal, Enum, Wrappers bool
 }
 
 func (h *helperNeeds) or(o helperNeeds) {
@@ -52,6 +64,7 @@ func (h *helperNeeds) or(o helperNeeds) {
 	h.StrSlice = h.StrSlice || o.StrSlice
 	h.Decimal = h.Decimal || o.Decimal
 	h.Enum = h.Enum || o.Enum
+	h.Wrappers = h.Wrappers || o.Wrappers
 }
 
 // export uppercases the first letter of each underscore part without Go
@@ -92,6 +105,11 @@ func gqlResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resour
 		if v.Parented {
 			v.ParentPred = v.ResPkg + "." + export(camel(r.ParentFK))
 			v.ParentInputField = export(camel(r.ParentFK))
+			v.GQLParentAssigns = nil // rebuilt for the client input spelling
+			for _, a := range r.AncestorFKs {
+				v.GQLParentAssigns = append(v.GQLParentAssigns,
+					fmt.Sprintf("ci.%s = parentIDs[%d]", export(camel(a.Column)), a.Index))
+			}
 		}
 		if v.HasEtag {
 			v.EtagPred = v.ResPkg + ".Etag"
@@ -112,6 +130,13 @@ func gqlResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resour
 		v.InputAssigns, v.PatchAssigns, v.RowToProto, rn = gqlColumnFragments(pb, db, resources, r)
 		v.NeedsHelpers = rn
 		needs.or(rn)
+		vp := gqlVOFragments(pb, s, r)
+		v.GQLVOCreates = vp.Creates
+		v.GQLVOHydrates = vp.Hydrates
+		v.GQLVOStaleVars = vp.StaleVars
+		v.GQLVOUpdates = vp.Updates
+		v.GQLVOStaleDels = vp.StaleDels
+		v.GQLVODeleteCleanups = vp.DeleteCleanups
 		out = append(out, v)
 	}
 	return out, needs, nil
@@ -292,6 +317,17 @@ func gqlScalarFragments(pb *pbIndex, c *schema.Column, rowField string) (inputs,
 	if c.Optional {
 		rowVal = "repox.Deref(" + rowField + ")"
 	}
+
+	// google.protobuf wrapper fields: nil-able scalars on both sides.
+	if f := pbFieldOf(pb, c); f != nil && f.Message != nil && !c.List {
+		if in2, p2, r2, handled := gqlWrapperFragments(string(f.Message.Desc.FullName()), field, gof, rowField); handled {
+			if !c.Optional {
+				return nil, nil, nil, needs, false // a NOT NULL wrapper column loses absence: Tier-2
+			}
+			needs.Wrappers = true
+			return in2, p2, r2, needs, true
+		}
+	}
 	set := func(inExpr, patchExpr, rowExpr, zero string) {
 		inputs = append(inputs, fmt.Sprintf("ci.%s = %s", field, inExpr))
 		patches = append(patches, gqlPatch(field, patchExpr, zero, c.Optional))
@@ -373,6 +409,70 @@ func gqlScalarFragments(pb *pbIndex, c *schema.Column, rowField string) (inputs,
 		return nil, nil, nil, needs, false
 	}
 	return inputs, patches, rows, needs, true
+}
+
+// pbFieldOf resolves the protogen field backing a column ("" for synthesized
+// columns), so fragment builders can inspect the proto-side shape.
+func pbFieldOf(pb *pbIndex, c *schema.Column) *protogen.Field {
+	if c.Source == nil {
+		return nil
+	}
+	m, ok := pb.msgs[c.Source.ContainingMessage().FullName()]
+	if !ok {
+		return nil
+	}
+	for _, f := range m.Fields {
+		if f.Desc.FullName() == c.Source.FullName() {
+			return f
+		}
+	}
+	return nil
+}
+
+// gqlWrapperFragments renders the three fragments for a google.protobuf
+// wrapper field over a nullable column: set only when the wrapper is present,
+// null the patch when the merged wrapper is absent, and rebuild the wrapper
+// from the row pointer.
+func gqlWrapperFragments(wrapperName, field, gof, rowField string) (inputs, patches, rows []string, handled bool) {
+	acc := "in.Get" + gof + "()"
+	mAcc := "merged.Get" + gof + "()"
+	outField := "out." + gof
+	rf := "*" + rowField
+	var inConv, nullT, rowExpr string
+	switch wrapperName {
+	case "google.protobuf.Int64Value":
+		inConv, nullT = "graphql.Int64(v.GetValue())", "graphql.Int64"
+		rowExpr = "wrapperspb.Int64(int64(" + rf + "))"
+	case "google.protobuf.UInt64Value":
+		inConv, nullT = "graphql.Int64(v.GetValue())", "graphql.Int64"
+		rowExpr = "wrapperspb.UInt64(uint64(" + rf + "))"
+	case "google.protobuf.Int32Value":
+		inConv, nullT = "int32(v.GetValue())", "int32"
+		rowExpr = "wrapperspb.Int32(int32(" + rf + "))"
+	case "google.protobuf.UInt32Value":
+		inConv, nullT = "int32(v.GetValue())", "int32"
+		rowExpr = "wrapperspb.UInt32(uint32(" + rf + "))"
+	case "google.protobuf.StringValue":
+		inConv, nullT = "v.GetValue()", "string"
+		rowExpr = "wrapperspb.String(" + rf + ")"
+	case "google.protobuf.BoolValue":
+		inConv, nullT = "v.GetValue()", "bool"
+		rowExpr = "wrapperspb.Bool(" + rf + ")"
+	case "google.protobuf.FloatValue":
+		inConv, nullT = "float64(v.GetValue())", "float64"
+		rowExpr = "wrapperspb.Float(float32(" + rf + "))"
+	case "google.protobuf.DoubleValue":
+		inConv, nullT = "v.GetValue()", "float64"
+		rowExpr = "wrapperspb.Double(" + rf + ")"
+	default:
+		return nil, nil, nil, false
+	}
+	inputs = append(inputs, fmt.Sprintf("if v := %s; v != nil {\n\t\tci.%s = %s\n\t}", acc, field, inConv))
+	patches = append(patches, fmt.Sprintf(
+		"if v := %s; v != nil {\n\t\tpatch.%s = graphql.Value(%s)\n\t} else {\n\t\tpatch.%s = graphql.Null[%s]()\n\t}",
+		mAcc, field, inConv, field, nullT))
+	rows = append(rows, fmt.Sprintf("if %s != nil {\n\t\t%s = %s\n\t}", rowField, outField, rowExpr))
+	return inputs, patches, rows, true
 }
 
 // pbCast is the proto-side numeric type for read-back casts (int32 vs uint32

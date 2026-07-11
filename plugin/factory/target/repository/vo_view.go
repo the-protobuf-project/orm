@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/the-protobuf-project/protokit/naming"
-	"github.com/the-protobuf-project/protokit/schema"
 )
 
 // voGorm is the per-resource bundle of rendered gorm VO fragments.
@@ -172,17 +171,4 @@ func voStaleDelete(pkg string, v voField) string {
 	return fmt.Sprintf(
 		"if stale%s != \"\" {\n\t\t\tif err := tx.WithContext(ctx).Delete(&%s.%s{}, \"id = ?\", stale%s).Error; err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t}",
 		v.PBGoName, voQual(pkg, v), v.Target.LocalName, v.PBGoName)
-}
-
-// voColumnSet reports the FK and case columns the VO plan owns, so the
-// mutable/mask planner leaves them alone.
-func voColumnSet(vos []voField) map[*schema.Column]bool {
-	set := map[*schema.Column]bool{}
-	for _, v := range vos {
-		set[v.Col] = true
-		if v.Case != nil {
-			set[v.Case.Column] = true
-		}
-	}
-	return set
 }

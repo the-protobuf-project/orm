@@ -56,7 +56,7 @@ func (r *Gorm{{.Model}}Repository) Create(ctx context.Context, parent string, in
 			return nil, err
 		}
 	}
-	m := gormdb.{{.Model}}FromProto(in)
+	m := {{$.GormPkg}}.{{.Model}}FromProto(in)
 	m.{{.PKField}} = id
 	m.Name = in.GetName()
 	m.{{.ParentFKField}} = parentIDs[len(parentIDs)-1]
@@ -66,7 +66,7 @@ func (r *Gorm{{.Model}}Repository) Create(ctx context.Context, parent string, in
 	{{- if .HasEtag}}
 	m.{{.EtagField}} = {{if .EtagPtr}}repox.Ptr(repox.NewULID()){{else}}repox.NewULID(){{end}}
 	{{- end}}
-	if err := gormdb.{{.Store}}(r.DB).Create(ctx, m); err != nil {
+	if err := {{$.GormPkg}}.{{.Store}}(r.DB).Create(ctx, m); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.get(ctx, id)
@@ -89,7 +89,7 @@ func (r *Gorm{{.Model}}Repository) Create(ctx context.Context, in *{{.PB}}) (*{{
 			return nil, err
 		}
 	}
-	m := gormdb.{{.Model}}FromProto(in)
+	m := {{$.GormPkg}}.{{.Model}}FromProto(in)
 	m.{{.PKField}} = id
 	m.Name = in.GetName()
 	{{- range .RefsCreate}}
@@ -98,7 +98,7 @@ func (r *Gorm{{.Model}}Repository) Create(ctx context.Context, in *{{.PB}}) (*{{
 	{{- if .HasEtag}}
 	m.{{.EtagField}} = {{if .EtagPtr}}repox.Ptr(repox.NewULID()){{else}}repox.NewULID(){{end}}
 	{{- end}}
-	if err := gormdb.{{.Store}}(r.DB).Create(ctx, m); err != nil {
+	if err := {{$.GormPkg}}.{{.Store}}(r.DB).Create(ctx, m); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.get(ctx, id)
@@ -117,7 +117,7 @@ func (r *Gorm{{.Model}}Repository) Get(ctx context.Context, name string) (*{{.PB
 // get loads by surrogate key — the private read every generated method re-reads
 // through, so Tier-2 overrides of Get never re-enter generated writes.
 func (r *Gorm{{.Model}}Repository) get(ctx context.Context, id string) (*{{.PB}}, error) {
-	var m gormdb.{{.Model}}
+	var m {{$.GormPkg}}.{{.Model}}
 	if err := r.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
 		return nil, repox.MapGormErr(err)
 	}
@@ -126,8 +126,8 @@ func (r *Gorm{{.Model}}Repository) get(ctx context.Context, id string) (*{{.PB}}
 
 // toProto converts a loaded row, decorating reference names and running the
 // AfterRead hook.
-func (r *Gorm{{.Model}}Repository) toProto(ctx context.Context, m *gormdb.{{.Model}}) (*{{.PB}}, error) {
-	out := gormdb.{{.Model}}ToProto(m)
+func (r *Gorm{{.Model}}Repository) toProto(ctx context.Context, m *{{$.GormPkg}}.{{.Model}}) (*{{.PB}}, error) {
+	out := {{$.GormPkg}}.{{.Model}}ToProto(m)
 	{{- range .RefsToProto}}
 	{{.}}
 	{{- end}}
@@ -161,7 +161,7 @@ func (r *Gorm{{.Model}}Repository) list(ctx context.Context, scope *gorm.DB, in 
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Gorm[gormdb.{{.Model}}](gormdb.{{.Model}}FilterSpec)
+	eng := filterx.Gorm[{{$.GormPkg}}.{{.Model}}]({{$.GormPkg}}.{{.Model}}FilterSpec)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
@@ -194,7 +194,7 @@ func (r *Gorm{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, path
 	}
 	id := ids[len(ids)-1]
 	err = r.DB.Transaction(func(tx *gorm.DB) error {
-		var existing gormdb.{{.Model}}
+		var existing {{$.GormPkg}}.{{.Model}}
 		if err := tx.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
@@ -203,7 +203,7 @@ func (r *Gorm{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, path
 			return repox.ErrConflict
 		}
 		{{- end}}
-		existingPB := gormdb.{{.Model}}ToProto(&existing)
+		existingPB := {{$.GormPkg}}.{{.Model}}ToProto(&existing)
 		{{- if .RefsToProto}}
 		{
 			m, out := &existing, existingPB
@@ -219,7 +219,7 @@ func (r *Gorm{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, path
 				return err
 			}
 		}
-		next := gormdb.{{.Model}}FromProto(merged)
+		next := {{$.GormPkg}}.{{.Model}}FromProto(merged)
 		_ = next
 		{{- range .MutableAssigns}}
 		{{.}}
@@ -227,7 +227,7 @@ func (r *Gorm{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, path
 		{{- if .HasEtag}}
 		existing.{{.EtagField}} = {{if .EtagPtr}}repox.Ptr(repox.NewULID()){{else}}repox.NewULID(){{end}}
 		{{- end}}
-		return gormdb.{{.Store}}(tx).Update(ctx, &existing)
+		return {{$.GormPkg}}.{{.Store}}(tx).Update(ctx, &existing)
 	})
 	if err != nil {
 		return nil, repox.MapGormErr(err)
@@ -247,11 +247,11 @@ func (r *Gorm{{.Model}}Repository) Delete(ctx context.Context, name string) erro
 		}
 	}
 	id := ids[len(ids)-1]
-	var existing gormdb.{{.Model}}
+	var existing {{$.GormPkg}}.{{.Model}}
 	if err := r.DB.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 		return repox.MapGormErr(err)
 	}
-	return repox.MapGormErr(gormdb.{{.Store}}(r.DB).DeleteByID(ctx, id))
+	return repox.MapGormErr({{$.GormPkg}}.{{.Store}}(r.DB).DeleteByID(ctx, id))
 }
 
 // Compile-time proof the adapter satisfies the interface.

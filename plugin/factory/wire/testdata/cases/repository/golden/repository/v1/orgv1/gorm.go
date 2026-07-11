@@ -18,7 +18,7 @@ import (
 	"example.com/test/gen"
 	"example.com/test/gen/repox"
 	"example.com/test/gormdb/filterx"
-	gormdb "example.com/test/gormdb/v1/orgv1"
+	"example.com/test/gormdb/v1/orgv1"
 	"fmt"
 	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
@@ -69,7 +69,7 @@ func (r *GormMemberRepository) Create(ctx context.Context, parent string, in *ge
 			return nil, err
 		}
 	}
-	m := gormdb.MemberFromProto(in)
+	m := orgv1.MemberFromProto(in)
 	m.ID = id
 	m.Name = in.GetName()
 	m.OrganisationID = parentIDs[len(parentIDs)-1]
@@ -80,7 +80,7 @@ func (r *GormMemberRepository) Create(ctx context.Context, parent string, in *ge
 		m.InviterID = repox.Ptr(repox.LastSegment(v))
 	}
 	m.Etag = repox.Ptr(repox.NewULID())
-	if err := gormdb.NewMemberStore(r.DB).Create(ctx, m); err != nil {
+	if err := orgv1.NewMemberStore(r.DB).Create(ctx, m); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.get(ctx, id)
@@ -98,7 +98,7 @@ func (r *GormMemberRepository) Get(ctx context.Context, name string) (*gen.Membe
 // get loads by surrogate key — the private read every generated method re-reads
 // through, so Tier-2 overrides of Get never re-enter generated writes.
 func (r *GormMemberRepository) get(ctx context.Context, id string) (*gen.Member, error) {
-	var m gormdb.Member
+	var m orgv1.Member
 	if err := r.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
 		return nil, repox.MapGormErr(err)
 	}
@@ -107,8 +107,8 @@ func (r *GormMemberRepository) get(ctx context.Context, id string) (*gen.Member,
 
 // toProto converts a loaded row, decorating reference names and running the
 // AfterRead hook.
-func (r *GormMemberRepository) toProto(ctx context.Context, m *gormdb.Member) (*gen.Member, error) {
-	out := gormdb.MemberToProto(m)
+func (r *GormMemberRepository) toProto(ctx context.Context, m *orgv1.Member) (*gen.Member, error) {
+	out := orgv1.MemberToProto(m)
 	if m.UserID != "" {
 		out.User = "users/" + m.UserID
 	}
@@ -138,7 +138,7 @@ func (r *GormMemberRepository) list(ctx context.Context, scope *gorm.DB, in repo
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Gorm[gormdb.Member](gormdb.MemberFilterSpec)
+	eng := filterx.Gorm[orgv1.Member](orgv1.MemberFilterSpec)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
@@ -171,14 +171,14 @@ func (r *GormMemberRepository) Update(ctx context.Context, in *gen.Member, paths
 	}
 	id := ids[len(ids)-1]
 	err = r.DB.Transaction(func(tx *gorm.DB) error {
-		var existing gormdb.Member
+		var existing orgv1.Member
 		if err := tx.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
 		if in.GetEtag() != "" && existing.Etag != nil && *existing.Etag != in.GetEtag() {
 			return repox.ErrConflict
 		}
-		existingPB := gormdb.MemberToProto(&existing)
+		existingPB := orgv1.MemberToProto(&existing)
 		{
 			m, out := &existing, existingPB
 			if m.UserID != "" {
@@ -195,7 +195,7 @@ func (r *GormMemberRepository) Update(ctx context.Context, in *gen.Member, paths
 				return err
 			}
 		}
-		next := gormdb.MemberFromProto(merged)
+		next := orgv1.MemberFromProto(merged)
 		_ = next
 		existing.Name = next.Name
 		existing.Email = next.Email
@@ -207,7 +207,7 @@ func (r *GormMemberRepository) Update(ctx context.Context, in *gen.Member, paths
 		}
 		existing.Role = next.Role
 		existing.Etag = repox.Ptr(repox.NewULID())
-		return gormdb.NewMemberStore(tx).Update(ctx, &existing)
+		return orgv1.NewMemberStore(tx).Update(ctx, &existing)
 	})
 	if err != nil {
 		return nil, repox.MapGormErr(err)
@@ -227,11 +227,11 @@ func (r *GormMemberRepository) Delete(ctx context.Context, name string) error {
 		}
 	}
 	id := ids[len(ids)-1]
-	var existing gormdb.Member
+	var existing orgv1.Member
 	if err := r.DB.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 		return repox.MapGormErr(err)
 	}
-	return repox.MapGormErr(gormdb.NewMemberStore(r.DB).DeleteByID(ctx, id))
+	return repox.MapGormErr(orgv1.NewMemberStore(r.DB).DeleteByID(ctx, id))
 }
 
 // Compile-time proof the adapter satisfies the interface.
@@ -273,11 +273,11 @@ func (r *GormOrganisationRepository) Create(ctx context.Context, in *gen.Organis
 			return nil, err
 		}
 	}
-	m := gormdb.OrganisationFromProto(in)
+	m := orgv1.OrganisationFromProto(in)
 	m.ID = id
 	m.Name = in.GetName()
 	m.Etag = repox.Ptr(repox.NewULID())
-	if err := gormdb.NewOrganisationStore(r.DB).Create(ctx, m); err != nil {
+	if err := orgv1.NewOrganisationStore(r.DB).Create(ctx, m); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.get(ctx, id)
@@ -295,7 +295,7 @@ func (r *GormOrganisationRepository) Get(ctx context.Context, name string) (*gen
 // get loads by surrogate key — the private read every generated method re-reads
 // through, so Tier-2 overrides of Get never re-enter generated writes.
 func (r *GormOrganisationRepository) get(ctx context.Context, id string) (*gen.Organisation, error) {
-	var m gormdb.Organisation
+	var m orgv1.Organisation
 	if err := r.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
 		return nil, repox.MapGormErr(err)
 	}
@@ -304,8 +304,8 @@ func (r *GormOrganisationRepository) get(ctx context.Context, id string) (*gen.O
 
 // toProto converts a loaded row, decorating reference names and running the
 // AfterRead hook.
-func (r *GormOrganisationRepository) toProto(ctx context.Context, m *gormdb.Organisation) (*gen.Organisation, error) {
-	out := gormdb.OrganisationToProto(m)
+func (r *GormOrganisationRepository) toProto(ctx context.Context, m *orgv1.Organisation) (*gen.Organisation, error) {
+	out := orgv1.OrganisationToProto(m)
 	if h := r.Hooks.AfterRead; h != nil {
 		if err := h(ctx, out); err != nil {
 			return nil, err
@@ -324,7 +324,7 @@ func (r *GormOrganisationRepository) list(ctx context.Context, scope *gorm.DB, i
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Gorm[gormdb.Organisation](gormdb.OrganisationFilterSpec)
+	eng := filterx.Gorm[orgv1.Organisation](orgv1.OrganisationFilterSpec)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
@@ -357,14 +357,14 @@ func (r *GormOrganisationRepository) Update(ctx context.Context, in *gen.Organis
 	}
 	id := ids[len(ids)-1]
 	err = r.DB.Transaction(func(tx *gorm.DB) error {
-		var existing gormdb.Organisation
+		var existing orgv1.Organisation
 		if err := tx.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
 		if in.GetEtag() != "" && existing.Etag != nil && *existing.Etag != in.GetEtag() {
 			return repox.ErrConflict
 		}
-		existingPB := gormdb.OrganisationToProto(&existing)
+		existingPB := orgv1.OrganisationToProto(&existing)
 		merged := proto.Clone(existingPB).(*gen.Organisation)
 		applyOrganisationMask(merged, in, paths)
 		if h := r.Hooks.BeforeUpdate; h != nil {
@@ -372,14 +372,14 @@ func (r *GormOrganisationRepository) Update(ctx context.Context, in *gen.Organis
 				return err
 			}
 		}
-		next := gormdb.OrganisationFromProto(merged)
+		next := orgv1.OrganisationFromProto(merged)
 		_ = next
 		existing.Name = next.Name
 		existing.DisplayName = next.DisplayName
 		existing.Slug = next.Slug
 		existing.Settings = next.Settings
 		existing.Etag = repox.Ptr(repox.NewULID())
-		return gormdb.NewOrganisationStore(tx).Update(ctx, &existing)
+		return orgv1.NewOrganisationStore(tx).Update(ctx, &existing)
 	})
 	if err != nil {
 		return nil, repox.MapGormErr(err)
@@ -399,11 +399,11 @@ func (r *GormOrganisationRepository) Delete(ctx context.Context, name string) er
 		}
 	}
 	id := ids[len(ids)-1]
-	var existing gormdb.Organisation
+	var existing orgv1.Organisation
 	if err := r.DB.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 		return repox.MapGormErr(err)
 	}
-	return repox.MapGormErr(gormdb.NewOrganisationStore(r.DB).DeleteByID(ctx, id))
+	return repox.MapGormErr(orgv1.NewOrganisationStore(r.DB).DeleteByID(ctx, id))
 }
 
 // Compile-time proof the adapter satisfies the interface.
@@ -445,11 +445,11 @@ func (r *GormUserRepository) Create(ctx context.Context, in *gen.User) (*gen.Use
 			return nil, err
 		}
 	}
-	m := gormdb.UserFromProto(in)
+	m := orgv1.UserFromProto(in)
 	m.ID = id
 	m.Name = in.GetName()
 	m.Etag = repox.Ptr(repox.NewULID())
-	if err := gormdb.NewUserStore(r.DB).Create(ctx, m); err != nil {
+	if err := orgv1.NewUserStore(r.DB).Create(ctx, m); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.get(ctx, id)
@@ -467,7 +467,7 @@ func (r *GormUserRepository) Get(ctx context.Context, name string) (*gen.User, e
 // get loads by surrogate key — the private read every generated method re-reads
 // through, so Tier-2 overrides of Get never re-enter generated writes.
 func (r *GormUserRepository) get(ctx context.Context, id string) (*gen.User, error) {
-	var m gormdb.User
+	var m orgv1.User
 	if err := r.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
 		return nil, repox.MapGormErr(err)
 	}
@@ -476,8 +476,8 @@ func (r *GormUserRepository) get(ctx context.Context, id string) (*gen.User, err
 
 // toProto converts a loaded row, decorating reference names and running the
 // AfterRead hook.
-func (r *GormUserRepository) toProto(ctx context.Context, m *gormdb.User) (*gen.User, error) {
-	out := gormdb.UserToProto(m)
+func (r *GormUserRepository) toProto(ctx context.Context, m *orgv1.User) (*gen.User, error) {
+	out := orgv1.UserToProto(m)
 	if h := r.Hooks.AfterRead; h != nil {
 		if err := h(ctx, out); err != nil {
 			return nil, err
@@ -496,7 +496,7 @@ func (r *GormUserRepository) list(ctx context.Context, scope *gorm.DB, in repox.
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Gorm[gormdb.User](gormdb.UserFilterSpec)
+	eng := filterx.Gorm[orgv1.User](orgv1.UserFilterSpec)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
@@ -529,14 +529,14 @@ func (r *GormUserRepository) Update(ctx context.Context, in *gen.User, paths []s
 	}
 	id := ids[len(ids)-1]
 	err = r.DB.Transaction(func(tx *gorm.DB) error {
-		var existing gormdb.User
+		var existing orgv1.User
 		if err := tx.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
 		if in.GetEtag() != "" && existing.Etag != nil && *existing.Etag != in.GetEtag() {
 			return repox.ErrConflict
 		}
-		existingPB := gormdb.UserToProto(&existing)
+		existingPB := orgv1.UserToProto(&existing)
 		merged := proto.Clone(existingPB).(*gen.User)
 		applyUserMask(merged, in, paths)
 		if h := r.Hooks.BeforeUpdate; h != nil {
@@ -544,12 +544,12 @@ func (r *GormUserRepository) Update(ctx context.Context, in *gen.User, paths []s
 				return err
 			}
 		}
-		next := gormdb.UserFromProto(merged)
+		next := orgv1.UserFromProto(merged)
 		_ = next
 		existing.Name = next.Name
 		existing.DisplayName = next.DisplayName
 		existing.Etag = repox.Ptr(repox.NewULID())
-		return gormdb.NewUserStore(tx).Update(ctx, &existing)
+		return orgv1.NewUserStore(tx).Update(ctx, &existing)
 	})
 	if err != nil {
 		return nil, repox.MapGormErr(err)
@@ -569,11 +569,11 @@ func (r *GormUserRepository) Delete(ctx context.Context, name string) error {
 		}
 	}
 	id := ids[len(ids)-1]
-	var existing gormdb.User
+	var existing orgv1.User
 	if err := r.DB.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
 		return repox.MapGormErr(err)
 	}
-	return repox.MapGormErr(gormdb.NewUserStore(r.DB).DeleteByID(ctx, id))
+	return repox.MapGormErr(orgv1.NewUserStore(r.DB).DeleteByID(ctx, id))
 }
 
 // Compile-time proof the adapter satisfies the interface.

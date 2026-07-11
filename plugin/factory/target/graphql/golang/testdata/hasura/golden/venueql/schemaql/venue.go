@@ -14,34 +14,49 @@ import (
 	"example.com/gen/enumsql"
 )
 
-// Venue is the Venue model.
+// Venue is one row of the collection, selected with every scalar
+// column; nullable columns are pointers so NULL stays distinguishable from a
+// zero value.
 type Venue struct {
+	// Id selects the "id" field.
 	Id string `graphql:"id"`
 	// Human-readable name shown to guests.
 	DisplayName string `graphql:"displayName"`
 	// Maximum seated capacity.
 	// Must be a positive integer.
-	Capacity *int               `graphql:"capacity"`
-	OpenAir  *bool              `graphql:"openAir"`
-	Kind     *enumsql.VenueKind `graphql:"kind"`
+	Capacity *int `graphql:"capacity"`
+	// OpenAir selects the "openAir" field; nil when the column is NULL.
+	OpenAir *bool `graphql:"openAir"`
+	// Kind selects the "kind" field; nil when the column is NULL.
+	Kind *enumsql.VenueKind `graphql:"kind"`
 }
 
-// VenueAggregate is the VenueAggregate model.
+// VenueAggregate is one row of the collection, selected with every scalar
+// column; nullable columns are pointers so NULL stays distinguishable from a
+// zero value.
 type VenueAggregate struct {
+	// Count selects the "count" field.
 	Count int `graphql:"count"`
 }
 
-// VenueMutationResponse is the VenueMutationResponse model.
+// VenueMutationResponse is one row of the collection, selected with every scalar
+// column; nullable columns are pointers so NULL stays distinguishable from a
+// zero value.
 type VenueMutationResponse struct {
+	// AffectedRows counts the rows the mutation touched.
 	AffectedRows int `graphql:"affectedRows"`
-	Returning    []struct {
+	// Returning carries the affected rows as stored after the mutation.
+	Returning []struct {
+		// Id selects the "id" field.
 		Id string `graphql:"id"`
 		// Human-readable name shown to guests.
 		DisplayName string `graphql:"displayName"`
 		// Maximum seated capacity.
 		// Must be a positive integer.
-		Capacity *int               `graphql:"capacity"`
-		OpenAir  *bool              `graphql:"openAir"`
-		Kind     *enumsql.VenueKind `graphql:"kind"`
+		Capacity *int `graphql:"capacity"`
+		// OpenAir selects the "openAir" field; nil when the column is NULL.
+		OpenAir *bool `graphql:"openAir"`
+		// Kind selects the "kind" field; nil when the column is NULL.
+		Kind *enumsql.VenueKind `graphql:"kind"`
 	} `graphql:"returning"`
 }

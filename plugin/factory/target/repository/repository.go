@@ -80,7 +80,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 				return err
 			}
 			pkg := naming.GoPackage(s.Name)
-			for name, render := range map[string]struct {
+			files := map[string]struct {
 				tpl  string
 				view any
 			}{
@@ -88,7 +88,27 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 				"names.go":      {"names.go.tpl", namesView(db, s, pkg, gormViews)},
 				"mask.go":       {"mask.go.tpl", maskView(pb, db, s, pkg, gormViews)},
 				"gorm.go":       {"gorm.go.tpl", gormFileView(pb, db, s, pkg, gormViews)},
-			} {
+			}
+			if dbGraphQLModule(db) != "" {
+				gqlViews, needs, err := gqlResourceViews(pb, db, s, resources, gormViews)
+				if err != nil {
+					return err
+				}
+				view.HasGraphQL = true
+				view.ClientPkg = clientPkgName(dbGraphQLModule(db))
+				view.GQLResources = gqlViews
+				files["graphql.go"] = struct {
+					tpl  string
+					view any
+				}{"graphql.go.tpl", graphqlFileView(pb, db, s, pkg, gqlViews)}
+				// protobuf.go mirrors the gorm output's converter file name: the
+				// proto↔row/input mappers for the graphql side.
+				files["protobuf.go"] = struct {
+					tpl  string
+					view any
+				}{"graphql_protobuf.tpl", graphqlConvertView(pb, db, s, pkg, gqlViews, needs)}
+			}
+			for name, render := range files {
 				f := p.NewGeneratedFile(fmt.Sprintf("%s/%s/%s", db.Name, pkg, name), "")
 				if err := renderGo(f, render.tpl, render.view); err != nil {
 					return fmt.Errorf("repository: %s/%s/%s: %w", db.Name, pkg, name, err)

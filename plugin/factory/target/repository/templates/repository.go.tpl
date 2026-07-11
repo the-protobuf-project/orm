@@ -70,6 +70,11 @@ type options struct {
 	{{.LowerModel}}Hooks     {{.Model}}Hooks
 	{{.LowerModel}}Overrides map[string]filterx.SQLHandler
 {{- end}}
+{{- if .HasGraphQL}}
+{{- range .Resources}}
+	{{.LowerModel}}GQLOverrides map[string]filterx.GraphQLHandler
+{{- end}}
+{{- end}}
 }
 
 // Option customizes the adapters a factory builds.
@@ -94,10 +99,50 @@ func With{{.Model}}ListOverride(field string, h filterx.SQLHandler) Option {
 }
 {{- end}}
 
+{{- if .HasGraphQL}}
+
+{{- range .Resources}}
+
+// With{{.Model}}GraphQLListOverride substitutes the generated filter dispatch
+// for one {{.Model}} filter field on the GraphQL adapters.
+func With{{.Model}}GraphQLListOverride(field string, h filterx.GraphQLHandler) Option {
+	return func(o *options) {
+		if o.{{.LowerModel}}GQLOverrides == nil {
+			o.{{.LowerModel}}GQLOverrides = map[string]filterx.GraphQLHandler{}
+		}
+		o.{{.LowerModel}}GQLOverrides[field] = h
+	}
+}
+{{- end}}
+
+// New picks the adapter set for the live handle in conn: GraphQL when a
+// client connection is present, otherwise GORM.
+func New(conn repox.Conn, opts ...Option) Repositories {
+	if conn.GraphQL != nil {
+		return NewGraphQL(conn.GraphQL, opts...)
+	}
+	return NewGorm(conn.Gorm, opts...)
+}
+
+// NewGraphQL builds the GraphQL adapter set over svc.
+func NewGraphQL(svc *{{.ClientPkg}}.Service, opts ...Option) Repositories {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return Repositories{
+{{- range .Resources}}
+		{{.PluralField}}: &GraphQL{{.Model}}Repository{Svc: svc, Hooks: o.{{.LowerModel}}Hooks, ListOverrides: o.{{.LowerModel}}GQLOverrides},
+{{- end}}
+	}
+}
+{{- else}}
+
 // New picks the adapter set for the live handle in conn.
 func New(conn repox.Conn, opts ...Option) Repositories {
 	return NewGorm(conn.Gorm, opts...)
 }
+{{- end}}
 
 // NewGorm builds the GORM adapter set over db.
 func NewGorm(db *gorm.DB, opts ...Option) Repositories {

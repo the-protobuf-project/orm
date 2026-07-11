@@ -1,0 +1,207 @@
+{{.Header}}
+
+package {{.Package}}
+
+import (
+{{- range .Imports}}
+	{{.}}
+{{- end}}
+)
+
+{{- if .Needs.Ts}}
+
+// tsToStr / strToTs cross the timestamptz boundary as RFC 3339 strings.
+func tsToStr(ts *timestamppb.Timestamp) string {
+	if ts == nil {
+		return ""
+	}
+	return ts.AsTime().UTC().Format(time.RFC3339Nano)
+}
+
+func strToTs(s string) *timestamppb.Timestamp {
+	if s == "" {
+		return nil
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02T15:04:05.999999Z07:00", "2006-01-02T15:04:05"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return timestamppb.New(t)
+		}
+	}
+	return nil
+}
+{{- end}}
+{{- if .Needs.Date}}
+
+// dateToStr / strToDate cross the date boundary as "2006-01-02" strings.
+func dateToStr(d *date.Date) string {
+	if d == nil || (d.GetYear() == 0 && d.GetMonth() == 0 && d.GetDay() == 0) {
+		return ""
+	}
+	return fmt.Sprintf("%04d-%02d-%02d", d.GetYear(), d.GetMonth(), d.GetDay())
+}
+
+func strToDate(s string) *date.Date {
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return nil
+	}
+	return &date.Date{Year: int32(t.Year()), Month: int32(t.Month()), Day: int32(t.Day())}
+}
+{{- end}}
+{{- if .Needs.Struct}}
+
+// structToJSON / jsonToStruct cross the jsonb boundary as raw JSON.
+func structToJSON(s *structpb.Struct) json.RawMessage {
+	if s == nil {
+		return nil
+	}
+	b, err := s.MarshalJSON()
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func jsonToStruct(r *json.RawMessage) *structpb.Struct {
+	if r == nil || len(*r) == 0 {
+		return nil
+	}
+	s := &structpb.Struct{}
+	if err := s.UnmarshalJSON(*r); err != nil {
+		return nil
+	}
+	return s
+}
+{{- end}}
+{{- if .Needs.Bytes}}
+
+// bytesToRaw / rawToBytes cross the bytea boundary in Postgres hex form
+// ("\x<hex>"), the representation ndc-postgres round-trips.
+func bytesToRaw(b []byte) json.RawMessage {
+	if len(b) == 0 {
+		return nil
+	}
+	out, _ := json.Marshal(`\x` + hex.EncodeToString(b))
+	return out
+}
+
+func rawToBytes(r *json.RawMessage) []byte {
+	if r == nil {
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(*r, &s); err != nil || s == "" {
+		return nil
+	}
+	if strings.HasPrefix(s, `\x`) {
+		if b, err := hex.DecodeString(s[2:]); err == nil {
+			return b
+		}
+		return nil
+	}
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+{{- end}}
+{{- if .Needs.Duration}}
+
+// durToStr / strToDur cross the interval boundary as Go duration strings.
+func durToStr(d *durationpb.Duration) string {
+	if d == nil {
+		return ""
+	}
+	return d.AsDuration().String()
+}
+
+func strToDur(s string) *durationpb.Duration {
+	if s == "" {
+		return nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return nil
+	}
+	return durationpb.New(d)
+}
+{{- end}}
+{{- if .Needs.StrSlice}}
+
+// strPtrsToSlice / strSliceToPtrs cross the text[] boundary: the client
+// represents array elements as nullable (*string).
+func strPtrsToSlice(in []*string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for _, p := range in {
+		if p != nil {
+			out = append(out, *p)
+		}
+	}
+	return out
+}
+
+func strSliceToPtrs(in []string) []*string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]*string, 0, len(in))
+	for i := range in {
+		out = append(out, &in[i])
+	}
+	return out
+}
+{{- end}}
+{{- if .Needs.Decimal}}
+
+// bigdec / fromBigdec cross the numeric boundary as decimal strings.
+func bigdec(f float64) graphql.Bigdecimal {
+	return graphql.Bigdecimal(strconv.FormatFloat(f, 'f', -1, 64))
+}
+
+func fromBigdec(b graphql.Bigdecimal) float64 {
+	f, _ := strconv.ParseFloat(string(b), 64)
+	return f
+}
+{{- end}}
+
+{{- range .Resources}}
+
+// {{.LowerModelV}}ToCreateInput maps the proto onto the client's insert input.
+// Identity (id, name resolution), parentage, audit timestamps, and etag are
+// set by the adapter.
+func {{.LowerModelV}}ToCreateInput(in *{{.PB}}) {{.ResPkg}}.CreateInput {
+	var ci {{.ResPkg}}.CreateInput
+	{{- range .InputAssigns}}
+	{{.}}
+	{{- end}}
+	return ci
+}
+
+// {{.LowerModelV}}ToUpdatePatch maps the merged proto onto a replace-write
+// patch of every mutable column (mask semantics already applied to merged),
+// mirroring the gorm adapter's write-back exactly.
+func {{.LowerModelV}}ToUpdatePatch(merged *{{.PB}}) {{.ResPkg}}.UpdateInput {
+	var patch {{.ResPkg}}.UpdateInput
+	{{- range .PatchAssigns}}
+	{{.}}
+	{{- end}}
+	return patch
+}
+
+// {{.LowerModelV}}FromRow re-hydrates the proto from a client row, decorating
+// reference names from their stored bare ids.
+func {{.LowerModelV}}FromRow(row *{{.Row}}) *{{.PB}} {
+	if row == nil {
+		return nil
+	}
+	out := &{{.PB}}{}
+	{{- range .RowToProto}}
+	{{.}}
+	{{- end}}
+	return out
+}
+{{- end}}

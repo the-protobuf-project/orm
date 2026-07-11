@@ -17,16 +17,22 @@ import (
 
 // CreateInput holds the settable fields for creating one Venue row.
 type CreateInput struct {
+	// Capacity sets the "capacity" column; the zero value is omitted (column default / NULL).
 	Capacity int `json:"capacity,omitzero"`
 	// Human-readable name shown to guests.
-	DisplayName string            `json:"displayName"`
-	Kind        enumsql.VenueKind `json:"kind,omitzero"`
-	OpenAir     bool              `json:"openAir,omitzero"`
+	DisplayName string `json:"displayName"`
+	// Kind sets the "kind" column; the zero value is omitted (column default / NULL).
+	Kind enumsql.VenueKind `json:"kind,omitzero"`
+	// OpenAir sets the "openAir" column; the zero value is omitted (column default / NULL).
+	OpenAir bool `json:"openAir,omitzero"`
 }
 
 // UpdateInput holds the fields to change on a Venue row; each set field becomes a column update.
 type UpdateInput struct {
-	Capacity    graphql.Nullable[string] `json:"capacity"`
+	// Capacity updates the "capacity" column: Value sets it, Null clears it, the zero Nullable leaves it unchanged.
+	Capacity graphql.Nullable[string] `json:"capacity"`
+	// DisplayName updates the "displayName" column: Value sets it, Null clears it, the zero Nullable leaves it unchanged.
 	DisplayName graphql.Nullable[string] `json:"displayName"`
-	OpenAir     graphql.Nullable[string] `json:"openAir"`
+	// OpenAir updates the "openAir" column: Value sets it, Null clears it, the zero Nullable leaves it unchanged.
+	OpenAir graphql.Nullable[string] `json:"openAir"`
 }

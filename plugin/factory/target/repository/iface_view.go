@@ -31,6 +31,11 @@ type schemaPkgView struct {
 	Imports   []string // fully rendered import lines
 	RepoxPkg  string
 	Resources []resourceView
+
+	// GraphQL adapter wiring, set when the graphql_module opt is configured.
+	HasGraphQL   bool
+	ClientPkg    string // client root package name, e.g. "freebusyql"
+	GQLResources []gqlResourceView
 }
 
 // schemaView builds the repository.go view for schema s, or nil when the
@@ -46,6 +51,9 @@ func schemaView(pb *pbIndex, db *schema.Database, s *schema.Schema, resources ma
 		"gorm.io/gorm":                  "",
 		dbGoModule(db) + "/" + repoxPkg: "",
 		dbGormModule(db) + "/filterx":   "",
+	}
+	if m := dbGraphQLModule(db); m != "" {
+		imports[m] = clientPkgName(m)
 	}
 	var views []resourceView
 	for _, r := range rs {

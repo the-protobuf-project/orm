@@ -90,8 +90,31 @@ func (r *renderer) enum(e *ir.Enum) string {
 func (r *renderer) model(o *ir.Object) string {
 	body := r.selection.ModelBody(o)
 	var b strings.Builder
-	fmt.Fprintf(&b, "// %s is the %s model.\ntype %s struct {\n%s}\n", o.Name, o.Name, o.Name, body)
+	fmt.Fprintf(&b, "// %s\ntype %s struct {\n%s}\n", modelDoc(o), o.Name, body)
 	return b.String()
+}
+
+// modelDoc synthesizes the type's doc comment: the schema's description when
+// present, otherwise wording derived from the object's role — rows, aggregate
+// expressions, and the three mutation-response shapes each get a doc that says
+// what the struct carries rather than restating its name.
+func modelDoc(o *ir.Object) string {
+	if d := strings.TrimSpace(o.Description); d != "" {
+		return o.Name + " — " + strings.Split(d, "\n")[0]
+	}
+	name := o.Name
+	switch {
+	case strings.HasPrefix(name, "Insert") && strings.HasSuffix(name, "Response"):
+		return name + " is the insert mutation's response: how many rows were\n// inserted, and the inserted rows as stored (server-set columns included)."
+	case strings.HasPrefix(name, "Update") && strings.HasSuffix(name, "Response"):
+		return name + " is the update mutation's response: how many rows matched\n// the key (0 = not found or a failed precondition), and the rows as updated."
+	case strings.HasPrefix(name, "Delete") && strings.HasSuffix(name, "Response"):
+		return name + " is the delete mutation's response: how many rows were\n// removed (0 = not found), and the removed rows' final values."
+	case strings.HasSuffix(name, "AggExp"):
+		return name + " aggregates the collection's rows: the row count plus\n// per-column counts, min/max, and numeric statistics."
+	default:
+		return name + " is one row of the collection, selected with every scalar\n// column; nullable columns are pointers so NULL stays distinguishable from a\n// zero value."
+	}
 }
 
 // sortedKeys returns the keys of m in deterministic order.

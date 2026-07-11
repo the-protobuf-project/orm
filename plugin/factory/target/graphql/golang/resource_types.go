@@ -4,6 +4,7 @@ package golang
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/the-protobuf-project/protokit/graphql/ir"
@@ -161,9 +162,21 @@ func (r *renderer) renderInputStruct(name, doc string, fields []ir.Field, setOpe
 	var b strings.Builder
 	fmt.Fprintf(&b, "// %s\ntype %s struct {\n", doc, name)
 	for _, f := range sortedFields(fields) {
-		if doc := naming.Doc(f.Description); doc != "" {
-			b.WriteString(doc)
+		fdoc := naming.Doc(f.Description)
+		if fdoc == "" {
+			// Synthesized doc when the schema carries no description, so every
+			// generated field is documented.
+			if setOperand {
+				fdoc = naming.Doc(export(f.Name) + " updates the " + strconv.Quote(f.Name) +
+					" column: Value sets it, Null clears it, the zero Nullable leaves it unchanged.")
+			} else if !f.Type.NonNull {
+				fdoc = naming.Doc(export(f.Name) + " sets the " + strconv.Quote(f.Name) +
+					" column; the zero value is omitted (column default / NULL).")
+			} else {
+				fdoc = naming.Doc(export(f.Name) + " sets the " + strconv.Quote(f.Name) + " column (required).")
+			}
 		}
+		b.WriteString(fdoc)
 		goType := r.mapper.GoParamType(f.Type, qResource)
 		tag := f.Name
 		if setOperand {

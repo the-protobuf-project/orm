@@ -9,6 +9,7 @@ package selection
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/the-protobuf-project/orm/plugin/factory/target/graphql/golang/typemap"
@@ -65,6 +66,9 @@ func (r *Renderer) field(f ir.Field, depth int, visited map[string]bool) (string
 	}
 	goName := export(f.Name)
 	doc := naming.Doc(f.Description)
+	if doc == "" {
+		doc = naming.Doc(fieldDoc(goName, f))
+	}
 
 	if r.schema.IsScalarOrEnum(f.Type.Base) || r.isUnknownLeaf(f.Type.Base) {
 		return doc + fmt.Sprintf("\t%s %s %s", goName, r.mapper.GoType(f.Type, r.qual), tag), true
@@ -84,6 +88,23 @@ func (r *Renderer) field(f ir.Field, depth int, visited map[string]bool) (string
 		prefix = "[]struct {"
 	}
 	return doc + fmt.Sprintf("\t%s %s\n%s\t} %s", goName, prefix, inner, tag), true
+}
+
+// fieldDoc synthesizes a field's doc when the schema carries no description:
+// the well-known mutation-response fields get precise wording, everything else
+// names the GraphQL field it selects (with a nullability note).
+func fieldDoc(goName string, f ir.Field) string {
+	switch f.Name {
+	case "affectedRows":
+		return "AffectedRows counts the rows the mutation touched."
+	case "returning":
+		return "Returning carries the affected rows as stored after the mutation."
+	}
+	null := ""
+	if !f.Type.NonNull && !f.Type.List {
+		null = "; nil when the column is NULL"
+	}
+	return goName + " selects the " + strconv.Quote(f.Name) + " field" + null + "."
 }
 
 // isUnknownLeaf reports whether base is neither a known object nor input — treated as

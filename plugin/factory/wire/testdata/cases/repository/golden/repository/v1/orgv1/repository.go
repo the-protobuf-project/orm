@@ -17,6 +17,7 @@ import (
 	"context"
 	"example.com/test/gen"
 	"example.com/test/gen/repox"
+	"example.com/test/genql"
 	"example.com/test/gormdb/filterx"
 	"gorm.io/gorm"
 )
@@ -136,12 +137,15 @@ type Repositories struct {
 // options collects the per-resource customizations the factories thread into
 // the adapters they build.
 type options struct {
-	memberHooks           MemberHooks
-	memberOverrides       map[string]filterx.SQLHandler
-	organisationHooks     OrganisationHooks
-	organisationOverrides map[string]filterx.SQLHandler
-	userHooks             UserHooks
-	userOverrides         map[string]filterx.SQLHandler
+	memberHooks              MemberHooks
+	memberOverrides          map[string]filterx.SQLHandler
+	organisationHooks        OrganisationHooks
+	organisationOverrides    map[string]filterx.SQLHandler
+	userHooks                UserHooks
+	userOverrides            map[string]filterx.SQLHandler
+	memberGQLOverrides       map[string]filterx.GraphQLHandler
+	organisationGQLOverrides map[string]filterx.GraphQLHandler
+	userGQLOverrides         map[string]filterx.GraphQLHandler
 }
 
 // Option customizes the adapters a factory builds.
@@ -195,9 +199,59 @@ func WithUserListOverride(field string, h filterx.SQLHandler) Option {
 	}
 }
 
-// New picks the adapter set for the live handle in conn.
+// WithMemberGraphQLListOverride substitutes the generated filter dispatch
+// for one Member filter field on the GraphQL adapters.
+func WithMemberGraphQLListOverride(field string, h filterx.GraphQLHandler) Option {
+	return func(o *options) {
+		if o.memberGQLOverrides == nil {
+			o.memberGQLOverrides = map[string]filterx.GraphQLHandler{}
+		}
+		o.memberGQLOverrides[field] = h
+	}
+}
+
+// WithOrganisationGraphQLListOverride substitutes the generated filter dispatch
+// for one Organisation filter field on the GraphQL adapters.
+func WithOrganisationGraphQLListOverride(field string, h filterx.GraphQLHandler) Option {
+	return func(o *options) {
+		if o.organisationGQLOverrides == nil {
+			o.organisationGQLOverrides = map[string]filterx.GraphQLHandler{}
+		}
+		o.organisationGQLOverrides[field] = h
+	}
+}
+
+// WithUserGraphQLListOverride substitutes the generated filter dispatch
+// for one User filter field on the GraphQL adapters.
+func WithUserGraphQLListOverride(field string, h filterx.GraphQLHandler) Option {
+	return func(o *options) {
+		if o.userGQLOverrides == nil {
+			o.userGQLOverrides = map[string]filterx.GraphQLHandler{}
+		}
+		o.userGQLOverrides[field] = h
+	}
+}
+
+// New picks the adapter set for the live handle in conn: GraphQL when a
+// client connection is present, otherwise GORM.
 func New(conn repox.Conn, opts ...Option) Repositories {
+	if conn.GraphQL != nil {
+		return NewGraphQL(conn.GraphQL, opts...)
+	}
 	return NewGorm(conn.Gorm, opts...)
+}
+
+// NewGraphQL builds the GraphQL adapter set over svc.
+func NewGraphQL(svc *genql.Service, opts ...Option) Repositories {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
+	return Repositories{
+		Members:       &GraphQLMemberRepository{Svc: svc, Hooks: o.memberHooks, ListOverrides: o.memberGQLOverrides},
+		Organisations: &GraphQLOrganisationRepository{Svc: svc, Hooks: o.organisationHooks, ListOverrides: o.organisationGQLOverrides},
+		Users:         &GraphQLUserRepository{Svc: svc, Hooks: o.userHooks, ListOverrides: o.userGQLOverrides},
+	}
 }
 
 // NewGorm builds the GORM adapter set over db.

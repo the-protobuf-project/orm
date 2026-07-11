@@ -72,6 +72,32 @@ func gormFileView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg string
 	}
 }
 
+// addPBEnumImports adds the generated proto packages of every enum a
+// repository resource's columns reference — enums may live in a different
+// proto package than the resource message (shared enums).
+func addPBEnumImports(pb *pbIndex, s *schema.Schema, imports map[string]string) {
+	for _, t := range s.Tables {
+		if t.Source == nil || t.ValueObject || resourcePattern(t.Source) == "" {
+			continue
+		}
+		for _, c := range t.Columns {
+			if c.Enum == nil || c.Source == nil {
+				continue
+			}
+			m, ok := pb.msgs[c.Source.ContainingMessage().FullName()]
+			if !ok {
+				continue
+			}
+			for _, f := range m.Fields {
+				if f.Desc.FullName() == c.Source.FullName() && f.Enum != nil {
+					path := string(f.Enum.GoIdent.GoImportPath)
+					imports[path] = goPackageName(path)
+				}
+			}
+		}
+	}
+}
+
 // addPBImports adds the generated proto packages of s's repository resources.
 func addPBImports(pb *pbIndex, s *schema.Schema, imports map[string]string) {
 	for _, t := range s.Tables {

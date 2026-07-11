@@ -1,0 +1,391 @@
+package repository
+
+// graphql_view.go prepares the per-schema graphql.go / graphql_convert.go
+// views: adapters implementing the repository interfaces over the generated
+// GraphQL client (by naming convention — pgSchema+table derive the client's
+// package and field names), plus the proto↔row/input converters the graphql
+// side previously never had. Fragments are rendered here; templates splice.
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/the-protobuf-project/protokit/naming"
+	"github.com/the-protobuf-project/protokit/schema"
+)
+
+// gqlResourceView is the graphql-adapter view of one resource.
+type gqlResourceView struct {
+	gormResourceView
+
+	Domain      string // client domain field, e.g. "Organisation"
+	Resource    string // client resource field, e.g. "Members"
+	ResPkg      string // client resource package name, e.g. "membersql"
+	Row         string // qualified row type, e.g. "schemaql.OrganisationMembers"
+	ParentPred  string // parent scope predicate field, e.g. "membersql.OrganisationId"
+	EtagPred    string // etag predicate, e.g. "membersql.Etag" (HasEtag only)
+	LowerModelV string // camelCase model for converter func names
+
+	ParentInputField string // CreateInput parent FK field, e.g. "OrganisationId"
+	EtagInputField   string // CreateInput/UpdateInput etag field ("" = none)
+	CreateTimeField  string // CreateInput create-time field ("" = none)
+	UpdateTimeField  string // CreateInput/UpdateInput update-time field ("" = none)
+
+	// Rendered fragments.
+	InputAssigns []string // CreateInput field assignments from the incoming proto
+	PatchAssigns []string // UpdateInput (Nullable) assignments from the merged proto
+	RowToProto   []string // proto field assignments from the row
+	NeedsHelpers helperNeeds
+}
+
+// helperNeeds tracks which scalar helpers graphql_convert.go must include.
+type helperNeeds struct {
+	Ts, Date, Struct, Bytes, Duration, StrSlice, Decimal, Enum bool
+}
+
+func (h *helperNeeds) or(o helperNeeds) {
+	h.Ts = h.Ts || o.Ts
+	h.Date = h.Date || o.Date
+	h.Struct = h.Struct || o.Struct
+	h.Bytes = h.Bytes || o.Bytes
+	h.Duration = h.Duration || o.Duration
+	h.StrSlice = h.StrSlice || o.StrSlice
+	h.Decimal = h.Decimal || o.Decimal
+	h.Enum = h.Enum || o.Enum
+}
+
+// export uppercases the first letter of each underscore part without Go
+// initialism normalization — the generated GraphQL client's field spelling
+// (Id, Uri), matching its own export() rule.
+func export(name string) string {
+	parts := strings.Split(name, "_")
+	var b strings.Builder
+	for _, p := range parts {
+		if p == "" {
+			continue
+		}
+		b.WriteString(strings.ToUpper(p[:1]) + p[1:])
+	}
+	return b.String()
+}
+
+// gqlResourceViews builds the graphql adapter views, parallel to gormViews.
+func gqlResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resources map[*schema.Table]*resource, gormViews []gormResourceView) ([]gqlResourceView, helperNeeds, error) {
+	rs := sortedResources(s, resources)
+	var needs helperNeeds
+	out := make([]gqlResourceView, 0, len(rs))
+	for i, r := range rs {
+		domain := naming.PascalGo(s.Name)
+		model := clientModelName(s, r.Table)
+		rest := strings.TrimPrefix(model, domain)
+		if rest == "" {
+			rest = model
+		}
+		v := gqlResourceView{
+			gormResourceView: gormViews[i],
+			Domain:           domain,
+			Resource:         rest,
+			ResPkg:           clientPkgIdent(rest),
+			Row:              "schemaql." + model,
+			LowerModelV:      naming.CamelFirst(r.Table.LocalName),
+		}
+		if v.Parented {
+			v.ParentPred = v.ResPkg + "." + export(camel(r.ParentFK))
+			v.ParentInputField = export(camel(r.ParentFK))
+		}
+		if v.HasEtag {
+			v.EtagPred = v.ResPkg + ".Etag"
+			v.EtagInputField = export(camel(r.Cols.Etag.Name))
+		}
+		for _, c := range r.Cols.Autos {
+			if c.AutoCreate {
+				v.CreateTimeField = export(camel(c.Name))
+			}
+			if c.AutoUpdate {
+				v.UpdateTimeField = export(camel(c.Name))
+			}
+		}
+		if v.CreateTimeField != "" || v.UpdateTimeField != "" {
+			needs.Ts = true
+		}
+		var rn helperNeeds
+		v.InputAssigns, v.PatchAssigns, v.RowToProto, rn = gqlColumnFragments(pb, db, resources, r)
+		v.NeedsHelpers = rn
+		needs.or(rn)
+		out = append(out, v)
+	}
+	return out, needs, nil
+}
+
+// clientModelName is the DDN model name the graphql client uses for a table:
+// Pascal(schema) + Pascal(table).
+func clientModelName(s *schema.Schema, t *schema.Table) string {
+	return naming.PascalGo(s.Name) + naming.PascalGo(t.Name)
+}
+
+// clientPkgIdent lowercases a resource field into its client package name
+// ("UnitLicences" → "unitlicencesql"), mirroring the graphql target's
+// identifier() rule (alnum only).
+func clientPkgIdent(rest string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(rest) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String() + "ql"
+}
+
+// camel converts snake_case to camelCase ("display_name" → "displayName"),
+// the form DDN exposes columns as.
+func camel(snake string) string {
+	parts := strings.Split(snake, "_")
+	for i := 1; i < len(parts); i++ {
+		if parts[i] == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+	}
+	return strings.Join(parts, "")
+}
+
+// gqlColumnFragments renders, for every column the flat adapters own, the
+// CreateInput assignment, the UpdateInput (replace-write) assignment, and the
+// row→proto read-back. Reference columns store bare ids and are decorated with
+// the target's collection prefix on the way out (root-resource refs only, like
+// the gorm side). Unsupported scalar shapes are skipped with a marker comment.
+func gqlColumnFragments(pb *pbIndex, db *schema.Database, resources map[*schema.Table]*resource, r *resource) (inputs, patches, rows []string, needs helperNeeds) {
+	addRow := func(line string) { rows = append(rows, line) }
+
+	// name: stored verbatim, read back verbatim.
+	if r.Cols.Name != nil {
+		inputs = append(inputs, "ci.Name = in.GetName()")
+		addRow("out.Name = row.Name")
+	}
+
+	for _, c := range r.Cols.Mutable {
+		rowField := "row." + export(camel(c.Name))
+		if c.FKModel != "" {
+			target := findResourceByModel(db, resources, c.FKModel)
+			if target == nil || len(target.Segments) != 1 {
+				continue // nested-resource reference: Tier-2
+			}
+			collection := target.Segments[0].Collection
+			inField := export(camel(c.Name)) // e.g. UserId (bare-id column)
+			acc := "in.Get" + pbGoField(pb, c) + "()"
+			mAcc := "merged.Get" + pbGoField(pb, c) + "()"
+			outField := "out." + pbGoField(pb, c)
+			inputs = append(inputs, fmt.Sprintf("if v := %s; v != \"\" {\n\t\tci.%s = repox.LastSegment(v)\n\t}", acc, inField))
+			patches = append(patches, gqlPatch(inField, "repox.LastSegment("+mAcc+")", `""`, c.Optional))
+			if c.Optional {
+				addRow(fmt.Sprintf("if v := repox.Deref(%s); v != \"\" {\n\t\t%s = %q + v\n\t}", rowField, outField, collection+"/"))
+			} else {
+				addRow(fmt.Sprintf("if %s != \"\" {\n\t\t%s = %q + %s\n\t}", rowField, outField, collection+"/", rowField))
+			}
+			continue
+		}
+		in, patch, row, n, ok := gqlScalarFragments(pb, c, rowField)
+		if !ok {
+			inputs = append(inputs, "// not mapped here: "+c.Name+" (unsupported scalar shape)")
+			continue
+		}
+		needs.or(n)
+		inputs = append(inputs, in...)
+		patches = append(patches, patch...)
+		rows = append(rows, row...)
+	}
+
+	// etag + audit timestamps + stored OUTPUT_ONLY columns read back.
+	if r.Cols.Etag != nil {
+		addRow("out.Etag = repox.Deref(row.Etag)")
+	}
+	for _, c := range r.Cols.Autos {
+		if c.Source == nil {
+			continue
+		}
+		acc := "out." + pbGoField(pb, c)
+		f := "row." + export(camel(c.Name))
+		if c.Optional {
+			addRow(fmt.Sprintf("%s = strToTs(repox.Deref(%s))", acc, f))
+		} else {
+			addRow(fmt.Sprintf("%s = strToTs(%s)", acc, f))
+		}
+		needs.Ts = true
+	}
+	for _, c := range r.Cols.Skipped {
+		if c.Source == nil || c.FKModel != "" || !outputOnly(c) {
+			continue
+		}
+		// Stored OUTPUT_ONLY columns (e.g. a state enum) still render out.
+		if c.Type == schema.TypeEnum && c.Enum != nil {
+			prefix := naming.ScreamingSnake(c.Enum.LocalName) + "_"
+			pbT, ok := pbEnumType(pb, c)
+			if !ok {
+				continue
+			}
+			f := "row." + export(camel(c.Name))
+			v := f
+			if c.Optional {
+				v = "repox.Deref(" + f + ")"
+			}
+			addRow(fmt.Sprintf("out.%s = %s(%s_value[%q+%s])", pbGoField(pb, c), pbT, pbT, prefix, v))
+		}
+	}
+	return inputs, patches, rows, needs
+}
+
+// gqlPatch renders one UpdateInput assignment with replace-write semantics:
+// optional columns null out when the merged value is zero, mirroring the gorm
+// write-back's pointer-nil behavior.
+func gqlPatch(field, expr, zero string, optional bool) string {
+	if optional {
+		return fmt.Sprintf("if v := %s; v != %s {\n\t\tpatch.%s = graphql.Value(v)\n\t} else {\n\t\tpatch.%s = graphql.Null[%s]()\n\t}",
+			expr, zero, field, field, patchType(zero))
+	}
+	return fmt.Sprintf("patch.%s = graphql.Value(%s)", field, expr)
+}
+
+// patchType maps a zero literal onto the Nullable type parameter.
+func patchType(zero string) string {
+	switch zero {
+	case "0":
+		return "int32"
+	case "graphql.Int64(0)":
+		return "graphql.Int64"
+	case `graphql.Bigdecimal("")`:
+		return "graphql.Bigdecimal"
+	case "0.0":
+		return "float64"
+	case "false":
+		return "bool"
+	default:
+		return "string"
+	}
+}
+
+// pbEnumType resolves the qualified generated Go enum type for a column
+// ("orgpbv1.OrganisationState") via protogen.
+func pbEnumType(pb *pbIndex, c *schema.Column) (string, bool) {
+	if c.Source == nil {
+		return "", false
+	}
+	m, ok := pb.msgs[c.Source.ContainingMessage().FullName()]
+	if !ok {
+		return "", false
+	}
+	for _, f := range m.Fields {
+		if f.Desc.FullName() == c.Source.FullName() && f.Enum != nil {
+			return goPackageName(string(f.Enum.GoIdent.GoImportPath)) + "." + f.Enum.GoIdent.GoName, true
+		}
+	}
+	return "", false
+}
+
+// gqlScalarFragments renders the three fragments for one plain scalar column.
+func gqlScalarFragments(pb *pbIndex, c *schema.Column, rowField string) (inputs, patches, rows []string, needs helperNeeds, ok bool) {
+	field := export(camel(c.Name))
+	gof := pbGoField(pb, c)
+	acc := "in.Get" + gof + "()"
+	mAcc := "merged.Get" + gof + "()"
+	outField := "out." + gof
+	rowVal := rowField
+	if c.Optional {
+		rowVal = "repox.Deref(" + rowField + ")"
+	}
+	set := func(inExpr, patchExpr, rowExpr, zero string) {
+		inputs = append(inputs, fmt.Sprintf("ci.%s = %s", field, inExpr))
+		patches = append(patches, gqlPatch(field, patchExpr, zero, c.Optional))
+		rows = append(rows, fmt.Sprintf("%s = %s", outField, rowExpr))
+	}
+
+	if c.List {
+		if c.Type == schema.TypeString {
+			needs.StrSlice = true
+			// The client represents text[] with nullable elements ([]*string).
+			inputs = append(inputs, fmt.Sprintf("ci.%s = strSliceToPtrs(%s)", field, acc))
+			patches = append(patches, fmt.Sprintf("patch.%s = graphql.Value(strSliceToPtrs(%s))", field, mAcc))
+			rows = append(rows, fmt.Sprintf("%s = strPtrsToSlice(%s)", outField, rowField))
+			return inputs, patches, rows, needs, true
+		}
+		return nil, nil, nil, needs, false
+	}
+
+	switch c.Type {
+	case schema.TypeString, schema.TypeText:
+		set(acc, mAcc, rowVal, `""`)
+	case schema.TypeEnum:
+		if c.Enum == nil {
+			return nil, nil, nil, needs, false
+		}
+		needs.Enum = true
+		prefix := naming.ScreamingSnake(c.Enum.LocalName) + "_"
+		pbT, okT := pbEnumType(pb, c)
+		if !okT {
+			return nil, nil, nil, needs, false
+		}
+		toStr := func(a string) string {
+			return fmt.Sprintf("strings.TrimPrefix(%s.String(), %q)", a, prefix)
+		}
+		inputs = append(inputs, fmt.Sprintf("if v := %s; v != 0 {\n\t\tci.%s = %s\n\t}", acc, field, toStr(acc)))
+		patches = append(patches, gqlPatch(field, toStr(mAcc), fmt.Sprintf("%q", "UNSPECIFIED"), c.Optional))
+		rows = append(rows, fmt.Sprintf("%s = %s(%s_value[%q+%s])", outField, pbT, pbT, prefix, rowVal))
+	case schema.TypeInt32, schema.TypeUint32:
+		set(fmt.Sprintf("int32(%s)", acc), fmt.Sprintf("int32(%s)", mAcc), fmt.Sprintf("%s(%s)", pbCast(pb, c), rowVal), "0")
+	case schema.TypeInt64, schema.TypeUint64:
+		inputs = append(inputs, fmt.Sprintf("ci.%s = graphql.Int64(%s)", field, acc))
+		patches = append(patches, gqlPatch(field, fmt.Sprintf("graphql.Int64(%s)", mAcc), "graphql.Int64(0)", c.Optional))
+		rows = append(rows, fmt.Sprintf("%s = %s(%s)", outField, pbCast(pb, c), rowVal))
+	case schema.TypeFloat, schema.TypeDouble:
+		set(acc, mAcc, rowVal, "0.0")
+	case schema.TypeDecimal:
+		needs.Decimal = true
+		inputs = append(inputs, fmt.Sprintf("ci.%s = bigdec(%s)", field, acc))
+		patches = append(patches, gqlPatch(field, fmt.Sprintf("bigdec(%s)", mAcc), `graphql.Bigdecimal("")`, c.Optional))
+		rows = append(rows, fmt.Sprintf("%s = fromBigdec(%s)", outField, rowVal))
+	case schema.TypeBool:
+		set(acc, mAcc, rowVal, "false")
+	case schema.TypeTimestamp:
+		needs.Ts = true
+		inputs = append(inputs, fmt.Sprintf("ci.%s = tsToStr(%s)", field, acc))
+		patches = append(patches, gqlPatch(field, fmt.Sprintf("tsToStr(%s)", mAcc), `""`, c.Optional))
+		rows = append(rows, fmt.Sprintf("%s = strToTs(%s)", outField, rowVal))
+	case schema.TypeDate:
+		needs.Date = true
+		inputs = append(inputs, fmt.Sprintf("if v := dateToStr(%s); v != \"\" {\n\t\tci.%s = v\n\t}", acc, field))
+		patches = append(patches, gqlPatch(field, fmt.Sprintf("dateToStr(%s)", mAcc), `""`, c.Optional))
+		rows = append(rows, fmt.Sprintf("%s = strToDate(%s)", outField, rowVal))
+	case schema.TypeDuration:
+		needs.Duration = true
+		inputs = append(inputs, fmt.Sprintf("if v := durToStr(%s); v != \"\" {\n\t\tci.%s = v\n\t}", acc, field))
+		patches = append(patches, gqlPatch(field, fmt.Sprintf("durToStr(%s)", mAcc), `""`, c.Optional))
+		rows = append(rows, fmt.Sprintf("%s = strToDur(%s)", outField, rowVal))
+	case schema.TypeJSON:
+		needs.Struct = true
+		inputs = append(inputs, fmt.Sprintf("ci.%s = structToJSON(%s)", field, acc))
+		patches = append(patches, fmt.Sprintf("patch.%s = graphql.Value(structToJSON(%s))", field, mAcc))
+		rows = append(rows, fmt.Sprintf("%s = jsonToStruct(%s)", outField, rowField))
+	case schema.TypeBytes:
+		needs.Bytes = true
+		inputs = append(inputs, fmt.Sprintf("ci.%s = bytesToRaw(%s)", field, acc))
+		patches = append(patches, fmt.Sprintf("patch.%s = graphql.Value(bytesToRaw(%s))", field, mAcc))
+		rows = append(rows, fmt.Sprintf("%s = rawToBytes(%s)", outField, rowField))
+	default:
+		return nil, nil, nil, needs, false
+	}
+	return inputs, patches, rows, needs, true
+}
+
+// pbCast is the proto-side numeric type for read-back casts (int32 vs uint32
+// etc.), resolved from protogen when available.
+func pbCast(pb *pbIndex, c *schema.Column) string {
+	switch c.Type {
+	case schema.TypeUint32:
+		return "uint32"
+	case schema.TypeInt64:
+		return "int64"
+	case schema.TypeUint64:
+		return "uint64"
+	default:
+		return "int32"
+	}
+}

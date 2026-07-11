@@ -26,6 +26,7 @@ import (
 
 	"gorm.io/gorm"
 
+	genql "example.com/test/genql"
 	"example.com/test/gormdb/filterx"
 )
 
@@ -41,7 +42,8 @@ var (
 
 // Conn bundles the live backend handles a repository factory can adapt.
 type Conn struct {
-	Gorm *gorm.DB
+	Gorm    *gorm.DB
+	GraphQL *genql.Service
 }
 
 // ListInput is the request shape every repository List takes: AIP page

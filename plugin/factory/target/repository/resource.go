@@ -11,8 +11,11 @@ import (
 	"strings"
 
 	"google.golang.org/genproto/googleapis/api/annotations"
+	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/the-protobuf-project/orm/plugin/factory/target/gorm"
+	"github.com/the-protobuf-project/protokit/naming"
 	"github.com/the-protobuf-project/protokit/schema"
 )
 
@@ -33,6 +36,35 @@ type resource struct {
 
 	// Cols classifies every column once for all emitters.
 	Cols columnPlan
+
+	// VOs are the single-level belongs-to value objects the adapters
+	// materialize (see planVOFields); deep graphs stay Tier-2.
+	VOs []voField
+}
+
+// voField is one generated belongs-to value object: a message field
+// relationalized into a child row referenced by a synthesized FK column. The
+// adapters create the row (fresh ULID) inside the resource write, preload the
+// association on reads, and replace the row wholesale on masked updates.
+type voField struct {
+	Col        *schema.Column // FK column, e.g. "window_id"
+	FieldName  string         // proto field name, e.g. "window"
+	PBGoName   string         // protogen accessor base, e.g. "Window"
+	AssocField string         // gorm association field, e.g. "Window"
+	FKField    string         // gorm FK field, e.g. "WindowID"
+	Target     *schema.Table  // the value-object table
+	CrossPkg   string         // gorm package of the target when cross-schema; "" same-schema
+	Case       *voCase        // oneof discriminator, nil for plain fields
+}
+
+// voCase is the synthesized discriminator column of a oneof-member value
+// object, resolved to the gorm model's enum spelling.
+type voCase struct {
+	Column      *schema.Column // e.g. "span_case"
+	Field       string         // gorm field, e.g. "SpanCase"
+	EnumLocal   string         // model enum type, e.g. "AvailabilityExceptionSpanCase"
+	Const       string         // this member's constant, e.g. "AvailabilityExceptionSpanCaseWindow"
+	OneofGoName string         // proto oneof Go name, e.g. "Span"
 }
 
 // patternSegment is one collection/{var} pair of a resource pattern.
@@ -59,7 +91,7 @@ type columnPlan struct {
 // are patterns the flat CRUD shape cannot express — AIP-156 singletons
 // ("channels/{channel}/syncStatus") and multi-var segments — which stay
 // hand-written (Tier-2), like the custom logic that usually accompanies them.
-func planResources(db *schema.Database) (map[*schema.Table]*resource, error) {
+func planResources(pb *pbIndex, db *schema.Database) (map[*schema.Table]*resource, error) {
 	byTable := map[*schema.Table]*resource{}
 	byLeaf := map[string]*resource{} // leaf collection var -> resource, for parent linking
 	for _, s := range db.Schemas {
@@ -102,7 +134,107 @@ func planResources(db *schema.Database) (map[*schema.Table]*resource, error) {
 			return nil, fmt.Errorf("repository: %s: parent pattern %q but no %q column (unsupported layout)", r.Table.ProtoMessage, r.Pattern, fk)
 		}
 	}
+	// Third pass: plan the generated value objects (needs ParentFK resolved so
+	// the parent FK is never mistaken for a value-object FK).
+	for _, r := range byTable {
+		r.VOs = planVOFields(pb, db, r)
+	}
 	return byTable, nil
+}
+
+// planVOFields selects the belongs-to value objects the adapters generate for
+// r: single-level only — the target is a keyed value-object table whose own
+// columns hold no further references (no nested rows, no resource references),
+// so a fresh row is buildable from the message field alone via the generated
+// converters. Everything deeper stays with Tier-2 overrides. Field naming
+// mirrors the gorm target's association plan, so Preload names can never
+// drift from the emitted models.
+func planVOFields(pb *pbIndex, db *schema.Database, r *resource) []voField {
+	msg := pb.msgs[r.Table.Source.FullName()]
+	if msg == nil {
+		return nil
+	}
+	fieldsByName := map[string]*protogen.Field{}
+	for _, f := range msg.Fields {
+		fieldsByName[string(f.Desc.Name())] = f
+	}
+	var out []voField
+	bts, _ := gorm.AssocPlan(db, r.Schema, r.Table)
+	for _, bt := range bts {
+		c := bt.Col
+		tgt := bt.Target
+		if c.Source != nil || c.Name == r.ParentFK || tgt == nil || !tgt.ValueObject || tgt.Source == nil {
+			continue // resource reference, parent scoping, or not a value object
+		}
+		if voDeep(tgt) {
+			continue // nested graph: Tier-2
+		}
+		pkOK := false
+		for _, tc := range tgt.Columns {
+			if tc.Generated != "" {
+				pkOK = true
+			}
+		}
+		if !pkOK {
+			continue // no mintable surrogate key
+		}
+		fieldName := naming.StripIDSuffix(c.Name)
+		f := fieldsByName[fieldName]
+		if f == nil || f.Message == nil || string(f.Message.Desc.FullName()) != string(tgt.Source.FullName()) {
+			continue
+		}
+		v := voField{
+			Col:        c,
+			FieldName:  fieldName,
+			PBGoName:   f.GoName,
+			AssocField: bt.Field,
+			FKField:    gormFieldName(c.Name, true),
+			Target:     tgt,
+			CrossPkg:   bt.CrossPkg,
+		}
+		if f.Oneof != nil && !f.Oneof.Desc.IsSynthetic() {
+			cc := columnByName(r.Table, string(f.Oneof.Desc.Name())+"_case")
+			if cc == nil || cc.Enum == nil {
+				continue // no discriminator to keep consistent: Tier-2
+			}
+			v.Case = &voCase{
+				Column:      cc,
+				Field:       gormFieldName(cc.Name, false),
+				EnumLocal:   cc.Enum.LocalName,
+				Const:       cc.Enum.LocalName + naming.PascalGo(fieldName),
+				OneofGoName: f.Oneof.GoName,
+			}
+		}
+		out = append(out, v)
+	}
+	return out
+}
+
+// voDeep reports whether a value-object table carries references of its own —
+// nested value objects or resource references — putting it past the
+// single-level contract the adapters generate.
+func voDeep(t *schema.Table) bool {
+	for _, fk := range t.ForeignKeys {
+		if fk.ReferencedProto != "" {
+			return true
+		}
+	}
+	for _, c := range t.Columns {
+		if c.FKModel != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// columnByName finds a column by its snake_case name.
+func columnByName(t *schema.Table, name string) *schema.Column {
+	for _, c := range t.Columns {
+		if c.Name == name {
+			return c
+		}
+	}
+	return nil
 }
 
 // resourcePattern reads the first google.api.resource pattern off the message.

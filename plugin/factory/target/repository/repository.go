@@ -53,7 +53,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			return fmt.Errorf("repository: database %q needs the go_module and gorm_module opts "+
 				"(import paths of the repository output dir and the generated gorm output)", db.Name)
 		}
-		resources, err := planResources(db)
+		resources, err := planResources(pb, db)
 		if err != nil {
 			return err
 		}

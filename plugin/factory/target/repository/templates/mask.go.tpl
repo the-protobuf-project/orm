@@ -26,5 +26,8 @@ func apply{{.Model}}Mask(merged, in *{{.PB}}, paths []string) {
 	}
 	{{- end}}
 	{{- end}}
+	{{- range .VOMaskLines}}
+	{{.}}
+	{{- end}}
 }
 {{- end}}

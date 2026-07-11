@@ -11,7 +11,7 @@ import (
 )
 
 // belongsTo is one emitted belongs-to association field.
-type belongsTo struct {
+type BelongsTo struct {
 	Col      *schema.Column // the FK column the association rides on
 	Field    string         // Go field name on the owning struct
 	Target   *schema.Table  // referenced table
@@ -29,7 +29,7 @@ type hasManyField struct {
 // the same schema (or is a cross-schema value object, when safe — see
 // emitCrossAssoc), then the same-schema has-many back-references. Field names
 // are deduplicated against the scalar columns in declaration order.
-func assocPlan(db *schema.Database, s *schema.Schema, t *schema.Table) ([]belongsTo, []hasManyField) {
+func AssocPlan(db *schema.Database, s *schema.Schema, t *schema.Table) ([]BelongsTo, []hasManyField) {
 	inThisSchema := modelSchemaSet(db, s.Name)
 	tableByModel := tableByModelFunc(db)
 	voEdges := crossSchemaVOEdges(db)
@@ -38,20 +38,20 @@ func assocPlan(db *schema.Database, s *schema.Schema, t *schema.Table) ([]belong
 	for _, col := range t.Columns {
 		used[gormFieldName(col)] = true
 	}
-	var bts []belongsTo
+	var bts []BelongsTo
 	for _, col := range t.Columns {
 		if col.FKModel == "" {
 			continue
 		}
 		if inThisSchema(col.FKModel) {
-			bts = append(bts, belongsTo{
+			bts = append(bts, BelongsTo{
 				Col:    col,
 				Field:  naming.Unique(naming.PascalGo(naming.StripIDSuffix(col.Name)), used),
 				Target: tableByModel(col.FKModel),
 			})
 		} else if tgt := tableByModel(col.FKModel); tgt != nil && tgt.ValueObject &&
 			dbGoModule(db) != "" && emitCrossAssoc(s.Name, tgt.PgSchema, voEdges) {
-			bts = append(bts, belongsTo{
+			bts = append(bts, BelongsTo{
 				Col:      col,
 				Field:    naming.Unique(naming.PascalGo(naming.StripIDSuffix(col.Name)), used),
 				Target:   tgt,

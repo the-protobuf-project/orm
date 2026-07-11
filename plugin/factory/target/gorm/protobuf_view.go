@@ -199,7 +199,7 @@ func convertView(idx *pbIndex, db *schema.Database, s *schema.Schema, pkg string
 		for _, f := range msg.Fields {
 			fieldsByName[f.Desc.Name()] = f
 		}
-		bts, _ := assocPlan(db, s, t)
+		bts, _ := AssocPlan(db, s, t)
 		var toSkips, fromSkips []string
 
 		for _, col := range t.Columns {

@@ -41,6 +41,16 @@ type gormResourceView struct {
 	RefsToProto    []string // decorate the proto with formatted reference names
 	MutableAssigns []string // write-back of mutable columns onto the loaded row
 	MaskFields     []maskFieldView
+
+	// Value-object fragments (see vo_view.go).
+	HasVOs      bool
+	Preloads    string   // .Preload chain for get/list/update reads
+	VOCreates   []string // create-in-transaction fragments
+	VOStaleVars []string // stale-id declarations inside the update transaction
+	VOUpdates   []string // masked replace fragments
+	VOStaleDels []string // stale-row deletions after the row update
+	VOMaskLines []string // VO merge lines spliced into apply<X>Mask
+	CrossVOPkgs []string // cross-schema gorm packages the fragments reference
 }
 
 // maskFieldView is one mutable proto field in the generated mask-apply.
@@ -99,6 +109,15 @@ func gormResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resou
 			v.RefsToProto = append(v.RefsToProto, ref.toProto)
 		}
 		v.MutableAssigns, v.MaskFields = mutableFragments(pb, db, resources, r)
+		vg := voGormFragments(naming.GoPackage(s.Name), r)
+		v.HasVOs = len(r.VOs) > 0
+		v.Preloads = vg.Preloads
+		v.VOCreates = vg.Creates
+		v.VOStaleVars = vg.StaleVars
+		v.VOUpdates = vg.Updates
+		v.VOStaleDels = vg.StaleDels
+		v.VOMaskLines = vg.MaskLines
+		v.CrossVOPkgs = vg.CrossPkgs
 		out = append(out, v)
 	}
 	return out, nil

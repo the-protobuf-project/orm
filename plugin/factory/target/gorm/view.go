@@ -49,8 +49,8 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 		// is omitted — except a value object (a leaf table nothing points back
 		// through), which is safe to import so the generic engine can Preload it.
 		// The scalar FK column is always kept.
-		bts, hms := assocPlan(db, s, t)
-		btByCol := map[*schema.Column]belongsTo{}
+		bts, hms := AssocPlan(db, s, t)
+		btByCol := map[*schema.Column]BelongsTo{}
 		for _, bt := range bts {
 			btByCol[bt.Col] = bt
 		}

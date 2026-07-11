@@ -60,7 +60,9 @@ func gormFileView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg string
 	for _, r := range rs {
 		if r.Parented {
 			imports["fmt"] = ""
-			break
+		}
+		for _, cp := range r.CrossVOPkgs {
+			imports[dbGormModule(db)+"/"+db.Name+"/"+cp] = ""
 		}
 	}
 	addPBImports(pb, s, imports)

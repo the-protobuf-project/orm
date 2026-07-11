@@ -66,9 +66,20 @@ func (r *Gorm{{.Model}}Repository) Create(ctx context.Context, parent string, in
 	{{- if .HasEtag}}
 	m.{{.EtagField}} = {{if .EtagPtr}}repox.Ptr(repox.NewULID()){{else}}repox.NewULID(){{end}}
 	{{- end}}
+	{{- if .HasVOs}}
+	if err := r.DB.Transaction(func(tx *gorm.DB) error {
+		{{- range .VOCreates}}
+		{{.}}
+		{{- end}}
+		return {{$.GormPkg}}.{{.Store}}(tx).Create(ctx, m)
+	}); err != nil {
+		return nil, repox.MapGormErr(err)
+	}
+	{{- else}}
 	if err := {{$.GormPkg}}.{{.Store}}(r.DB).Create(ctx, m); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
+	{{- end}}
 	return r.get(ctx, id)
 }
 {{else}}
@@ -98,9 +109,20 @@ func (r *Gorm{{.Model}}Repository) Create(ctx context.Context, in *{{.PB}}) (*{{
 	{{- if .HasEtag}}
 	m.{{.EtagField}} = {{if .EtagPtr}}repox.Ptr(repox.NewULID()){{else}}repox.NewULID(){{end}}
 	{{- end}}
+	{{- if .HasVOs}}
+	if err := r.DB.Transaction(func(tx *gorm.DB) error {
+		{{- range .VOCreates}}
+		{{.}}
+		{{- end}}
+		return {{$.GormPkg}}.{{.Store}}(tx).Create(ctx, m)
+	}); err != nil {
+		return nil, repox.MapGormErr(err)
+	}
+	{{- else}}
 	if err := {{$.GormPkg}}.{{.Store}}(r.DB).Create(ctx, m); err != nil {
 		return nil, repox.MapGormErr(err)
 	}
+	{{- end}}
 	return r.get(ctx, id)
 }
 {{end}}
@@ -118,7 +140,7 @@ func (r *Gorm{{.Model}}Repository) Get(ctx context.Context, name string) (*{{.PB
 // through, so Tier-2 overrides of Get never re-enter generated writes.
 func (r *Gorm{{.Model}}Repository) get(ctx context.Context, id string) (*{{.PB}}, error) {
 	var m {{$.GormPkg}}.{{.Model}}
-	if err := r.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	if err := r.DB.WithContext(ctx){{.Preloads}}.First(&m, "id = ?", id).Error; err != nil {
 		return nil, repox.MapGormErr(err)
 	}
 	return r.toProto(ctx, &m)
@@ -165,7 +187,7 @@ func (r *Gorm{{.Model}}Repository) list(ctx context.Context, scope *gorm.DB, in 
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
-	rows, next, err := eng.List(ctx, scope, filterx.ListInput{
+	rows, next, err := eng.List(ctx, scope{{.Preloads}}, filterx.ListInput{
 		PageSize:  in.PageSize,
 		PageToken: in.PageToken,
 		OrderBy:   in.OrderBy,
@@ -195,9 +217,12 @@ func (r *Gorm{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, path
 	id := ids[len(ids)-1]
 	err = r.DB.Transaction(func(tx *gorm.DB) error {
 		var existing {{$.GormPkg}}.{{.Model}}
-		if err := tx.WithContext(ctx).First(&existing, "id = ?", id).Error; err != nil {
+		if err := tx.WithContext(ctx){{.Preloads}}.First(&existing, "id = ?", id).Error; err != nil {
 			return err
 		}
+		{{- range .VOStaleVars}}
+		{{.}}
+		{{- end}}
 		{{- if .HasEtag}}
 		if in.GetEtag() != "" && {{if .EtagPtr}}existing.{{.EtagField}} != nil && *existing.{{.EtagField}}{{else}}existing.{{.EtagField}}{{end}} != in.GetEtag() {
 			return repox.ErrConflict
@@ -224,10 +249,23 @@ func (r *Gorm{{.Model}}Repository) Update(ctx context.Context, in *{{.PB}}, path
 		{{- range .MutableAssigns}}
 		{{.}}
 		{{- end}}
+		{{- range .VOUpdates}}
+		{{.}}
+		{{- end}}
 		{{- if .HasEtag}}
 		existing.{{.EtagField}} = {{if .EtagPtr}}repox.Ptr(repox.NewULID()){{else}}repox.NewULID(){{end}}
 		{{- end}}
+		{{- if .HasVOs}}
+		if err := {{$.GormPkg}}.{{.Store}}(tx).Update(ctx, &existing); err != nil {
+			return err
+		}
+		{{- range .VOStaleDels}}
+		{{.}}
+		{{- end}}
+		return nil
+		{{- else}}
 		return {{$.GormPkg}}.{{.Store}}(tx).Update(ctx, &existing)
+		{{- end}}
 	})
 	if err != nil {
 		return nil, repox.MapGormErr(err)

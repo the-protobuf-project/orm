@@ -21,13 +21,11 @@ import (
 
 // Qualifiers for referencing generated types from each writing context. Models inline
 // their relations, so they only reference enums; resource-package code references models
-// ("schema.") and enums ("enums.") plus the runtime graphql helpers.
-// Generated packages carry a "ql" suffix on their name (protobuf-style: the import path is
-// the folder, the package identifier is <folder>ql), so qualifiers reference schemaql./enumsql.
-// The runtime helper package (graphql.) is not generated and keeps its name.
+// bare — they are defined (or aliased) in the resource package itself by models.go — and
+// enums as "enumsql." plus the runtime graphql helpers, which keep their names.
 var (
 	qModels   = typemap.Qualifier{Enums: "enumsql."}
-	qResource = typemap.Qualifier{Models: "schemaql.", Enums: "enumsql."}
+	qResource = typemap.Qualifier{Models: "", Enums: "enumsql."}
 )
 
 // op pairs an operation with its de-duplicated exported method name. The list query also

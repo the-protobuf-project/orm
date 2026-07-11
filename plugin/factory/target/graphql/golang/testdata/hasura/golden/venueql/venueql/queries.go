@@ -12,7 +12,6 @@ package venueql
 
 import (
 	"context"
-	"example.com/gen/venueql/schemaql"
 	"github.com/the-protobuf-project/runtime-go/network/graphql"
 	"github.com/the-protobuf-project/runtime-go/network/runtime"
 )
@@ -21,8 +20,8 @@ type queryHandler struct {
 	gql *runtime.GraphQLClient
 }
 
-func (h *queryHandler) S(ctx context.Context, req ...*SRequest) ([]schemaql.Venue, error) {
-	var out []schemaql.Venue
+func (h *queryHandler) S(ctx context.Context, req ...*SRequest) ([]Venue, error) {
+	var out []Venue
 	var r SRequest
 	if len(req) > 0 && req[0] != nil {
 		r = *req[0]
@@ -44,16 +43,16 @@ func (h *queryHandler) S(ctx context.Context, req ...*SRequest) ([]schemaql.Venu
 	return out, res.Error
 }
 
-func (h *queryHandler) SById(ctx context.Context, id string) (*schemaql.Venue, error) {
-	var out *schemaql.Venue
+func (h *queryHandler) SById(ctx context.Context, id string) (*Venue, error) {
+	var out *Venue
 	args := map[string]any{}
 	args["id"] = graphql.Var(id, "ID")
 	res := <-h.gql.QueryFields(ctx, "venuesById", &out, args)
 	return out, res.Error
 }
 
-func (h *queryHandler) SAggregate(ctx context.Context, req ...*SAggregateRequest) (schemaql.VenueAggregate, error) {
-	var out schemaql.VenueAggregate
+func (h *queryHandler) SAggregate(ctx context.Context, req ...*SAggregateRequest) (VenueAggregate, error) {
+	var out VenueAggregate
 	var r SAggregateRequest
 	if len(req) > 0 && req[0] != nil {
 		r = *req[0]

@@ -12,7 +12,6 @@ package venueql
 
 import (
 	"context"
-	"example.com/gen/venueql/schemaql"
 	"github.com/the-protobuf-project/runtime-go/network/graphql"
 	"github.com/the-protobuf-project/runtime-go/network/runtime"
 )
@@ -21,8 +20,8 @@ type mutationHandler struct {
 	gql *runtime.GraphQLClient
 }
 
-func (h *mutationHandler) CreateS(ctx context.Context, obj CreateInput) (schemaql.VenueMutationResponse, error) {
-	var out schemaql.VenueMutationResponse
+func (h *mutationHandler) CreateS(ctx context.Context, obj CreateInput) (VenueMutationResponse, error) {
+	var out VenueMutationResponse
 	args := map[string]any{}
 	args["objects"] = graphql.Var([]CreateInput{obj}, "[VenueInsertInput!]")
 	res := <-h.gql.MutateFields(ctx, "insertVenues", &out, args)
@@ -31,14 +30,14 @@ func (h *mutationHandler) CreateS(ctx context.Context, obj CreateInput) (schemaq
 
 // CreateSOp returns CreateS as a deferred mutation for a Tx batch; result is filled when the
 // batch commits. Queue it with svc.Mutation.Tx().Add(...) to commit several mutations atomically.
-func (h *mutationHandler) CreateSOp(obj CreateInput, result *schemaql.VenueMutationResponse) runtime.BatchOp {
+func (h *mutationHandler) CreateSOp(obj CreateInput, result *VenueMutationResponse) runtime.BatchOp {
 	args := map[string]any{}
 	args["objects"] = graphql.Var([]CreateInput{obj}, "[VenueInsertInput!]")
 	return runtime.BatchOp{Field: "insertVenues", Args: args, Result: result}
 }
 
-func (h *mutationHandler) UpdateSById(ctx context.Context, id string, patch UpdateInput, req ...*UpdateSByIdRequest) (*schemaql.VenueMutationResponse, error) {
-	var out *schemaql.VenueMutationResponse
+func (h *mutationHandler) UpdateSById(ctx context.Context, id string, patch UpdateInput, req ...*UpdateSByIdRequest) (*VenueMutationResponse, error) {
+	var out *VenueMutationResponse
 	var r UpdateSByIdRequest
 	if len(req) > 0 && req[0] != nil {
 		r = *req[0]
@@ -55,7 +54,7 @@ func (h *mutationHandler) UpdateSById(ctx context.Context, id string, patch Upda
 
 // UpdateSByIdIfMatch runs UpdateSById guarded by match, an optimistic-concurrency precondition
 // (e.g. Etag.Eq(prev)). It returns graphql.ErrConflict when no row matched the precondition.
-func (h *mutationHandler) UpdateSByIdIfMatch(ctx context.Context, id string, patch UpdateInput, match graphql.Predicate) (*schemaql.VenueMutationResponse, error) {
+func (h *mutationHandler) UpdateSByIdIfMatch(ctx context.Context, id string, patch UpdateInput, match graphql.Predicate) (*VenueMutationResponse, error) {
 	resp, err := h.UpdateSById(ctx, id, patch, UpdateSById().PreCheck(match))
 	if err != nil {
 		return resp, err
@@ -68,7 +67,7 @@ func (h *mutationHandler) UpdateSByIdIfMatch(ctx context.Context, id string, pat
 
 // UpdateSByIdOp returns UpdateSById as a deferred mutation for a Tx batch; result is filled when the
 // batch commits. Queue it with svc.Mutation.Tx().Add(...) to commit several mutations atomically.
-func (h *mutationHandler) UpdateSByIdOp(id string, patch UpdateInput, result **schemaql.VenueMutationResponse, req ...*UpdateSByIdRequest) runtime.BatchOp {
+func (h *mutationHandler) UpdateSByIdOp(id string, patch UpdateInput, result **VenueMutationResponse, req ...*UpdateSByIdRequest) runtime.BatchOp {
 	var r UpdateSByIdRequest
 	if len(req) > 0 && req[0] != nil {
 		r = *req[0]
@@ -82,8 +81,8 @@ func (h *mutationHandler) UpdateSByIdOp(id string, patch UpdateInput, result **s
 	return runtime.BatchOp{Field: "updateVenuesById", Args: args, Result: result}
 }
 
-func (h *mutationHandler) DeleteSById(ctx context.Context, id string) (*schemaql.VenueMutationResponse, error) {
-	var out *schemaql.VenueMutationResponse
+func (h *mutationHandler) DeleteSById(ctx context.Context, id string) (*VenueMutationResponse, error) {
+	var out *VenueMutationResponse
 	args := map[string]any{}
 	args["id"] = graphql.Var(id, "ID")
 	res := <-h.gql.MutateFields(ctx, "deleteVenuesById", &out, args)
@@ -92,7 +91,7 @@ func (h *mutationHandler) DeleteSById(ctx context.Context, id string) (*schemaql
 
 // DeleteSByIdOp returns DeleteSById as a deferred mutation for a Tx batch; result is filled when the
 // batch commits. Queue it with svc.Mutation.Tx().Add(...) to commit several mutations atomically.
-func (h *mutationHandler) DeleteSByIdOp(id string, result **schemaql.VenueMutationResponse) runtime.BatchOp {
+func (h *mutationHandler) DeleteSByIdOp(id string, result **VenueMutationResponse) runtime.BatchOp {
 	args := map[string]any{}
 	args["id"] = graphql.Var(id, "ID")
 	return runtime.BatchOp{Field: "deleteVenuesById", Args: args, Result: result}

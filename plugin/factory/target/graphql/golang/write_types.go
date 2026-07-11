@@ -11,36 +11,35 @@ import (
 	"github.com/the-protobuf-project/protokit/naming"
 )
 
-// enumsDir is the shared enums package, referenced as "enums.". Models are written into a
-// per-domain "<domain>/schema" package instead of one global package, and aliased back into
-// the domain aggregator (see writeDomain).
+// enumsDir is the shared enums package, referenced as "enums.". Model types live in the
+// resource package whose operations return them (see writeResourceModels) — there is no
+// separate schema package, so consumers never juggle same-named model packages across
+// domains.
 const enumsDir = "enumsql"
 
-// modelGroup is one resource's slice of a domain schema package: every model object that
-// resource's operations return (the row type, its aggregate, and the mutation responses),
-// written together into one snake_case file named after the resource with its domain
-// prefix stripped — the folder already names the domain (e.g. all PropertyUnits* types
-// land in propertyql/schemaql/units.go).
+// modelGroup is the set of model objects a resource OWNS: every object its operations
+// return (the row type, its aggregate, the mutation responses) that no earlier resource of
+// the domain claimed. The owner defines the types in its own package; later resources that
+// also return one of them alias the owner's definition.
 type modelGroup struct {
-	file    string
+	owner   *resGen
 	objects []*ir.Object
 }
 
-// domainObjects returns, per domain, the model objects that the domain's operations return
-// (rows, responses, aggregates), grouped per resource. Because every object inlines its
-// relations, this reachable set is self-contained — no cross-domain references — so each
-// domain's schema package compiles on its own. An object returned by several resources is
-// claimed by the first (resources are already sorted), so each type is written exactly once.
+// domainObjects returns, per domain, the model objects the domain's operations return
+// (rows, responses, aggregates), grouped by owning resource. Because every object inlines
+// its relations, this reachable set is self-contained. An object returned by several
+// resources is claimed by the first (resources are already sorted), so each type is
+// defined exactly once; ownerOf records the claim for the alias emission.
 func (g *generator) domainObjects() map[string][]modelGroup {
+	g.ownerOf = map[string]*resGen{}
 	out := map[string][]modelGroup{}
 	for _, dg := range g.domains {
-		claimed := map[string]bool{}
-		usedFiles := map[string]bool{}
 		for _, rg := range dg.reses {
 			seen := map[string]*ir.Object{}
 			for _, set := range [][]op{rg.queries, rg.mutations, rg.subs} {
 				for _, o := range set {
-					if obj, ok := g.opts.Schema.Objects[o.Op.Return.Base]; ok && !claimed[obj.Name] {
+					if obj, ok := g.opts.Schema.Objects[o.Op.Return.Base]; ok && g.ownerOf[obj.Name] == nil {
 						seen[obj.Name] = obj
 					}
 				}
@@ -48,43 +47,26 @@ func (g *generator) domainObjects() map[string][]modelGroup {
 			if len(seen) == 0 {
 				continue
 			}
-			_, rest := splitDomain(rg.res.Name)
-			if rest == "" {
-				rest = rg.res.Name
-			}
-			grp := modelGroup{file: naming.GoFileName(rest, "schema", usedFiles)}
+			grp := modelGroup{owner: rg}
 			for _, name := range sortedKeys(seen) {
-				claimed[name] = true
+				g.ownerOf[name] = rg
 				grp.objects = append(grp.objects, seen[name])
 			}
 			out[dg.name] = append(out[dg.name], grp)
 		}
-		sort.Slice(out[dg.name], func(i, j int) bool { return out[dg.name][i].file < out[dg.name][j].file })
+		sort.Slice(out[dg.name], func(i, j int) bool { return out[dg.name][i].owner.pkg < out[dg.name][j].owner.pkg })
 	}
 	return out
 }
 
-// writeTypes writes the shared enums package and, per domain, that domain's model objects
-// into "<domain>/schema", one file per resource.
+// writeTypes writes the shared enums package. Model types are emitted with their owning
+// resource package (writeResourceModels), not here.
 func (g *generator) writeTypes() error {
 	enumUsed := map[string]bool{}
 	for _, name := range sortedKeys(g.opts.Schema.Enums) {
 		body := g.r.enum(g.opts.Schema.Enums[name])
 		if err := g.writeFile(enumsDir, naming.GoFileName(name, "enum", enumUsed), "enumsql", g.typeImports(body), body); err != nil {
 			return err
-		}
-	}
-	for _, domain := range sortedKeys(g.domSchema) {
-		dir := domain + "/schemaql"
-		for _, grp := range g.domSchema[domain] {
-			bodies := make([]string, 0, len(grp.objects))
-			for _, obj := range grp.objects {
-				bodies = append(bodies, g.r.model(obj))
-			}
-			body := strings.Join(bodies, "\n\n")
-			if err := g.writeFile(dir, grp.file, "schemaql", g.typeImports(body), body); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -105,11 +87,6 @@ func (g *generator) typeImports(body string) []string {
 		im = append(im, g.opts.GoModule+"/"+enumsDir)
 	}
 	return im
-}
-
-// schemaModule is the import path of a domain's model package.
-func (g *generator) schemaModule(domain string) string {
-	return g.opts.GoModule + "/" + domain + "/schemaql"
 }
 
 // graphqlModule is the import path of the runtime graphql helper package (scalar types,

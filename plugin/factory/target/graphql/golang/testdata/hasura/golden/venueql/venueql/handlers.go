@@ -12,7 +12,6 @@ package venueql
 
 import (
 	"context"
-	"example.com/gen/venueql/schemaql"
 	"github.com/the-protobuf-project/runtime-go/network/graphql"
 	"github.com/the-protobuf-project/runtime-go/network/runtime"
 )
@@ -20,11 +19,11 @@ import (
 // QueryHandler runs Venue query operations.
 type QueryHandler interface {
 	// S runs the "venues" query.
-	S(ctx context.Context, req ...*SRequest) ([]schemaql.Venue, error)
+	S(ctx context.Context, req ...*SRequest) ([]Venue, error)
 	// SById runs the "venuesById" query.
-	SById(ctx context.Context, id string) (*schemaql.Venue, error)
+	SById(ctx context.Context, id string) (*Venue, error)
 	// SAggregate runs the "venuesAggregate" query.
-	SAggregate(ctx context.Context, req ...*SAggregateRequest) (schemaql.VenueAggregate, error)
+	SAggregate(ctx context.Context, req ...*SAggregateRequest) (VenueAggregate, error)
 }
 
 // NewQuery returns a QueryHandler bound to gql.
@@ -33,20 +32,20 @@ func NewQuery(gql *runtime.GraphQLClient) QueryHandler { return &queryHandler{gq
 // MutationHandler runs Venue mutation operations.
 type MutationHandler interface {
 	// CreateS runs the "insertVenues" mutation.
-	CreateS(ctx context.Context, obj CreateInput) (schemaql.VenueMutationResponse, error)
+	CreateS(ctx context.Context, obj CreateInput) (VenueMutationResponse, error)
 	// CreateSOp returns CreateS as a deferred mutation for atomic batching via a Tx.
-	CreateSOp(obj CreateInput, result *schemaql.VenueMutationResponse) runtime.BatchOp
+	CreateSOp(obj CreateInput, result *VenueMutationResponse) runtime.BatchOp
 	// UpdateSById runs the "updateVenuesById" mutation.
-	UpdateSById(ctx context.Context, id string, patch UpdateInput, req ...*UpdateSByIdRequest) (*schemaql.VenueMutationResponse, error)
+	UpdateSById(ctx context.Context, id string, patch UpdateInput, req ...*UpdateSByIdRequest) (*VenueMutationResponse, error)
 	// UpdateSByIdIfMatch runs UpdateSById guarded by an optimistic-concurrency precondition (e.g.
 	// Etag.Eq(prev)), returning graphql.ErrConflict when no row matched.
-	UpdateSByIdIfMatch(ctx context.Context, id string, patch UpdateInput, match graphql.Predicate) (*schemaql.VenueMutationResponse, error)
+	UpdateSByIdIfMatch(ctx context.Context, id string, patch UpdateInput, match graphql.Predicate) (*VenueMutationResponse, error)
 	// UpdateSByIdOp returns UpdateSById as a deferred mutation for atomic batching via a Tx.
-	UpdateSByIdOp(id string, patch UpdateInput, result **schemaql.VenueMutationResponse, req ...*UpdateSByIdRequest) runtime.BatchOp
+	UpdateSByIdOp(id string, patch UpdateInput, result **VenueMutationResponse, req ...*UpdateSByIdRequest) runtime.BatchOp
 	// DeleteSById runs the "deleteVenuesById" mutation.
-	DeleteSById(ctx context.Context, id string) (*schemaql.VenueMutationResponse, error)
+	DeleteSById(ctx context.Context, id string) (*VenueMutationResponse, error)
 	// DeleteSByIdOp returns DeleteSById as a deferred mutation for atomic batching via a Tx.
-	DeleteSByIdOp(id string, result **schemaql.VenueMutationResponse) runtime.BatchOp
+	DeleteSByIdOp(id string, result **VenueMutationResponse) runtime.BatchOp
 }
 
 // NewMutation returns a MutationHandler bound to gql.

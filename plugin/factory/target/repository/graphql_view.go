@@ -23,7 +23,7 @@ type gqlResourceView struct {
 	Domain      string // client domain field, e.g. "Organisation"
 	Resource    string // client resource field, e.g. "Members"
 	ResPkg      string // client resource package name, e.g. "membersql"
-	Row         string // qualified row type, e.g. "schemaql.OrganisationMembers"
+	Row         string // qualified row type, e.g. "membersql.OrganisationMembers"
 	ParentPred  string // parent scope predicate field, e.g. "membersql.OrganisationId"
 	EtagPred    string // etag predicate, e.g. "membersql.Etag" (HasEtag only)
 	LowerModelV string // camelCase model for converter func names
@@ -99,7 +99,7 @@ func gqlResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resour
 			Domain:           domain,
 			Resource:         rest,
 			ResPkg:           clientPkgIdent(rest),
-			Row:              "schemaql." + model,
+			Row:              clientPkgIdent(rest) + "." + model,
 			LowerModelV:      naming.CamelFirst(r.Table.LocalName),
 		}
 		if v.Parented {

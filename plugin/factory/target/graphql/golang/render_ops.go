@@ -81,7 +81,7 @@ func (r *renderer) signature(o op) string {
 }
 
 // findOneReturn is the FindOne return type: a pointer to the list query's element row
-// (e.g. []schemaql.BounceResource -> *schemaql.BounceResource).
+// (e.g. []BounceResource -> *BounceResource).
 func (r *renderer) findOneReturn(o op) string {
 	return r.mapper.GoType(ir.FieldType{Base: o.Op.Return.Base}, qResource)
 }

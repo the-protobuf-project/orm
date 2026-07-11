@@ -21,7 +21,6 @@ import (
 	"example.com/test/genql/orgv1ql/locationsql"
 	"example.com/test/genql/orgv1ql/membersql"
 	"example.com/test/genql/orgv1ql/organisationsql"
-	"example.com/test/genql/orgv1ql/schemaql"
 	"example.com/test/genql/orgv1ql/timewindowsql"
 	"example.com/test/genql/orgv1ql/usersql"
 	"github.com/the-protobuf-project/runtime-go/network/graphql"
@@ -113,7 +112,7 @@ func memberToUpdatePatch(merged *gen.Member) membersql.UpdateInput {
 
 // memberFromRow re-hydrates the proto from a client row, decorating
 // reference names from their stored bare ids.
-func memberFromRow(row *schemaql.OrgV1Members) *gen.Member {
+func memberFromRow(row *membersql.OrgV1Members) *gen.Member {
 	if row == nil {
 		return nil
 	}
@@ -163,7 +162,7 @@ func organisationToUpdatePatch(merged *gen.Organisation) organisationsql.UpdateI
 
 // organisationFromRow re-hydrates the proto from a client row, decorating
 // reference names from their stored bare ids.
-func organisationFromRow(row *schemaql.OrgV1Organisations) *gen.Organisation {
+func organisationFromRow(row *organisationsql.OrgV1Organisations) *gen.Organisation {
 	if row == nil {
 		return nil
 	}
@@ -201,7 +200,7 @@ func userToUpdatePatch(merged *gen.User) usersql.UpdateInput {
 
 // userFromRow re-hydrates the proto from a client row, decorating
 // reference names from their stored bare ids.
-func userFromRow(row *schemaql.OrgV1Users) *gen.User {
+func userFromRow(row *usersql.OrgV1Users) *gen.User {
 	if row == nil {
 		return nil
 	}
@@ -224,7 +223,7 @@ func orgV1TimeWindowToCreateInput(in *gen.TimeWindow) timewindowsql.CreateInput 
 }
 
 // orgV1TimeWindowFromRow re-hydrates the value-object proto from a client row.
-func orgV1TimeWindowFromRow(row *schemaql.OrgV1TimeWindows) *gen.TimeWindow {
+func orgV1TimeWindowFromRow(row *timewindowsql.OrgV1TimeWindows) *gen.TimeWindow {
 	if row == nil {
 		return nil
 	}
@@ -247,7 +246,7 @@ func orgV1DateStretchToCreateInput(in *gen.DateStretch) datestretchesql.CreateIn
 }
 
 // orgV1DateStretchFromRow re-hydrates the value-object proto from a client row.
-func orgV1DateStretchFromRow(row *schemaql.OrgV1DateStretches) *gen.DateStretch {
+func orgV1DateStretchFromRow(row *datestretchesql.OrgV1DateStretches) *gen.DateStretch {
 	if row == nil {
 		return nil
 	}
@@ -271,7 +270,7 @@ func orgV1LocationToCreateInput(in *gen.Location) locationsql.CreateInput {
 }
 
 // orgV1LocationFromRow re-hydrates the value-object proto from a client row.
-func orgV1LocationFromRow(row *schemaql.OrgV1Locations) *gen.Location {
+func orgV1LocationFromRow(row *locationsql.OrgV1Locations) *gen.Location {
 	if row == nil {
 		return nil
 	}

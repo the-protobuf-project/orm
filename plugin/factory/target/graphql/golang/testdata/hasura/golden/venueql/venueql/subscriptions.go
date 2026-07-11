@@ -12,7 +12,6 @@ package venueql
 
 import (
 	"context"
-	"example.com/gen/venueql/schemaql"
 	"github.com/the-protobuf-project/runtime-go/network/graphql"
 	"github.com/the-protobuf-project/runtime-go/network/runtime"
 )
@@ -22,7 +21,7 @@ type subscriptionHandler struct {
 }
 
 func (h *subscriptionHandler) OnS(ctx context.Context, req ...*OnSRequest) (*runtime.Subscription, error) {
-	var out []schemaql.Venue
+	var out []Venue
 	var r OnSRequest
 	if len(req) > 0 && req[0] != nil {
 		r = *req[0]

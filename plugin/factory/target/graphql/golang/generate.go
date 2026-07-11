@@ -56,7 +56,8 @@ type generator struct {
 	tmpl      *template.Template
 	r         *renderer
 	domains   []*domainGen
-	domSchema map[string][]modelGroup // domain -> per-resource model groups its operations return
+	domSchema map[string][]modelGroup // domain -> model groups keyed by owning resource
+	ownerOf   map[string]*resGen      // model object name -> the resource that defines it
 }
 
 // Generate renders the full Go client into Options.OutDir: the shared type packages,

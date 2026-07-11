@@ -21,7 +21,6 @@ import (
 	"example.com/test/genql"
 	"example.com/test/genql/orgv1ql/membersql"
 	"example.com/test/genql/orgv1ql/organisationsql"
-	"example.com/test/genql/orgv1ql/schemaql"
 	"example.com/test/genql/orgv1ql/usersql"
 	"example.com/test/gormdb/filterx"
 	"example.com/test/gormdb/v1/orgv1"
@@ -140,7 +139,7 @@ func (r *GraphQLMemberRepository) get(ctx context.Context, id string) (*gen.Memb
 
 // toProto converts a loaded row, hydrating value objects through their
 // stored references, and runs the AfterRead hook.
-func (r *GraphQLMemberRepository) toProto(ctx context.Context, row *schemaql.OrgV1Members) (*gen.Member, error) {
+func (r *GraphQLMemberRepository) toProto(ctx context.Context, row *membersql.OrgV1Members) (*gen.Member, error) {
 	out := memberFromRow(row)
 	if id := repox.Deref(row.WindowId); id != "" {
 		w, err := r.Svc.Query.OrgV1.TimeWindows.Get(ctx, id)
@@ -182,7 +181,7 @@ func (r *GraphQLMemberRepository) list(ctx context.Context, in repox.ListInput, 
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Hasura[schemaql.OrgV1Members](orgv1.MemberFilterSpec, r.Svc.Query.OrgV1.Members).Scope(scope...)
+	eng := filterx.Hasura[membersql.OrgV1Members](orgv1.MemberFilterSpec, r.Svc.Query.OrgV1.Members).Scope(scope...)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
@@ -411,7 +410,7 @@ func (r *GraphQLOrganisationRepository) get(ctx context.Context, id string) (*ge
 
 // toProto converts a loaded row, hydrating value objects through their
 // stored references, and runs the AfterRead hook.
-func (r *GraphQLOrganisationRepository) toProto(ctx context.Context, row *schemaql.OrgV1Organisations) (*gen.Organisation, error) {
+func (r *GraphQLOrganisationRepository) toProto(ctx context.Context, row *organisationsql.OrgV1Organisations) (*gen.Organisation, error) {
 	out := organisationFromRow(row)
 	if id := repox.Deref(row.HqId); id != "" {
 		w, err := r.Svc.Query.OrgV1.Locations.Get(ctx, id)
@@ -440,7 +439,7 @@ func (r *GraphQLOrganisationRepository) list(ctx context.Context, in repox.ListI
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Hasura[schemaql.OrgV1Organisations](orgv1.OrganisationFilterSpec, r.Svc.Query.OrgV1.Organisations).Scope(scope...)
+	eng := filterx.Hasura[organisationsql.OrgV1Organisations](orgv1.OrganisationFilterSpec, r.Svc.Query.OrgV1.Organisations).Scope(scope...)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
@@ -630,7 +629,7 @@ func (r *GraphQLUserRepository) get(ctx context.Context, id string) (*gen.User, 
 
 // toProto converts a loaded row, hydrating value objects through their
 // stored references, and runs the AfterRead hook.
-func (r *GraphQLUserRepository) toProto(ctx context.Context, row *schemaql.OrgV1Users) (*gen.User, error) {
+func (r *GraphQLUserRepository) toProto(ctx context.Context, row *usersql.OrgV1Users) (*gen.User, error) {
 	out := userFromRow(row)
 	if h := r.Hooks.AfterRead; h != nil {
 		if err := h(ctx, out); err != nil {
@@ -650,7 +649,7 @@ func (r *GraphQLUserRepository) list(ctx context.Context, in repox.ListInput, sc
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Hasura[schemaql.OrgV1Users](orgv1.UserFilterSpec, r.Svc.Query.OrgV1.Users).Scope(scope...)
+	eng := filterx.Hasura[usersql.OrgV1Users](orgv1.UserFilterSpec, r.Svc.Query.OrgV1.Users).Scope(scope...)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}

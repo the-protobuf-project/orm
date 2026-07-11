@@ -50,9 +50,11 @@ func (g *generator) writeResource(rg *resGen) error {
 	return g.writeHandlerImpl(subdir, rg.domain, rg.pkg, "subscriptions.go", "subscriptionHandler", rg.subs)
 }
 
-// writeResourceModels aliases the models the resource's operations return into the
-// resource package, so callers read results (and the row model) via this one package
-// instead of also importing the domain's schema package.
+// writeResourceModels writes the models the resource's operations return into the
+// resource package itself: full definitions for the objects this resource owns, and
+// aliases into the owning sibling for the rare object another resource of the domain
+// claimed first — so a table's types live with its query builders and callers import one
+// package per resource, never a shared schema package.
 func (g *generator) writeResourceModels(subdir string, rg *resGen) error {
 	seen := map[string]*ir.Object{}
 	for _, set := range [][]op{rg.queries, rg.mutations, rg.subs} {
@@ -65,12 +67,30 @@ func (g *generator) writeResourceModels(subdir string, rg *resGen) error {
 	if len(seen) == 0 {
 		return nil
 	}
-	var b strings.Builder
-	b.WriteString("// Model type aliases, re-exported from this resource's schema package.\n")
+	var defs, aliases strings.Builder
+	imports := map[string]bool{}
 	for _, name := range sortedKeys(seen) {
-		fmt.Fprintf(&b, "type %s = schemaql.%s\n", name, name)
+		if owner := g.ownerOf[name]; owner != nil && owner != rg {
+			fmt.Fprintf(&aliases, "type %s = %s.%s\n", name, owner.pkg, name)
+			imports[owner.importPath] = true
+			continue
+		}
+		if defs.Len() > 0 {
+			defs.WriteString("\n\n")
+		}
+		defs.WriteString(g.r.model(seen[name]))
 	}
-	return g.writeFile(subdir, "models.go", rg.pkg, []string{g.schemaModule(rg.domain)}, b.String())
+	var b strings.Builder
+	b.WriteString(defs.String())
+	if aliases.Len() > 0 {
+		if b.Len() > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString("// Aliases for shared models defined by a sibling resource of this domain.\n")
+		b.WriteString(aliases.String())
+	}
+	im := append(g.typeImports(defs.String()), sortedKeys(imports)...)
+	return g.writeFile(subdir, "models.go", rg.pkg, im, b.String())
 }
 
 // writePredicates writes the resource's filter field handles and And/Or/Not combinators.
@@ -143,12 +163,9 @@ func (g *generator) writeHandlerImpl(subdir, domain, pkg, file, recv string, ops
 	return g.writeFile(subdir, file, pkg, g.resImports(domain, body), body)
 }
 
-// resImports returns the imports for a handler file: context and the runtime facade, the
-// non-schema type packages (enums/graphql), and the domain's schema package when referenced.
+// resImports returns the imports for a handler file: context and the runtime facade plus
+// the non-schema type packages (enums/graphql). Model types are package-local (defined or
+// aliased by models.go), so no schema import exists.
 func (g *generator) resImports(domain, body string) []string {
-	im := append([]string{"context", g.opts.RuntimeModule}, g.typeImports(body)...)
-	if strings.Contains(body, "schemaql.") {
-		im = append(im, g.schemaModule(domain))
-	}
-	return im
+	return append([]string{"context", g.opts.RuntimeModule}, g.typeImports(body)...)
 }

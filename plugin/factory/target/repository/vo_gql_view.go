@@ -22,7 +22,7 @@ type gqlVO struct {
 	VOResource string // client resource field, e.g. "TimeWindows"
 	VOResPkg   string // client resource package, e.g. "timewindowsql"
 	VODomPkg   string // client domain package, e.g. "sharedql"
-	VORowQual  string // qualified row type, e.g. "sharedschemaql.SharedTimeWindows"
+	VORowQual  string // qualified row type, e.g. "timewindowsql.SharedTimeWindows"
 	ConvName   string // converter base, e.g. "sharedTimeWindow"
 	PBType     string // qualified VO proto type, e.g. "sharedpbv1.TimeWindow"
 	PBImport   string // import path of the VO proto package
@@ -43,8 +43,8 @@ type gqlVOPlan struct {
 }
 
 // gqlVOFor resolves the client-side naming of one planned VO for a resource
-// in schema s. Same-schema VOs reuse the unaliased schemaql import; foreign
-// ones alias theirs as "<schema>schemaql".
+// in schema s. Row types live in the VO's own resource package (imported for
+// its CreateInput anyway), so same-schema and foreign VOs qualify alike.
 func gqlVOFor(pb *pbIndex, s *schema.Schema, v voField) (gqlVO, bool) {
 	msg, ok := pb.msgs[v.Target.Source.FullName()]
 	if !ok {
@@ -54,10 +54,7 @@ func gqlVOFor(pb *pbIndex, s *schema.Schema, v voField) (gqlVO, bool) {
 	domain := naming.PascalGo(voSchema)
 	model := domain + naming.PascalGo(v.Target.Name)
 	rest := strings.TrimPrefix(model, domain)
-	rowQual := "schemaql." + model
-	if voSchema != s.Name {
-		rowQual = identLower(voSchema) + "schemaql." + model
-	}
+	rowQual := clientPkgIdent(rest) + "." + model
 	g := gqlVO{
 		vo:         v,
 		VODomain:   domain,
@@ -234,14 +231,12 @@ type gqlVOConv struct {
 	ConvName     string
 	PBType       string
 	InputType    string // e.g. "timewindowsql.CreateInput"
-	RowType      string // e.g. "sharedschemaql.SharedTimeWindows"
+	RowType      string // e.g. "timewindowsql.SharedTimeWindows"
 	InputAssigns []string
 	RowToProto   []string
 
 	ResPkgPath string // client resource package import
 	ResPkgName string
-	RowPath    string // foreign schemaql import ("" when same-schema)
-	RowAlias   string
 	PBPath     string // VO proto package import
 	PBName     string
 }
@@ -271,10 +266,6 @@ func gqlVOConvs(pb *pbIndex, db *schema.Database, s *schema.Schema, resources ma
 				ResPkgName: g.VOResPkg,
 				PBPath:     g.PBImport,
 				PBName:     goPackageName(g.PBImport),
-			}
-			if v.Target.PgSchema != s.Name {
-				conv.RowPath = client + "/" + g.VODomPkg + "/schemaql"
-				conv.RowAlias = identLower(v.Target.PgSchema) + "schemaql"
 			}
 			for _, c := range v.Target.Columns {
 				if c.Source == nil || c.Generated != "" {

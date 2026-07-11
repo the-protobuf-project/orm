@@ -38,8 +38,7 @@ func graphqlFileView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg str
 		dbGoModule(db) + "/" + repoxPkg:              "",
 		dbGormModule(db) + "/filterx":                "",
 		dbGormModule(db) + "/" + db.Name + "/" + pkg: "",
-		client:                                 clientPkgName(client),
-		client + "/" + domainPkg + "/schemaql": "schemaql",
+		client: clientPkgName(client),
 	}
 	needTime := false
 	for _, r := range rs {
@@ -71,17 +70,13 @@ func graphqlConvertView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg 
 	client := dbGraphQLModule(db)
 	domainPkg := identLower(s.Name) + "ql"
 	imports := map[string]string{
-		dbGoModule(db) + "/" + repoxPkg:        "",
-		client + "/" + domainPkg + "/schemaql": "schemaql",
+		dbGoModule(db) + "/" + repoxPkg: "",
 	}
 	for _, r := range rs {
 		imports[client+"/"+domainPkg+"/"+r.ResPkg] = r.ResPkg
 	}
 	for _, c := range voConvs {
 		imports[c.ResPkgPath] = c.ResPkgName
-		if c.RowPath != "" {
-			imports[c.RowPath] = c.RowAlias
-		}
 		imports[c.PBPath] = c.PBName
 	}
 	if needs.Wrappers {

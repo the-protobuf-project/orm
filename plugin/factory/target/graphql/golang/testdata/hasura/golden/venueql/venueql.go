@@ -11,15 +11,14 @@
 package venueql
 
 import (
-	"example.com/gen/venueql/schemaql"
 	"example.com/gen/venueql/venueql"
 	"github.com/the-protobuf-project/runtime-go/network/runtime"
 )
 
-// Model type aliases for this domain, re-exported from its schema package.
-type Venue = schemaql.Venue
-type VenueAggregate = schemaql.VenueAggregate
-type VenueMutationResponse = schemaql.VenueMutationResponse
+// Model type aliases for this domain, re-exported from the owning resource packages.
+type Venue = venueql.Venue
+type VenueAggregate = venueql.VenueAggregate
+type VenueMutationResponse = venueql.VenueMutationResponse
 
 // QueryHandler aggregates query handlers for the venueql domain.
 type QueryHandler struct {

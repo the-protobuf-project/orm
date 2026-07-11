@@ -18,8 +18,9 @@ const enumsDir = "enumsql"
 
 // modelGroup is one resource's slice of a domain schema package: every model object that
 // resource's operations return (the row type, its aggregate, and the mutation responses),
-// written together into one snake_case file named after the resource (e.g. all
-// PropertyUnits* types land in property_units.go).
+// written together into one snake_case file named after the resource with its domain
+// prefix stripped — the folder already names the domain (e.g. all PropertyUnits* types
+// land in propertyql/schemaql/units.go).
 type modelGroup struct {
 	file    string
 	objects []*ir.Object
@@ -47,7 +48,11 @@ func (g *generator) domainObjects() map[string][]modelGroup {
 			if len(seen) == 0 {
 				continue
 			}
-			grp := modelGroup{file: naming.GoFileName(rg.res.Name, "schema", usedFiles)}
+			_, rest := splitDomain(rg.res.Name)
+			if rest == "" {
+				rest = rg.res.Name
+			}
+			grp := modelGroup{file: naming.GoFileName(rest, "schema", usedFiles)}
 			for _, name := range sortedKeys(seen) {
 				claimed[name] = true
 				grp.objects = append(grp.objects, seen[name])

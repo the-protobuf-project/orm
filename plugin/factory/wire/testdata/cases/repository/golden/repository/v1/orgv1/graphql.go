@@ -24,7 +24,7 @@ import (
 	"example.com/test/genql/orgv1ql/schemaql"
 	"example.com/test/genql/orgv1ql/usersql"
 	"example.com/test/gormdb/filterx"
-	gormdb "example.com/test/gormdb/v1/orgv1"
+	"example.com/test/gormdb/v1/orgv1"
 	"fmt"
 	"github.com/the-protobuf-project/runtime-go/network/graphql"
 	"google.golang.org/protobuf/proto"
@@ -145,7 +145,7 @@ func (r *GraphQLMemberRepository) list(ctx context.Context, in repox.ListInput, 
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Hasura[schemaql.OrgV1Members](gormdb.MemberFilterSpec, r.Svc.Query.OrgV1.Members).Scope(scope...)
+	eng := filterx.Hasura[schemaql.OrgV1Members](orgv1.MemberFilterSpec, r.Svc.Query.OrgV1.Members).Scope(scope...)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
@@ -324,7 +324,7 @@ func (r *GraphQLOrganisationRepository) list(ctx context.Context, in repox.ListI
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Hasura[schemaql.OrgV1Organisations](gormdb.OrganisationFilterSpec, r.Svc.Query.OrgV1.Organisations).Scope(scope...)
+	eng := filterx.Hasura[schemaql.OrgV1Organisations](orgv1.OrganisationFilterSpec, r.Svc.Query.OrgV1.Organisations).Scope(scope...)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}
@@ -503,7 +503,7 @@ func (r *GraphQLUserRepository) list(ctx context.Context, in repox.ListInput, sc
 	if err != nil {
 		return nil, "", repox.MapFilterxErr(err)
 	}
-	eng := filterx.Hasura[schemaql.OrgV1Users](gormdb.UserFilterSpec, r.Svc.Query.OrgV1.Users).Scope(scope...)
+	eng := filterx.Hasura[schemaql.OrgV1Users](orgv1.UserFilterSpec, r.Svc.Query.OrgV1.Users).Scope(scope...)
 	for f, h := range r.ListOverrides {
 		eng.Override(f, h)
 	}

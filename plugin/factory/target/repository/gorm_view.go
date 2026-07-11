@@ -16,9 +16,7 @@ import (
 // neutral resourceView the interface template also uses.
 type gormResourceView struct {
 	resourceView
-	Store      string // generated store constructor, e.g. "NewMemberStore"
-	ModelType  string // qualified gorm model type, e.g. "gormdb.Member"
-	FilterSpec string // qualified filterx spec var, e.g. "gormdb.MemberFilterSpec"
+	Store string // generated store constructor, e.g. "NewMemberStore"
 
 	HasEtag   bool
 	EtagField string // gorm model field, e.g. "Etag"; pointer-typed when EtagPtr
@@ -60,8 +58,6 @@ func gormResourceViews(pb *pbIndex, db *schema.Database, s *schema.Schema, resou
 		v := gormResourceView{
 			resourceView: ifaceViews[i],
 			Store:        "New" + r.Table.LocalName + "Store",
-			ModelType:    "gormdb." + r.Table.LocalName,
-			FilterSpec:   "gormdb." + r.Table.LocalName + "FilterSpec",
 		}
 		if r.Cols.PK != nil {
 			v.PKField = gormField(r.Cols.PK)

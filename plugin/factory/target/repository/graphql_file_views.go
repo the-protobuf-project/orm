@@ -37,7 +37,7 @@ func graphqlFileView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg str
 		graphqlDSLModule:                             "graphql",
 		dbGoModule(db) + "/" + repoxPkg:              "",
 		dbGormModule(db) + "/filterx":                "",
-		dbGormModule(db) + "/" + db.Name + "/" + pkg: "gormdb",
+		dbGormModule(db) + "/" + db.Name + "/" + pkg: "",
 		client:                                 clientPkgName(client),
 		client + "/" + domainPkg + "/schemaql": "schemaql",
 	}
@@ -59,6 +59,7 @@ func graphqlFileView(pb *pbIndex, db *schema.Database, s *schema.Schema, pkg str
 	return map[string]any{
 		"Header":    fileHeader(db, s, "GraphQL adapters over the generated client — same repository surface as the gorm adapters."),
 		"Package":   pkg,
+		"GormPkg":   pkg,
 		"ClientPkg": clientPkgName(client),
 		"Imports":   renderImports(imports),
 		"Resources": rs,

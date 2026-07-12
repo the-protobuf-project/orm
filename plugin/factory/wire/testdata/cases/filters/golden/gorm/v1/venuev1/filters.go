@@ -14,7 +14,7 @@
 package venuev1
 
 import (
-	filterx "example.com/test/gen/filterx"
+	"example.com/test/gen/filterx"
 )
 
 // VenueFilterSpec is Venue's AIP-160 filter / AIP-132 order_by surface,

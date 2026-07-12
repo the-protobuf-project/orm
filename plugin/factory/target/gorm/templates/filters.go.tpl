@@ -3,7 +3,7 @@
 package {{.Package}}
 
 import (
-	filterx "{{.FilterxImport}}"
+	"{{.FilterxImport}}"
 )
 
 {{- range .Tables}}

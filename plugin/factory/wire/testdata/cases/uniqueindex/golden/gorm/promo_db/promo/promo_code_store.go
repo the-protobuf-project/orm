@@ -20,7 +20,12 @@ import (
 
 // PromoCodeStore provides typed CRUD access to PromoCode records.
 // PromoCode is a redeemable promotion. The human-facing `code` is unique via a single-column unique index, so orm emits GetByCode alongside GetByID and the GetByName finder for the AIP resource name.
-type PromoCodeStore struct{ DB *gorm.DB }
+type PromoCodeStore struct {
+	DB *gorm.DB
+	// Telemetry observes every operation; nil is a no-op. Wire the generated
+	// adapter: NewPromoCodeStore(db).WithTelemetry(ormtelemetry.New(o)).
+	Telemetry gormx.Telemetry
+}
 
 // Compile-time proof that PromoCodeStore satisfies the generic gormx.Store, so the
 // generic engine can drive it alongside the typed finders below.
@@ -28,6 +33,12 @@ var _ gormx.Store[PromoCode] = (*PromoCodeStore)(nil)
 
 // NewPromoCodeStore returns a PromoCodeStore backed by db.
 func NewPromoCodeStore(db *gorm.DB) *PromoCodeStore { return &PromoCodeStore{DB: db} }
+
+// WithTelemetry sets the store's Telemetry and returns the store for chaining.
+func (s *PromoCodeStore) WithTelemetry(t gormx.Telemetry) *PromoCodeStore {
+	s.Telemetry = t
+	return s
+}
 
 // Create inserts m.
 func (s *PromoCodeStore) Create(ctx context.Context, m *PromoCode) error {
@@ -46,11 +57,11 @@ func (s *PromoCodeStore) List(ctx context.Context, opts gormx.ListOptions) ([]Pr
 // Count returns the number of PromoCode records matching opts.Where
 // (pagination and ordering are ignored).
 func (s *PromoCodeStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, error) {
+	var n int64
 	db := s.DB.WithContext(ctx).Model(&PromoCode{})
 	if opts.Where != nil {
 		db = db.Where(opts.Where, opts.Args...)
 	}
-	var n int64
 	if err := db.Count(&n).Error; err != nil {
 		return 0, err
 	}

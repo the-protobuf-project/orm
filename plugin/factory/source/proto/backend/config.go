@@ -36,21 +36,26 @@ type Config struct {
 	// generated table name changes; proto/model names are untouched.
 	DedupeSchemaTable bool `yaml:"dedupe_schema_table"`
 
-	// OTel tunes the gorm target's OpenTelemetry tracing helper (folded into the
-	// migration Registry as Instrument). Nil leaves the otel plugin opt in charge.
-	OTel *otelConfig `yaml:"otel"`
+	// Telemetry tunes the gorm target's first-party opentelementry
+	// instrumentation (instrumented stores, the ormtelemetry package, the
+	// filterx observer, Registry.Instrument). Nil leaves the telemetry plugin
+	// opt in charge. Replaces the removed `otel:` block.
+	Telemetry *telemetryConfig `yaml:"telemetry"`
 }
 
-// otelConfig is the orm.yaml `otel:` block. Both fields are pointers so an unset
-// key inherits the plugin-opt default rather than the Go zero value.
-type otelConfig struct {
-	// Enabled overrides the otel plugin opt: set false to omit the tracing helper
-	// even when the opt defaults it on, or true to force it on.
+// telemetryConfig is the orm.yaml `telemetry:` block. Every field is a pointer
+// so an unset key inherits the plugin-opt default rather than the Go zero value.
+type telemetryConfig struct {
+	// Enabled overrides the telemetry plugin opt: true forces instrumentation on
+	// for the tree, false strips it even when the opt enabled it.
 	Enabled *bool `yaml:"enabled"`
-	// Metrics, when explicitly false, bakes tracing.WithoutMetrics() into the
-	// generated Instrument default so the plugin emits spans but no metrics.
-	// Defaults to true (tracing + metrics).
+	// Metrics, when explicitly false, drops the per-operation ops counter +
+	// duration histogram tree-wide (spans and logs are unaffected). Defaults to
+	// true. Per-table (orm.v1.telemetry).metrics narrows it further.
 	Metrics *bool `yaml:"metrics"`
+	// Logs, when explicitly false, drops the trace-correlated error logging the
+	// ormtelemetry adapter performs on failed operations. Defaults to true.
+	Logs *bool `yaml:"logs"`
 }
 
 // matchRule assigns every proto package matching Match to a database and schema.

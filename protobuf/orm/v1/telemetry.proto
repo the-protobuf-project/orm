@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package orm.v1;
+
+option go_package = "github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1";
+option java_multiple_files = true;
+option java_outer_classname = "TelemetryProto";
+option java_package = "com.orm.v1";
+
+// TelemetryOptions tunes the first-party opentelementry instrumentation the
+// gorm target folds into a resource's generated store: a span per operation,
+// an ops counter + duration histogram, and trace-correlated error logs. It
+// takes effect only when the `telemetry` plugin opt (or orm.yaml
+// `telemetry.enabled`) is on; without it these annotations are inert.
+//
+// Applied via:
+//
+//	option (orm.v1.telemetry) = { span_prefix: "bookstore.Book" };
+//	option (orm.v1.telemetry) = { enabled: false };  // opt this table out
+message TelemetryOptions {
+  // enabled overrides the tree-wide default (every table is instrumented when
+  // the telemetry opt is on). Explicit presence matters: `enabled: false`
+  // strips this table's store instrumentation; unset inherits the default.
+  optional bool enabled = 1;
+
+  // span_prefix overrides the generated span-name prefix. Defaults to
+  // "<schema>.<Model>", e.g. "bookstore_v1.Book" → span
+  // "bookstore_v1.Book/Create".
+  string span_prefix = 2;
+
+  // metrics overrides per-table metric recording (the ops counter + duration
+  // histogram). Defaults to orm.yaml telemetry.metrics (true). Spans are
+  // unaffected.
+  optional bool metrics = 3;
+}
+
+// TelemetryFieldOptions projects a field into the tracing emitted around its
+// store operations, as a span attribute. Metrics stay DB-scoped by design —
+// only table, op, and status label the generated op metrics; domain-level
+// metrics belong to the application, not the ORM.
+//
+// Applied via:
+//
+//	string author_id = 4 [(orm.v1.telemetry_field) = { label: true }];
+//	string state = 5 [(orm.v1.telemetry_field) = { label: true, label_name: "book.state" }];
+message TelemetryFieldOptions {
+  // label includes this field as a span attribute on traced write operations
+  // (the generated model field carries an `opentelementry:"trace:<name>"`
+  // struct tag). Safe for any cardinality — spans absorb per-row values.
+  bool label = 1;
+
+  // label_name overrides the attribute name for this field. Defaults to
+  // "<model_snake>.<column>", e.g. "book.genre".
+  string label_name = 2;
+}

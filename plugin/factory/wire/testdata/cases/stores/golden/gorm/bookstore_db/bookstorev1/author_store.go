@@ -20,7 +20,12 @@ import (
 
 // AuthorStore provides typed CRUD access to Author records.
 // Author is a top-level resource. Inferred table: bookstore_v1.authors. id: ID_STRATEGY_ULID synthesizes a generated `id` PK and demotes the AIP resource name to a UNIQUE lookup column; timestamps adds created_at/updated_at.
-type AuthorStore struct{ DB *gorm.DB }
+type AuthorStore struct {
+	DB *gorm.DB
+	// Telemetry observes every operation; nil is a no-op. Wire the generated
+	// adapter: NewAuthorStore(db).WithTelemetry(ormtelemetry.New(o)).
+	Telemetry gormx.Telemetry
+}
 
 // Compile-time proof that AuthorStore satisfies the generic gormx.Store, so the
 // generic engine can drive it alongside the typed finders below.
@@ -28,6 +33,12 @@ var _ gormx.Store[Author] = (*AuthorStore)(nil)
 
 // NewAuthorStore returns a AuthorStore backed by db.
 func NewAuthorStore(db *gorm.DB) *AuthorStore { return &AuthorStore{DB: db} }
+
+// WithTelemetry sets the store's Telemetry and returns the store for chaining.
+func (s *AuthorStore) WithTelemetry(t gormx.Telemetry) *AuthorStore {
+	s.Telemetry = t
+	return s
+}
 
 // Create inserts m.
 func (s *AuthorStore) Create(ctx context.Context, m *Author) error {
@@ -46,11 +57,11 @@ func (s *AuthorStore) List(ctx context.Context, opts gormx.ListOptions) ([]Autho
 // Count returns the number of Author records matching opts.Where
 // (pagination and ordering are ignored).
 func (s *AuthorStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, error) {
+	var n int64
 	db := s.DB.WithContext(ctx).Model(&Author{})
 	if opts.Where != nil {
 		db = db.Where(opts.Where, opts.Args...)
 	}
-	var n int64
 	if err := db.Count(&n).Error; err != nil {
 		return 0, err
 	}

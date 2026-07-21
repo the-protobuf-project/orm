@@ -20,8 +20,9 @@ import (
 	"github.com/the-protobuf-project/orm/examples/generated/gorm/bookstore_db/bookstorev1"
 	"github.com/the-protobuf-project/orm/examples/generated/gorm/bookstore_db/inventory"
 
+	"github.com/the-protobuf-project/opentelementry/opentelementry-go"
+	"github.com/the-protobuf-project/orm/examples/generated/gorm/ormtelemetry"
 	"gorm.io/gorm"
-	"gorm.io/plugin/opentelemetry/tracing"
 )
 
 // Migrator is the subset of *gorm.DB the Migrate call needs; *gorm.DB satisfies
@@ -95,17 +96,19 @@ var Default = New().Register(
 	&inventory.Shelf{},
 )
 
-// Instrument installs the OpenTelemetry GORM plugin on db, so every query the
-// application runs emits an OpenTelemetry span (and metric). Call it once at
-// startup, after opening the connection and before serving traffic:
+// Instrument installs the generated first-party opentelementry GORM plugin on
+// db, so every query the application runs emits a span and metric through o.
+// Call it once at startup, after opening the connection and before serving
+// traffic:
 //
-//	if err := bookstoredb.Default.Instrument(db); err != nil {
+//	o, err := opentelementry.New().WithService("api", "1.0.0").WithOTLP("localhost", 4317).WithTracing().Build()
+//	if err != nil {
 //		log.Fatal(err)
 //	}
-//
-// Pass extra tracing.Option values to customize at the call site, e.g.
-// tracing.WithAttributes(...) or tracing.WithoutQueryVariables().
-func (*Registry) Instrument(db *gorm.DB, opts ...tracing.Option) error {
-	defaults := []tracing.Option{}
-	return db.Use(tracing.NewPlugin(append(defaults, opts...)...))
+//	defer o.Close()
+//	if err := bookstoredb.Default.Instrument(db, o); err != nil {
+//		log.Fatal(err)
+//	}
+func (*Registry) Instrument(db *gorm.DB, o *opentelementry.Opentelementry) error {
+	return db.Use(ormtelemetry.Plugin(o))
 }

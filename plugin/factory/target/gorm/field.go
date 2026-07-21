@@ -37,12 +37,14 @@ func goType(col *schema.Column) string {
 	return base
 }
 
-// structTag builds the combined gorm + json + validate struct tag for a column.
-// extra are additional gorm fragments computed table-side: the index fragments
-// this column participates in (composite and synthesized FK indexes) and, for an
-// enum column, a CHECK constraint — so GORM AutoMigrate reproduces the same
-// indexes and enum value integrity the SQL target emits.
-func structTag(col *schema.Column, extra []string) string {
+// structTag builds the combined gorm + json + validate + telemetry struct tag
+// for a column. extra are additional gorm fragments computed table-side: the
+// index fragments this column participates in (composite and synthesized FK
+// indexes) and, for an enum column, a CHECK constraint — so GORM AutoMigrate
+// reproduces the same indexes and enum value integrity the SQL target emits.
+// telemetryTag, when non-empty, is the pre-rendered opentelementry tag the SDK
+// reflects over (span attributes and value metrics).
+func structTag(col *schema.Column, extra []string, telemetryTag string) string {
 	gormParts := []string{"column:" + col.Name}
 	// Pin the DB type when GORM's Go-type default disagrees with the canonical
 	// column type (timestamptz, jsonb, native arrays) so AutoMigrate produces the
@@ -87,6 +89,9 @@ func structTag(col *schema.Column, extra []string) string {
 	// DB-managed columns (generated ids, timestamps) are excluded.
 	if col.NotNull && !col.PrimaryKey && !col.AutoCreate && !col.AutoUpdate && col.Generated == "" {
 		tag += ` validate:"required"`
+	}
+	if telemetryTag != "" {
+		tag += " " + telemetryTag
 	}
 	return tag
 }

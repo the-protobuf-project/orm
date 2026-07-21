@@ -67,6 +67,10 @@ message Book {
     ]
   };
 
+  // span_prefix demonstrates overriding the generated telemetry span name
+  // (takes effect only with the telemetry opt); defaults to "bookstore_v1.Book".
+  option (orm.v1.telemetry) = {span_prefix: "bookstore.Book"};
+
   // name: IDENTIFIER → PRIMARY KEY, VARCHAR(255).
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
 
@@ -96,8 +100,13 @@ message Book {
   // internal_notes exists only in the proto contract; excluded from the DB.
   string internal_notes = 6 [(orm.v1.column) = {skip: true}];
 
-  // genre demonstrates proto enum → database enum generation.
-  Genre genre = 7 [(google.api.field_behavior) = REQUIRED];
+  // genre demonstrates proto enum → database enum generation, and — with the
+  // telemetry opt — labels every traced Create/Update span with its value
+  // (low-cardinality, so it's safe as a span attribute).
+  Genre genre = 7 [
+    (google.api.field_behavior) = REQUIRED,
+    (orm.v1.telemetry_field) = {label: true}
+  ];
 
   // create_time is set by the database on insert.
   google.protobuf.Timestamp create_time = 8 [

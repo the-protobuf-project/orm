@@ -2,9 +2,9 @@ package gorm
 
 // filter_view.go prepares the template views for the filters feature: the
 // per-schema filters.go spec file and the once-per-tree filterx package
-// (backend-neutral core plus the chainable Gorm and Hasura engines, and the
-// optional pulse Observer adapter). The planning logic lives in filterspec.go;
-// the templates are presentation only.
+// (backend-neutral core plus the chainable Gorm and Hasura engines, and — with
+// the telemetry opt — the opentelementry Observer adapter). The planning logic
+// lives in filterspec.go; the templates are presentation only.
 
 import (
 	"strings"
@@ -21,10 +21,6 @@ const filterxPkg = "filterx"
 // the hasura engine builds on (Predicate, typed fields, OrderTerm, and the
 // generic QueryHandler the list engine drives).
 const graphqlRuntimeModule = "github.com/the-protobuf-project/runtime-go/network/graphql"
-
-// pulseModule is the import path of the pulse-go observability runtime the
-// optional Observer adapter wraps.
-const pulseModule = "github.com/machanirobotics/pulse/pulse-go"
 
 // filtersView assembles the data for one schema's filters.go: one Spec var per
 // table. Returns nil when no table in the schema yields a spec.
@@ -54,7 +50,7 @@ func filtersView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 }
 
 // filterxView is the shared view for every once-per-tree filterx template
-// (core, gorm engine, hasura engine, pulse adapter — one package).
+// (core, gorm engine, hasura engine, opentelementry adapter — one package).
 func filterxView(db *schema.Database) map[string]any {
 	return map[string]any{
 		"Header": header.Render("//", header.Info{
@@ -65,7 +61,7 @@ func filterxView(db *schema.Database) map[string]any {
 			Schema:        filterxPkg,
 			Notes:         []string{"Shared AIP-160 filter / AIP-132 order_by / paginated-list engines driven by the generated per-schema specs."},
 		}),
-		"GraphQLImport": graphqlRuntimeModule,
-		"PulseImport":   pulseModule,
+		"GraphQLImport":        graphqlRuntimeModule,
+		"OpentelementryImport": opentelementryModule,
 	}
 }

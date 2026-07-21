@@ -1,7 +1,7 @@
 // Package config loads and validates orm.yaml — the factory's single source of
-// truth. One file configures both the proto/DB side (datasources, otel, schema
-// naming, inherited from the backend package) and the GraphQL side (the graphql
-// source block and the generate list). Decoding is strict (unknown keys error)
+// truth. One file configures both the proto/DB side (datasources, telemetry,
+// schema naming, inherited from the backend package) and the GraphQL side (the
+// graphql source block and the generate list). Decoding is strict (unknown keys error)
 // and Validate runs before any generation, aggregating every problem with a keyed
 // path so misconfiguration fails fast and legibly instead of producing bad output.
 package config
@@ -21,8 +21,8 @@ import (
 )
 
 // Config is the whole orm.yaml. The proto/DB keys (datasources, strip_version,
-// dedupe_schema_table, otel) are inlined from backend.Config so the proto plugin
-// path keeps reading them unchanged; GraphQL and Generate are the factory
+// dedupe_schema_table, telemetry) are inlined from backend.Config so the proto
+// plugin path keeps reading them unchanged; GraphQL and Generate are the factory
 // additions.
 type Config struct {
 	backend.Config `yaml:",inline"`
@@ -63,8 +63,7 @@ type GenerateEntry struct {
 	Stores     bool  `yaml:"stores"`
 	Converters bool  `yaml:"converters"`
 	Filters    bool  `yaml:"filters"`
-	Pulse      bool  `yaml:"pulse"`
-	OTel       *bool `yaml:"otel"`
+	Telemetry  *bool `yaml:"telemetry"`
 }
 
 // GraphQLEntry returns the first `generate:` entry targeting the graphql client,
@@ -173,9 +172,6 @@ func (c *Config) Validate(reg *factory.Registry[*coreir.Model]) error {
 			if c.GraphQL == nil {
 				add("%s: the graphql target requires a top-level `graphql:` block", at)
 			}
-		}
-		if e.Pulse && !e.Filters {
-			add("%s.pulse: requires filters: true", at)
 		}
 	}
 

@@ -34,6 +34,7 @@ type finderView struct {
 	Method  string // Go method name, e.g. "GetByName" or "ListByAuthorID"
 	Column  string // db column name used in the WHERE clause
 	ArgType string // Go type of the lookup argument (never a pointer)
+	Op      string // op label on the instrumented metric, e.g. "get_by_name"
 }
 
 // gormxView assembles the data for the shared gormx runtime package, emitted
@@ -71,6 +72,7 @@ func storeModelView(db *schema.Database, s *schema.Schema, pkg string, t *schema
 				Method:  "GetBy" + gormFieldName(col),
 				Column:  col.Name,
 				ArgType: baseGoType(col),
+				Op:      "get_by_" + col.Name,
 			})
 			uniqueCols[col.Name] = true
 		}
@@ -79,6 +81,7 @@ func storeModelView(db *schema.Database, s *schema.Schema, pkg string, t *schema
 				Method:  "ListBy" + gormFieldName(col),
 				Column:  col.Name,
 				ArgType: baseGoType(col),
+				Op:      "list_by_" + col.Name,
 			})
 		}
 	}
@@ -99,6 +102,7 @@ func storeModelView(db *schema.Database, s *schema.Schema, pkg string, t *schema
 			Method:  "GetBy" + gormFieldName(col),
 			Column:  col.Name,
 			ArgType: baseGoType(col),
+			Op:      "get_by_" + col.Name,
 		})
 		uniqueCols[name] = true
 	}
@@ -107,10 +111,20 @@ func storeModelView(db *schema.Database, s *schema.Schema, pkg string, t *schema
 	third := []string{gormxImportPath(db), "gorm.io/gorm"}
 	sort.Strings(third)
 
+	// Telemetry: when the tree opt is on and the table doesn't opt out, every
+	// method body is wrapped in a span and (with metrics) records a DB-scoped op
+	// metric (table/op/status only — no domain-value metrics), which needs
+	// "time" for the duration.
+	telEnabled, telMetrics, spanPrefix := tableTelemetry(db, s, t)
+	std := []string{"context"}
+	if telEnabled && telMetrics {
+		std = append(std, "time")
+	}
+
 	return map[string]any{
 		"Header":    storeHeader(db, s),
 		"Package":   pkg,
-		"Imports":   importBlock([]string{"context"}, third),
+		"Imports":   importBlock(std, third),
 		"Comment":   commentOr(t.Comment, t.LocalName+" model."),
 		"Name":      t.LocalName,
 		"Store":     t.LocalName + "Store",
@@ -123,6 +137,9 @@ func storeModelView(db *schema.Database, s *schema.Schema, pkg string, t *schema
 		"AssertStore":   hasPK && pkArgType == "string",
 		"UniqueFinders": unique,
 		"FKFinders":     fks,
+		"Telemetry":     telEnabled,
+		"Metrics":       telEnabled && telMetrics,
+		"SpanPrefix":    spanPrefix,
 	}
 }
 

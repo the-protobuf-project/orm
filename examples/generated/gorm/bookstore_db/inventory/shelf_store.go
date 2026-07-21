@@ -13,6 +13,7 @@ package inventory
 
 import (
 	"context"
+	"time"
 
 	"github.com/the-protobuf-project/orm/examples/generated/gorm/gormx"
 	"gorm.io/gorm"
@@ -20,7 +21,12 @@ import (
 
 // ShelfStore provides typed CRUD access to Shelf records.
 // Shelf groups books physically. The resource's `plural` fixes the irregular plural ("shelfs" → "shelves") — no table name override needed.
-type ShelfStore struct{ DB *gorm.DB }
+type ShelfStore struct {
+	DB *gorm.DB
+	// Telemetry observes every operation; nil is a no-op. Wire the generated
+	// adapter: NewShelfStore(db).WithTelemetry(ormtelemetry.New(o)).
+	Telemetry gormx.Telemetry
+}
 
 // Compile-time proof that ShelfStore satisfies the generic gormx.Store, so the
 // generic engine can drive it alongside the typed finders below.
@@ -29,15 +35,33 @@ var _ gormx.Store[Shelf] = (*ShelfStore)(nil)
 // NewShelfStore returns a ShelfStore backed by db.
 func NewShelfStore(db *gorm.DB) *ShelfStore { return &ShelfStore{DB: db} }
 
+// WithTelemetry sets the store's Telemetry and returns the store for chaining.
+func (s *ShelfStore) WithTelemetry(t gormx.Telemetry) *ShelfStore {
+	s.Telemetry = t
+	return s
+}
+
 // Create inserts m.
 func (s *ShelfStore) Create(ctx context.Context, m *Shelf) error {
-	return s.DB.WithContext(ctx).Create(m).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "inventory.Shelf/Create", m, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Create(m).Error
+	})
+	tel.RecordOp(ctx, "inventory.shelves", "create", time.Since(start), err)
+	return err
 }
 
 // List returns the Shelf records matching opts.
 func (s *ShelfStore) List(ctx context.Context, opts gormx.ListOptions) ([]Shelf, error) {
 	var out []Shelf
-	if err := opts.Apply(s.DB.WithContext(ctx)).Find(&out).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "inventory.Shelf/List", nil, func(ctx context.Context) error {
+		return opts.Apply(s.DB.WithContext(ctx)).Find(&out).Error
+	})
+	tel.RecordOp(ctx, "inventory.shelves", "list", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -46,12 +70,18 @@ func (s *ShelfStore) List(ctx context.Context, opts gormx.ListOptions) ([]Shelf,
 // Count returns the number of Shelf records matching opts.Where
 // (pagination and ordering are ignored).
 func (s *ShelfStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, error) {
-	db := s.DB.WithContext(ctx).Model(&Shelf{})
-	if opts.Where != nil {
-		db = db.Where(opts.Where, opts.Args...)
-	}
 	var n int64
-	if err := db.Count(&n).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "inventory.Shelf/Count", nil, func(ctx context.Context) error {
+		db := s.DB.WithContext(ctx).Model(&Shelf{})
+		if opts.Where != nil {
+			db = db.Where(opts.Where, opts.Args...)
+		}
+		return db.Count(&n).Error
+	})
+	tel.RecordOp(ctx, "inventory.shelves", "count", time.Since(start), err)
+	if err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -59,13 +89,25 @@ func (s *ShelfStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, 
 
 // Update persists every field of m, which must carry its primary key.
 func (s *ShelfStore) Update(ctx context.Context, m *Shelf) error {
-	return s.DB.WithContext(ctx).Save(m).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "inventory.Shelf/Update", m, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Save(m).Error
+	})
+	tel.RecordOp(ctx, "inventory.shelves", "update", time.Since(start), err)
+	return err
 }
 
 // GetByID fetches the Shelf with the given primary key.
 func (s *ShelfStore) GetByID(ctx context.Context, id string) (*Shelf, error) {
 	var m Shelf
-	if err := s.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "inventory.Shelf/GetByID", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).First(&m, "id = ?", id).Error
+	})
+	tel.RecordOp(ctx, "inventory.shelves", "get", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -73,13 +115,25 @@ func (s *ShelfStore) GetByID(ctx context.Context, id string) (*Shelf, error) {
 
 // DeleteByID removes the Shelf with the given primary key.
 func (s *ShelfStore) DeleteByID(ctx context.Context, id string) error {
-	return s.DB.WithContext(ctx).Delete(&Shelf{}, "id = ?", id).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "inventory.Shelf/DeleteByID", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Delete(&Shelf{}, "id = ?", id).Error
+	})
+	tel.RecordOp(ctx, "inventory.shelves", "delete", time.Since(start), err)
+	return err
 }
 
 // GetByName fetches the Shelf with the given name (a unique column).
 func (s *ShelfStore) GetByName(ctx context.Context, v string) (*Shelf, error) {
 	var m Shelf
-	if err := s.DB.WithContext(ctx).First(&m, "name = ?", v).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "inventory.Shelf/GetByName", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).First(&m, "name = ?", v).Error
+	})
+	tel.RecordOp(ctx, "inventory.shelves", "get_by_name", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return &m, nil

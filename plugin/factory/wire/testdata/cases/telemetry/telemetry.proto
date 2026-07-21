@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package weather.v1;
+
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "orm/v1/annotations.proto";
+
+option go_package = "example.com/test/gen;weatherv1";
+option java_multiple_files = true;
+option java_outer_classname = "TelemetryProto";
+option java_package = "com.weather.v1";
+
+option (orm.v1.datasource) = {
+  database: "weather_db"
+  schema: "weather"
+};
+
+// Reading exercises the telemetry emitter's default path: instrumented store
+// methods with a default span prefix, and labeled fields carrying span
+// attribute struct tags (one default name, one explicit override).
+message Reading {
+  option (google.api.resource) = {
+    type: "weather.v1/Reading"
+    pattern: "readings/{reading}"
+    singular: "reading"
+    plural: "readings"
+  };
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Station labels every span for this table (default attribute name).
+  string station = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (orm.v1.telemetry_field) = {label: true}
+  ];
+
+  // Condition carries an explicit attribute name override.
+  string condition = 3 [
+    (google.api.field_behavior) = OPTIONAL,
+    (orm.v1.telemetry_field) = {label: true, label_name: "weather.condition"}
+  ];
+
+  double temperature_c = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Sensor overrides the span prefix and disables its op metrics, keeping
+// spans only.
+message Sensor {
+  option (google.api.resource) = {
+    type: "weather.v1/Sensor"
+    pattern: "sensors/{sensor}"
+    singular: "sensor"
+    plural: "sensors"
+  };
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+  option (orm.v1.telemetry) = {span_prefix: "weather.Sensor", metrics: false};
+
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  string serial = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Calibration opts out of instrumentation entirely, proving a table-level
+// (orm.v1.telemetry).enabled=false override wins over the tree-wide default.
+message Calibration {
+  option (google.api.resource) = {
+    type: "weather.v1/Calibration"
+    pattern: "calibrations/{calibration}"
+    singular: "calibration"
+    plural: "calibrations"
+  };
+  option (orm.v1.table) = {id: ID_STRATEGY_ULID};
+  option (orm.v1.telemetry) = {enabled: false};
+
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  string notes = 2 [(google.api.field_behavior) = OPTIONAL];
+}

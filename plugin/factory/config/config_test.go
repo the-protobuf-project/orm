@@ -15,7 +15,7 @@ import (
 )
 
 func testRegistry() *factory.Registry[*coreir.Model] {
-	return wire.Registry(protokit.Options{}, backend.New(nil, "", false, false, false, false, false))
+	return wire.Registry(protokit.Options{}, backend.New(nil, "", false, false, false, false))
 }
 
 // loadFrom writes yaml to a temp file and loads it (exercising strict decode).
@@ -83,9 +83,8 @@ generate:
 			wantErr: "requires source `graphql`",
 		},
 		{
-			name:    "pulse without filters",
-			yaml:    "generate:\n  - {target: gorm, source: proto, go_module: m, pulse: true}\n",
-			wantErr: "pulse: requires filters",
+			name: "telemetry entry",
+			yaml: "generate:\n  - {target: gorm, source: proto, go_module: m, telemetry: true}\n",
 		},
 		{
 			name:    "missing target",

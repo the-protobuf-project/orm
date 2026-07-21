@@ -17,18 +17,20 @@ func dbStores(db *schema.Database) bool { return db.Opt("stores") == "true" }
 // dbConverters reports whether to emit proto↔model converters per schema.
 func dbConverters(db *schema.Database) bool { return db.Opt("converters") == "true" }
 
-// dbOTel reports whether to fold the OpenTelemetry tracing helper into the
-// migration Registry.
-func dbOTel(db *schema.Database) bool { return db.Opt("otel") == "true" }
+// dbTelemetry reports whether to fold first-party opentelementry
+// instrumentation into the generated output (instrumented stores, the
+// ormtelemetry package, the filterx observer, Registry.Instrument).
+func dbTelemetry(db *schema.Database) bool { return db.Opt("telemetry") == "true" }
 
-// dbOTelMetrics reports whether the generated Instrument emits metrics in
-// addition to spans (only meaningful when dbOTel is true).
-func dbOTelMetrics(db *schema.Database) bool { return db.Opt("otel_metrics") == "true" }
+// dbTelemetryMetrics reports whether instrumented code records op metrics in
+// addition to spans (only meaningful when dbTelemetry is true; per-table
+// (orm.v1.telemetry).metrics narrows it further).
+func dbTelemetryMetrics(db *schema.Database) bool { return db.Opt("telemetry_metrics") == "true" }
+
+// dbTelemetryLogs reports whether the ormtelemetry adapter logs failed
+// operations (only meaningful when dbTelemetry is true).
+func dbTelemetryLogs(db *schema.Database) bool { return db.Opt("telemetry_logs") == "true" }
 
 // dbFilters reports whether to emit AIP-160 filter / AIP-132 order_by specs per
 // schema plus the shared filterx engine packages.
 func dbFilters(db *schema.Database) bool { return db.Opt("filters") == "true" }
-
-// dbPulse reports whether the filterx tree also gets the pulse-go Observer
-// adapter (only meaningful when dbFilters is true).
-func dbPulse(db *schema.Database) bool { return db.Opt("pulse") == "true" }

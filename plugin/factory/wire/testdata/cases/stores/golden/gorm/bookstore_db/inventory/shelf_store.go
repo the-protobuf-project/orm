@@ -20,7 +20,12 @@ import (
 
 // ShelfStore provides typed CRUD access to Shelf records.
 // Shelf groups books physically. The resource's `plural` fixes the irregular plural ("shelfs" → "shelves") — no table name override needed.
-type ShelfStore struct{ DB *gorm.DB }
+type ShelfStore struct {
+	DB *gorm.DB
+	// Telemetry observes every operation; nil is a no-op. Wire the generated
+	// adapter: NewShelfStore(db).WithTelemetry(ormtelemetry.New(o)).
+	Telemetry gormx.Telemetry
+}
 
 // Compile-time proof that ShelfStore satisfies the generic gormx.Store, so the
 // generic engine can drive it alongside the typed finders below.
@@ -28,6 +33,12 @@ var _ gormx.Store[Shelf] = (*ShelfStore)(nil)
 
 // NewShelfStore returns a ShelfStore backed by db.
 func NewShelfStore(db *gorm.DB) *ShelfStore { return &ShelfStore{DB: db} }
+
+// WithTelemetry sets the store's Telemetry and returns the store for chaining.
+func (s *ShelfStore) WithTelemetry(t gormx.Telemetry) *ShelfStore {
+	s.Telemetry = t
+	return s
+}
 
 // Create inserts m.
 func (s *ShelfStore) Create(ctx context.Context, m *Shelf) error {
@@ -46,11 +57,11 @@ func (s *ShelfStore) List(ctx context.Context, opts gormx.ListOptions) ([]Shelf,
 // Count returns the number of Shelf records matching opts.Where
 // (pagination and ordering are ignored).
 func (s *ShelfStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, error) {
+	var n int64
 	db := s.DB.WithContext(ctx).Model(&Shelf{})
 	if opts.Where != nil {
 		db = db.Where(opts.Where, opts.Args...)
 	}
-	var n int64
 	if err := db.Count(&n).Error; err != nil {
 		return 0, err
 	}

@@ -39,6 +39,14 @@ var file_orm_v1_annotations_proto_extTypes = []protoimpl.ExtensionInfo{
 		Filename:      "orm/v1/annotations.proto",
 	},
 	{
+		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
+		ExtensionType: (*TelemetryOptions)(nil),
+		Field:         50004,
+		Name:          "orm.v1.telemetry",
+		Tag:           "bytes,50004,opt,name=telemetry",
+		Filename:      "orm/v1/annotations.proto",
+	},
+	{
 		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
 		ExtensionType: (*ColumnOptions)(nil),
 		Field:         50002,
@@ -52,6 +60,14 @@ var file_orm_v1_annotations_proto_extTypes = []protoimpl.ExtensionInfo{
 		Field:         50003,
 		Name:          "orm.v1.query",
 		Tag:           "bytes,50003,opt,name=query",
+		Filename:      "orm/v1/annotations.proto",
+	},
+	{
+		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
+		ExtensionType: (*TelemetryFieldOptions)(nil),
+		Field:         50005,
+		Name:          "orm.v1.telemetry_field",
+		Tag:           "bytes,50005,opt,name=telemetry_field",
 		Filename:      "orm/v1/annotations.proto",
 	},
 }
@@ -70,6 +86,11 @@ var (
 	//
 	// optional orm.v1.TableOptions table = 50001;
 	E_Table = &file_orm_v1_annotations_proto_extTypes[1]
+	// telemetry tunes the first-party observability folded into the resource's
+	// generated store: spans, op metrics, and trace-correlated logs.
+	//
+	// optional orm.v1.TelemetryOptions telemetry = 50004;
+	E_Telemetry = &file_orm_v1_annotations_proto_extTypes[2]
 )
 
 // Extension fields to descriptorpb.FieldOptions.
@@ -77,25 +98,32 @@ var (
 	// column overrides column-level generation: name, type, sizing, FK actions.
 	//
 	// optional orm.v1.ColumnOptions column = 50002;
-	E_Column = &file_orm_v1_annotations_proto_extTypes[2]
+	E_Column = &file_orm_v1_annotations_proto_extTypes[3]
 	// query tunes the field's generated list-query surface: AIP-160 filter,
 	// AIP-132 order_by, and free-text search.
 	//
 	// optional orm.v1.QueryOptions query = 50003;
-	E_Query = &file_orm_v1_annotations_proto_extTypes[3]
+	E_Query = &file_orm_v1_annotations_proto_extTypes[4]
+	// telemetry_field projects the field into the emitted telemetry: a span
+	// attribute, a metric label, or a recorded domain-value metric.
+	//
+	// optional orm.v1.TelemetryFieldOptions telemetry_field = 50005;
+	E_TelemetryField = &file_orm_v1_annotations_proto_extTypes[5]
 )
 
 var File_orm_v1_annotations_proto protoreflect.FileDescriptor
 
 const file_orm_v1_annotations_proto_rawDesc = "" +
 	"\n" +
-	"\x18orm/v1/annotations.proto\x12\x06orm.v1\x1a google/protobuf/descriptor.proto\x1a\x13orm/v1/column.proto\x1a\x17orm/v1/datasource.proto\x1a\x12orm/v1/query.proto\x1a\x12orm/v1/table.proto:Y\n" +
+	"\x18orm/v1/annotations.proto\x12\x06orm.v1\x1a google/protobuf/descriptor.proto\x1a\x13orm/v1/column.proto\x1a\x17orm/v1/datasource.proto\x1a\x12orm/v1/query.proto\x1a\x12orm/v1/table.proto\x1a\x16orm/v1/telemetry.proto:Y\n" +
 	"\n" +
 	"datasource\x12\x1c.google.protobuf.FileOptions\x18І\x03 \x01(\v2\x19.orm.v1.DatasourceOptionsR\n" +
 	"datasource:M\n" +
-	"\x05table\x12\x1f.google.protobuf.MessageOptions\x18ц\x03 \x01(\v2\x14.orm.v1.TableOptionsR\x05table:N\n" +
+	"\x05table\x12\x1f.google.protobuf.MessageOptions\x18ц\x03 \x01(\v2\x14.orm.v1.TableOptionsR\x05table:Y\n" +
+	"\ttelemetry\x12\x1f.google.protobuf.MessageOptions\x18Ԇ\x03 \x01(\v2\x18.orm.v1.TelemetryOptionsR\ttelemetry:N\n" +
 	"\x06column\x12\x1d.google.protobuf.FieldOptions\x18҆\x03 \x01(\v2\x15.orm.v1.ColumnOptionsR\x06column:K\n" +
-	"\x05query\x12\x1d.google.protobuf.FieldOptions\x18ӆ\x03 \x01(\v2\x14.orm.v1.QueryOptionsR\x05queryB_\n" +
+	"\x05query\x12\x1d.google.protobuf.FieldOptions\x18ӆ\x03 \x01(\v2\x14.orm.v1.QueryOptionsR\x05query:g\n" +
+	"\x0ftelemetry_field\x12\x1d.google.protobuf.FieldOptions\x18Ն\x03 \x01(\v2\x1d.orm.v1.TelemetryFieldOptionsR\x0etelemetryFieldB_\n" +
 	"\n" +
 	"com.orm.v1B\x10AnnotationsProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1b\x06proto3"
 
@@ -105,23 +133,29 @@ var file_orm_v1_annotations_proto_goTypes = []any{
 	(*descriptorpb.FieldOptions)(nil),   // 2: google.protobuf.FieldOptions
 	(*DatasourceOptions)(nil),           // 3: orm.v1.DatasourceOptions
 	(*TableOptions)(nil),                // 4: orm.v1.TableOptions
-	(*ColumnOptions)(nil),               // 5: orm.v1.ColumnOptions
-	(*QueryOptions)(nil),                // 6: orm.v1.QueryOptions
+	(*TelemetryOptions)(nil),            // 5: orm.v1.TelemetryOptions
+	(*ColumnOptions)(nil),               // 6: orm.v1.ColumnOptions
+	(*QueryOptions)(nil),                // 7: orm.v1.QueryOptions
+	(*TelemetryFieldOptions)(nil),       // 8: orm.v1.TelemetryFieldOptions
 }
 var file_orm_v1_annotations_proto_depIdxs = []int32{
-	0, // 0: orm.v1.datasource:extendee -> google.protobuf.FileOptions
-	1, // 1: orm.v1.table:extendee -> google.protobuf.MessageOptions
-	2, // 2: orm.v1.column:extendee -> google.protobuf.FieldOptions
-	2, // 3: orm.v1.query:extendee -> google.protobuf.FieldOptions
-	3, // 4: orm.v1.datasource:type_name -> orm.v1.DatasourceOptions
-	4, // 5: orm.v1.table:type_name -> orm.v1.TableOptions
-	5, // 6: orm.v1.column:type_name -> orm.v1.ColumnOptions
-	6, // 7: orm.v1.query:type_name -> orm.v1.QueryOptions
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	4, // [4:8] is the sub-list for extension type_name
-	0, // [0:4] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: orm.v1.datasource:extendee -> google.protobuf.FileOptions
+	1,  // 1: orm.v1.table:extendee -> google.protobuf.MessageOptions
+	1,  // 2: orm.v1.telemetry:extendee -> google.protobuf.MessageOptions
+	2,  // 3: orm.v1.column:extendee -> google.protobuf.FieldOptions
+	2,  // 4: orm.v1.query:extendee -> google.protobuf.FieldOptions
+	2,  // 5: orm.v1.telemetry_field:extendee -> google.protobuf.FieldOptions
+	3,  // 6: orm.v1.datasource:type_name -> orm.v1.DatasourceOptions
+	4,  // 7: orm.v1.table:type_name -> orm.v1.TableOptions
+	5,  // 8: orm.v1.telemetry:type_name -> orm.v1.TelemetryOptions
+	6,  // 9: orm.v1.column:type_name -> orm.v1.ColumnOptions
+	7,  // 10: orm.v1.query:type_name -> orm.v1.QueryOptions
+	8,  // 11: orm.v1.telemetry_field:type_name -> orm.v1.TelemetryFieldOptions
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	6,  // [6:12] is the sub-list for extension type_name
+	0,  // [0:6] is the sub-list for extension extendee
+	0,  // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_orm_v1_annotations_proto_init() }
@@ -133,6 +167,7 @@ func file_orm_v1_annotations_proto_init() {
 	file_orm_v1_datasource_proto_init()
 	file_orm_v1_query_proto_init()
 	file_orm_v1_table_proto_init()
+	file_orm_v1_telemetry_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
@@ -140,7 +175,7 @@ func file_orm_v1_annotations_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orm_v1_annotations_proto_rawDesc), len(file_orm_v1_annotations_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   0,
-			NumExtensions: 4,
+			NumExtensions: 6,
 			NumServices:   0,
 		},
 		GoTypes:           file_orm_v1_annotations_proto_goTypes,

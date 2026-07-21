@@ -81,7 +81,7 @@ model Book {
   /// published_year is a plain integer column; nullable.
   publishedYear Int? @map("published_year")
 
-  /// genre demonstrates proto enum → database enum generation.
+  /// genre demonstrates proto enum → database enum generation, and — with the telemetry opt — labels every traced Create/Update span with its value (low-cardinality, so it's safe as a span attribute).
   genre Genre @default(FICTION) @map("genre")
 
   /// create_time is set by the database on insert.

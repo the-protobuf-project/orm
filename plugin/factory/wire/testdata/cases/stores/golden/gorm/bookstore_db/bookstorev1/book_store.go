@@ -20,7 +20,12 @@ import (
 
 // BookStore provides typed CRUD access to Book records.
 // Book is a resource nested under Author. Inferred table: bookstore_v1.books.
-type BookStore struct{ DB *gorm.DB }
+type BookStore struct {
+	DB *gorm.DB
+	// Telemetry observes every operation; nil is a no-op. Wire the generated
+	// adapter: NewBookStore(db).WithTelemetry(ormtelemetry.New(o)).
+	Telemetry gormx.Telemetry
+}
 
 // Compile-time proof that BookStore satisfies the generic gormx.Store, so the
 // generic engine can drive it alongside the typed finders below.
@@ -28,6 +33,12 @@ var _ gormx.Store[Book] = (*BookStore)(nil)
 
 // NewBookStore returns a BookStore backed by db.
 func NewBookStore(db *gorm.DB) *BookStore { return &BookStore{DB: db} }
+
+// WithTelemetry sets the store's Telemetry and returns the store for chaining.
+func (s *BookStore) WithTelemetry(t gormx.Telemetry) *BookStore {
+	s.Telemetry = t
+	return s
+}
 
 // Create inserts m.
 func (s *BookStore) Create(ctx context.Context, m *Book) error {
@@ -46,11 +57,11 @@ func (s *BookStore) List(ctx context.Context, opts gormx.ListOptions) ([]Book, e
 // Count returns the number of Book records matching opts.Where
 // (pagination and ordering are ignored).
 func (s *BookStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, error) {
+	var n int64
 	db := s.DB.WithContext(ctx).Model(&Book{})
 	if opts.Where != nil {
 		db = db.Where(opts.Where, opts.Args...)
 	}
-	var n int64
 	if err := db.Count(&n).Error; err != nil {
 		return 0, err
 	}

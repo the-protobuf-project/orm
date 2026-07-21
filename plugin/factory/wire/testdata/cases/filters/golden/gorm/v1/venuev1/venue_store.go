@@ -13,6 +13,7 @@ package venuev1
 
 import (
 	"context"
+	"time"
 
 	"example.com/test/gen/gormx"
 	"gorm.io/gorm"
@@ -20,7 +21,12 @@ import (
 
 // VenueStore provides typed CRUD access to Venue records.
 // Venue exercises the filters emitter: type-derived kinds for every scalar shape (text, enum, date, timestamp, int, bool, tags), the search opt-in, the filterable/sortable opt-outs, a resource reference (equality-only Ref kind), and shapes that are always excluded (JSONB attributes, the synthesized key).
-type VenueStore struct{ DB *gorm.DB }
+type VenueStore struct {
+	DB *gorm.DB
+	// Telemetry observes every operation; nil is a no-op. Wire the generated
+	// adapter: NewVenueStore(db).WithTelemetry(ormtelemetry.New(o)).
+	Telemetry gormx.Telemetry
+}
 
 // Compile-time proof that VenueStore satisfies the generic gormx.Store, so the
 // generic engine can drive it alongside the typed finders below.
@@ -29,15 +35,33 @@ var _ gormx.Store[Venue] = (*VenueStore)(nil)
 // NewVenueStore returns a VenueStore backed by db.
 func NewVenueStore(db *gorm.DB) *VenueStore { return &VenueStore{DB: db} }
 
+// WithTelemetry sets the store's Telemetry and returns the store for chaining.
+func (s *VenueStore) WithTelemetry(t gormx.Telemetry) *VenueStore {
+	s.Telemetry = t
+	return s
+}
+
 // Create inserts m.
 func (s *VenueStore) Create(ctx context.Context, m *Venue) error {
-	return s.DB.WithContext(ctx).Create(m).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "venue_v1.Venue/Create", m, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Create(m).Error
+	})
+	tel.RecordOp(ctx, "venue_v1.venues", "create", time.Since(start), err)
+	return err
 }
 
 // List returns the Venue records matching opts.
 func (s *VenueStore) List(ctx context.Context, opts gormx.ListOptions) ([]Venue, error) {
 	var out []Venue
-	if err := opts.Apply(s.DB.WithContext(ctx)).Find(&out).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "venue_v1.Venue/List", nil, func(ctx context.Context) error {
+		return opts.Apply(s.DB.WithContext(ctx)).Find(&out).Error
+	})
+	tel.RecordOp(ctx, "venue_v1.venues", "list", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -46,12 +70,18 @@ func (s *VenueStore) List(ctx context.Context, opts gormx.ListOptions) ([]Venue,
 // Count returns the number of Venue records matching opts.Where
 // (pagination and ordering are ignored).
 func (s *VenueStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, error) {
-	db := s.DB.WithContext(ctx).Model(&Venue{})
-	if opts.Where != nil {
-		db = db.Where(opts.Where, opts.Args...)
-	}
 	var n int64
-	if err := db.Count(&n).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "venue_v1.Venue/Count", nil, func(ctx context.Context) error {
+		db := s.DB.WithContext(ctx).Model(&Venue{})
+		if opts.Where != nil {
+			db = db.Where(opts.Where, opts.Args...)
+		}
+		return db.Count(&n).Error
+	})
+	tel.RecordOp(ctx, "venue_v1.venues", "count", time.Since(start), err)
+	if err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -59,13 +89,25 @@ func (s *VenueStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, 
 
 // Update persists every field of m, which must carry its primary key.
 func (s *VenueStore) Update(ctx context.Context, m *Venue) error {
-	return s.DB.WithContext(ctx).Save(m).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "venue_v1.Venue/Update", m, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Save(m).Error
+	})
+	tel.RecordOp(ctx, "venue_v1.venues", "update", time.Since(start), err)
+	return err
 }
 
 // GetByID fetches the Venue with the given primary key.
 func (s *VenueStore) GetByID(ctx context.Context, id string) (*Venue, error) {
 	var m Venue
-	if err := s.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "venue_v1.Venue/GetByID", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).First(&m, "id = ?", id).Error
+	})
+	tel.RecordOp(ctx, "venue_v1.venues", "get", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -73,13 +115,25 @@ func (s *VenueStore) GetByID(ctx context.Context, id string) (*Venue, error) {
 
 // DeleteByID removes the Venue with the given primary key.
 func (s *VenueStore) DeleteByID(ctx context.Context, id string) error {
-	return s.DB.WithContext(ctx).Delete(&Venue{}, "id = ?", id).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "venue_v1.Venue/DeleteByID", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Delete(&Venue{}, "id = ?", id).Error
+	})
+	tel.RecordOp(ctx, "venue_v1.venues", "delete", time.Since(start), err)
+	return err
 }
 
 // GetByName fetches the Venue with the given name (a unique column).
 func (s *VenueStore) GetByName(ctx context.Context, v string) (*Venue, error) {
 	var m Venue
-	if err := s.DB.WithContext(ctx).First(&m, "name = ?", v).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "venue_v1.Venue/GetByName", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).First(&m, "name = ?", v).Error
+	})
+	tel.RecordOp(ctx, "venue_v1.venues", "get_by_name", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -88,8 +142,13 @@ func (s *VenueStore) GetByName(ctx context.Context, v string) (*Venue, error) {
 // ListByOperatorID returns the Venue records whose operator matches id, with opts applied.
 func (s *VenueStore) ListByOperatorID(ctx context.Context, id string, opts gormx.ListOptions) ([]Venue, error) {
 	var out []Venue
-	q := opts.Apply(s.DB.WithContext(ctx).Where("operator = ?", id))
-	if err := q.Find(&out).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "venue_v1.Venue/ListByOperatorID", nil, func(ctx context.Context) error {
+		return opts.Apply(s.DB.WithContext(ctx).Where("operator = ?", id)).Find(&out).Error
+	})
+	tel.RecordOp(ctx, "venue_v1.venues", "list_by_operator", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return out, nil

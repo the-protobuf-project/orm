@@ -20,7 +20,6 @@ import (
 	"example.com/test/gen/v1/embeddedv1"
 
 	"gorm.io/gorm"
-	"gorm.io/plugin/opentelemetry/tracing"
 )
 
 // Migrator is the subset of *gorm.DB the Migrate call needs; *gorm.DB satisfies
@@ -94,18 +93,3 @@ var Default = New().Register(
 	&embeddedv1.Metadata{},
 	&embeddedv1.EventAttendees{},
 )
-
-// Instrument installs the OpenTelemetry GORM plugin on db, so every query the
-// application runs emits an OpenTelemetry span (and metric). Call it once at
-// startup, after opening the connection and before serving traffic:
-//
-//	if err := v1.Default.Instrument(db); err != nil {
-//		log.Fatal(err)
-//	}
-//
-// Pass extra tracing.Option values to customize at the call site, e.g.
-// tracing.WithAttributes(...) or tracing.WithoutQueryVariables().
-func (*Registry) Instrument(db *gorm.DB, opts ...tracing.Option) error {
-	defaults := []tracing.Option{}
-	return db.Use(tracing.NewPlugin(append(defaults, opts...)...))
-}

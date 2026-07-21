@@ -43,6 +43,7 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 			Name:      t.LocalName,
 			TableName: s.Name + "." + t.Name,
 		}
+		telEnabled, _, _ := tableTelemetry(db, s, t)
 		// Association fields come from the shared plan (see assoc.go): same-schema
 		// belongs-to and has-many targets get a direct field; a cross-schema target
 		// would need importing another package, which risks an import cycle, so it
@@ -70,7 +71,7 @@ func packageView(db *schema.Database, s *schema.Schema, pkg string) map[string]a
 			}
 			m.Fields = append(m.Fields, fieldView{
 				Comment: col.Comment,
-				Decl:    goField + " " + gt + " `" + structTag(col, extra) + "`",
+				Decl:    goField + " " + gt + " `" + structTag(col, extra, telemetryTag(telEnabled, t, col)) + "`",
 			})
 			// BelongsTo association: emitted alongside the FK column. The field is
 			// named after the FK column (minus _id) so multiple references to the

@@ -44,7 +44,7 @@ CREATE TABLE "bookstore_v1"."books" (
     "isbn"  VARCHAR(13)  UNIQUE,
     -- published_year is a plain integer column; nullable.
     "published_year"  INTEGER,
-    -- genre demonstrates proto enum → database enum generation.
+    -- genre demonstrates proto enum → database enum generation, and — with the telemetry opt — labels every traced Create/Update span with its value (low-cardinality, so it's safe as a span attribute).
     "genre"  "bookstore_v1"."genre"  NOT NULL  DEFAULT 'FICTION',
     -- create_time is set by the database on insert.
     "create_time"  TIMESTAMPTZ  NOT NULL  DEFAULT now(),
@@ -68,7 +68,7 @@ COMMENT ON COLUMN "bookstore_v1"."books"."title" IS 'title: REQUIRED NOT NULL; m
 COMMENT ON COLUMN "bookstore_v1"."books"."author_id" IS 'author_id references Author; orm infers the FOREIGN KEY, aligns the column type with the referenced PK (CHAR(26) ULID), and applies CASCADE.';
 COMMENT ON COLUMN "bookstore_v1"."books"."isbn" IS 'isbn must be globally unique; custom fixed-width type.';
 COMMENT ON COLUMN "bookstore_v1"."books"."published_year" IS 'published_year is a plain integer column; nullable.';
-COMMENT ON COLUMN "bookstore_v1"."books"."genre" IS 'genre demonstrates proto enum → database enum generation.';
+COMMENT ON COLUMN "bookstore_v1"."books"."genre" IS 'genre demonstrates proto enum → database enum generation, and — with the telemetry opt — labels every traced Create/Update span with its value (low-cardinality, so it''s safe as a span attribute).';
 COMMENT ON COLUMN "bookstore_v1"."books"."create_time" IS 'create_time is set by the database on insert.';
 
 

@@ -28,9 +28,10 @@ import (
 var defaultTargets = []string{"gorm", "prisma", "sql"}
 
 // ormBackend builds the orm Backend for one golden case: it reads any orm.yaml
-// the case ships (grouping/otel config) and its optional "stores"/"converters"/
-// "filters"/"pulse" markers, and mirrors the binary's opt defaults (go_module
-// set so the gorm aggregator is emitted, otel on). protokit's harness stays
+// the case ships (grouping/telemetry config) and its optional "stores"/
+// "converters"/"filters"/"telemetry" markers, and mirrors the binary's opt
+// defaults (go_module set so the gorm aggregator is emitted; telemetry off, as
+// in the binary, unless the case ships the marker). protokit's harness stays
 // generator-neutral — all of this generator-specific knowledge lives here, not
 // in RunCase.
 func ormBackend(dir string) schema.Backend {
@@ -45,8 +46,8 @@ func ormBackend(dir string) schema.Backend {
 	stores := fileExists(filepath.Join(dir, "stores"))
 	converters := fileExists(filepath.Join(dir, "converters"))
 	filters := fileExists(filepath.Join(dir, "filters"))
-	pulse := fileExists(filepath.Join(dir, "pulse"))
-	return backend.New(cfg, "example.com/test/gen", stores, true, converters, filters, pulse).
+	telemetry := fileExists(filepath.Join(dir, "telemetry"))
+	return backend.New(cfg, "example.com/test/gen", stores, telemetry, converters, filters).
 		WithRepositoryModules(optFile(dir, "gorm_module"), optFile(dir, "graphql_module"))
 }
 

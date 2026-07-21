@@ -12,14 +12,16 @@
 
 // Package gormx is the shared runtime the generated GORM stores build on: the
 // ListOptions every List/Count call takes, a generic Store interface every
-// generated store satisfies, a GenericStore that implements it for any model, and
-// EnsureSchemas for schema-qualified tables. Keeping these in one package lets a
+// generated store satisfies, a GenericStore that implements it for any model,
+// EnsureSchemas for schema-qualified tables, and the Telemetry seam the
+// instrumented stores observe through. Keeping these in one package lets a
 // single engine run CRUD for every entity instead of per-entity copies.
 package gormx
 
 import (
 	"context"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -150,4 +152,50 @@ func EnsureSchemas(db *gorm.DB, names ...string) error {
 // schema name is treated as an identifier and never as SQL.
 func quoteIdent(s string) string {
 	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
+}
+
+// Telemetry receives the instrumented stores' spans and per-operation metrics.
+// Wire the generated ormtelemetry adapter (ormtelemetry.New(o)) via each
+// store's WithTelemetry, or implement it yourself; a nil store field is a
+// no-op (see OrNop). The interface names no SDK type, so this package — and
+// every models package — compiles without the SDK when telemetry is unused.
+//
+// Metrics stay scoped to the database operation itself (table, op, status) by
+// design — domain-level metrics (e.g. business values from the model) belong
+// to the application, not the ORM; record those with your own metrics setup.
+type Telemetry interface {
+	// Span wraps one store operation in a trace span; data (the model on
+	// writes, nil elsewhere) carries `opentelementry:"trace:..."`-tagged
+	// fields the SDK lifts into span attributes.
+	Span(ctx context.Context, name string, data any, fn func(context.Context) error) error
+	// RecordOp records one completed operation: an ops counter + duration
+	// histogram attributed by table, op, and status, plus error logging.
+	RecordOp(ctx context.Context, table, op string, d time.Duration, err error)
+}
+
+// NopTelemetry observes nothing.
+type NopTelemetry struct{}
+
+// Span runs fn without tracing.
+func (NopTelemetry) Span(ctx context.Context, _ string, _ any, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+// RecordOp discards the measurement.
+func (NopTelemetry) RecordOp(context.Context, string, string, time.Duration, error) {}
+
+// OrNop returns t, or NopTelemetry when t is nil — the stores' nil-safety.
+func OrNop(t Telemetry) Telemetry {
+	if t == nil {
+		return NopTelemetry{}
+	}
+	return t
+}
+
+// OpMetric is the per-operation measurement the ormtelemetry adapter records;
+// the struct tags drive the SDK's metric registration (names are
+// service-prefixed by the SDK at record time).
+type OpMetric struct {
+	Ops        int64   `opentelementry:"metric:counter:orm.store.ops"`
+	DurationMS float64 `opentelementry:"metric:histogram:orm.store.duration_ms"`
 }

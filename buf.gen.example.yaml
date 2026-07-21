@@ -31,6 +31,11 @@ plugins:
       # stores emits a typed CRUD store per resource (one <model>_store.go file);
       # it adds a gorm.io/gorm dependency to each generated models package.
       - stores=true
+      # telemetry folds first-party opentelementry instrumentation into the
+      # stores, an ormtelemetry adapter/plugin package, and Registry.Instrument;
+      # it adds a github.com/the-protobuf-project/opentelementry/opentelementry-go
+      # dependency.
+      - telemetry=true
       - Mbookstore/v1/bookstore.proto=github.com/the-protobuf-project/orm/examples/gen/bookstore/v1
       - Mbookstore/v1/inventory.proto=github.com/the-protobuf-project/orm/examples/gen/bookstore/v1
 

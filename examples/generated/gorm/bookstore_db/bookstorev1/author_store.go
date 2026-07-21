@@ -13,6 +13,7 @@ package bookstorev1
 
 import (
 	"context"
+	"time"
 
 	"github.com/the-protobuf-project/orm/examples/generated/gorm/gormx"
 	"gorm.io/gorm"
@@ -20,7 +21,12 @@ import (
 
 // AuthorStore provides typed CRUD access to Author records.
 // Author is a top-level resource. Inferred table: bookstore_v1.authors. id: ID_STRATEGY_ULID synthesizes a generated `id` PK and demotes the AIP resource name to a UNIQUE lookup column; timestamps adds created_at/updated_at.
-type AuthorStore struct{ DB *gorm.DB }
+type AuthorStore struct {
+	DB *gorm.DB
+	// Telemetry observes every operation; nil is a no-op. Wire the generated
+	// adapter: NewAuthorStore(db).WithTelemetry(ormtelemetry.New(o)).
+	Telemetry gormx.Telemetry
+}
 
 // Compile-time proof that AuthorStore satisfies the generic gormx.Store, so the
 // generic engine can drive it alongside the typed finders below.
@@ -29,15 +35,33 @@ var _ gormx.Store[Author] = (*AuthorStore)(nil)
 // NewAuthorStore returns a AuthorStore backed by db.
 func NewAuthorStore(db *gorm.DB) *AuthorStore { return &AuthorStore{DB: db} }
 
+// WithTelemetry sets the store's Telemetry and returns the store for chaining.
+func (s *AuthorStore) WithTelemetry(t gormx.Telemetry) *AuthorStore {
+	s.Telemetry = t
+	return s
+}
+
 // Create inserts m.
 func (s *AuthorStore) Create(ctx context.Context, m *Author) error {
-	return s.DB.WithContext(ctx).Create(m).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "bookstore_v1.Author/Create", m, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Create(m).Error
+	})
+	tel.RecordOp(ctx, "bookstore_v1.authors", "create", time.Since(start), err)
+	return err
 }
 
 // List returns the Author records matching opts.
 func (s *AuthorStore) List(ctx context.Context, opts gormx.ListOptions) ([]Author, error) {
 	var out []Author
-	if err := opts.Apply(s.DB.WithContext(ctx)).Find(&out).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "bookstore_v1.Author/List", nil, func(ctx context.Context) error {
+		return opts.Apply(s.DB.WithContext(ctx)).Find(&out).Error
+	})
+	tel.RecordOp(ctx, "bookstore_v1.authors", "list", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -46,12 +70,18 @@ func (s *AuthorStore) List(ctx context.Context, opts gormx.ListOptions) ([]Autho
 // Count returns the number of Author records matching opts.Where
 // (pagination and ordering are ignored).
 func (s *AuthorStore) Count(ctx context.Context, opts gormx.ListOptions) (int64, error) {
-	db := s.DB.WithContext(ctx).Model(&Author{})
-	if opts.Where != nil {
-		db = db.Where(opts.Where, opts.Args...)
-	}
 	var n int64
-	if err := db.Count(&n).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "bookstore_v1.Author/Count", nil, func(ctx context.Context) error {
+		db := s.DB.WithContext(ctx).Model(&Author{})
+		if opts.Where != nil {
+			db = db.Where(opts.Where, opts.Args...)
+		}
+		return db.Count(&n).Error
+	})
+	tel.RecordOp(ctx, "bookstore_v1.authors", "count", time.Since(start), err)
+	if err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -59,13 +89,25 @@ func (s *AuthorStore) Count(ctx context.Context, opts gormx.ListOptions) (int64,
 
 // Update persists every field of m, which must carry its primary key.
 func (s *AuthorStore) Update(ctx context.Context, m *Author) error {
-	return s.DB.WithContext(ctx).Save(m).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "bookstore_v1.Author/Update", m, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Save(m).Error
+	})
+	tel.RecordOp(ctx, "bookstore_v1.authors", "update", time.Since(start), err)
+	return err
 }
 
 // GetByID fetches the Author with the given primary key.
 func (s *AuthorStore) GetByID(ctx context.Context, id string) (*Author, error) {
 	var m Author
-	if err := s.DB.WithContext(ctx).First(&m, "id = ?", id).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "bookstore_v1.Author/GetByID", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).First(&m, "id = ?", id).Error
+	})
+	tel.RecordOp(ctx, "bookstore_v1.authors", "get", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -73,13 +115,25 @@ func (s *AuthorStore) GetByID(ctx context.Context, id string) (*Author, error) {
 
 // DeleteByID removes the Author with the given primary key.
 func (s *AuthorStore) DeleteByID(ctx context.Context, id string) error {
-	return s.DB.WithContext(ctx).Delete(&Author{}, "id = ?", id).Error
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "bookstore_v1.Author/DeleteByID", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).Delete(&Author{}, "id = ?", id).Error
+	})
+	tel.RecordOp(ctx, "bookstore_v1.authors", "delete", time.Since(start), err)
+	return err
 }
 
 // GetByName fetches the Author with the given name (a unique column).
 func (s *AuthorStore) GetByName(ctx context.Context, v string) (*Author, error) {
 	var m Author
-	if err := s.DB.WithContext(ctx).First(&m, "name = ?", v).Error; err != nil {
+	tel := gormx.OrNop(s.Telemetry)
+	start := time.Now()
+	err := tel.Span(ctx, "bookstore_v1.Author/GetByName", nil, func(ctx context.Context) error {
+		return s.DB.WithContext(ctx).First(&m, "name = ?", v).Error
+	})
+	tel.RecordOp(ctx, "bookstore_v1.authors", "get_by_name", time.Since(start), err)
+	if err != nil {
 		return nil, err
 	}
 	return &m, nil

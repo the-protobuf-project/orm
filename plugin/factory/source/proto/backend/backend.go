@@ -22,10 +22,9 @@ type Backend struct {
 	cfg        *Config // orm.yaml layout config; nil when none was supplied
 	goModule   string  // Go import path of the output dir (gorm migration aggregator)
 	stores     bool    // gorm: also emit a typed CRUD store per resource
-	otel       bool    // gorm: fold the OpenTelemetry tracing helper into the Registry
+	telemetry  bool    // gorm: fold first-party opentelementry instrumentation into the output
 	converters bool    // gorm: also emit proto↔model converters per schema
 	filters    bool    // gorm: also emit AIP filter/order specs + the filterx engines
-	pulse      bool    // gorm: with filters, emit the pulse-go Observer adapter
 
 	// gormModule / graphqlModule are the repository target's knobs: the import
 	// paths of the generated gorm output and the generated GraphQL client the
@@ -38,8 +37,8 @@ type Backend struct {
 // New builds an orm Backend from the resolved plugin options. The zero value
 // (Backend{}) is still valid — no config, no gorm aggregator — which is all the
 // non-gorm targets need.
-func New(cfg *Config, goModule string, stores, otel, converters, filters, pulse bool) Backend {
-	return Backend{cfg: cfg, goModule: goModule, stores: stores, otel: otel, converters: converters, filters: filters, pulse: pulse}
+func New(cfg *Config, goModule string, stores, telemetry, converters, filters bool) Backend {
+	return Backend{cfg: cfg, goModule: goModule, stores: stores, telemetry: telemetry, converters: converters, filters: filters}
 }
 
 // WithRepositoryModules returns a copy of b carrying the repository target's
@@ -117,14 +116,18 @@ func (Backend) ReadColumn(d protoreflect.FieldDescriptor) schema.ColumnStructure
 // generic provenance handle protokit stamps on); a synthesized column or table
 // (nil Source) carries no annotation and is left as protokit built it.
 func (b Backend) Enrich(dbs []*schema.Database) error {
-	// OTel default: the otel plugin opt, then orm.yaml's otel: block overrides.
-	otelOn, otelMetrics := b.otel, true
-	if b.cfg != nil && b.cfg.OTel != nil {
-		if b.cfg.OTel.Enabled != nil {
-			otelOn = *b.cfg.OTel.Enabled
+	// Telemetry default: the telemetry plugin opt, then orm.yaml's telemetry:
+	// block overrides. Metrics and logs default on when telemetry itself is on.
+	telOn, telMetrics, telLogs := b.telemetry, true, true
+	if b.cfg != nil && b.cfg.Telemetry != nil {
+		if b.cfg.Telemetry.Enabled != nil {
+			telOn = *b.cfg.Telemetry.Enabled
 		}
-		if b.cfg.OTel.Metrics != nil {
-			otelMetrics = *b.cfg.OTel.Metrics
+		if b.cfg.Telemetry.Metrics != nil {
+			telMetrics = *b.cfg.Telemetry.Metrics
+		}
+		if b.cfg.Telemetry.Logs != nil {
+			telLogs = *b.cfg.Telemetry.Logs
 		}
 	}
 
@@ -149,10 +152,10 @@ func (b Backend) Enrich(dbs []*schema.Database) error {
 		db.Opts["go_module"] = b.goModule
 		db.Opts["stores"] = boolStr(b.stores)
 		db.Opts["converters"] = boolStr(b.converters)
-		db.Opts["otel"] = boolStr(otelOn)
-		db.Opts["otel_metrics"] = boolStr(otelMetrics)
+		db.Opts["telemetry"] = boolStr(telOn)
+		db.Opts["telemetry_metrics"] = boolStr(telMetrics)
+		db.Opts["telemetry_logs"] = boolStr(telLogs)
 		db.Opts["filters"] = boolStr(b.filters)
-		db.Opts["pulse"] = boolStr(b.pulse)
 		db.Opts["gorm_module"] = b.gormModule
 		db.Opts["graphql_module"] = b.graphqlModule
 	}

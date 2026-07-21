@@ -7,6 +7,7 @@ import "orm/v1/column.proto";
 import "orm/v1/datasource.proto";
 import "orm/v1/query.proto";
 import "orm/v1/table.proto";
+import "orm/v1/telemetry.proto";
 
 option go_package = "github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1";
 option java_multiple_files = true;
@@ -30,6 +31,10 @@ extend google.protobuf.FileOptions {
 extend google.protobuf.MessageOptions {
   // table overrides table-level generation: name, id strategy, timestamps, indexes.
   TableOptions table = 50001;
+
+  // telemetry tunes the first-party observability folded into the resource's
+  // generated store: spans, op metrics, and trace-correlated logs.
+  TelemetryOptions telemetry = 50004;
 }
 
 extend google.protobuf.FieldOptions {
@@ -39,4 +44,8 @@ extend google.protobuf.FieldOptions {
   // query tunes the field's generated list-query surface: AIP-160 filter,
   // AIP-132 order_by, and free-text search.
   QueryOptions query = 50003;
+
+  // telemetry_field projects the field into the emitted telemetry: a span
+  // attribute, a metric label, or a recorded domain-value metric.
+  TelemetryFieldOptions telemetry_field = 50005;
 }

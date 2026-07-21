@@ -32,9 +32,10 @@ const gormxPkg = "gormx"
 
 // Generate writes one Go package per schema into the plugin response.
 func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
-	gormxEmitted := false   // the shared runtime is emitted once for the whole tree
-	filterxEmitted := false // likewise the shared filter engine packages
-	var pbIdx *pbIndex      // built lazily: only the converters emitter needs it
+	gormxEmitted := false        // the shared runtime is emitted once for the whole tree
+	filterxEmitted := false      // likewise the shared filter engine packages
+	ormtelemetryEmitted := false // likewise the SDK adapter package
+	var pbIdx *pbIndex           // built lazily: only the converters emitter needs it
 	for _, db := range dbs {
 		if types.Provider(db.Provider) != types.Postgres {
 			return fmt.Errorf("gorm: database %q uses provider %q — the gorm target only supports postgres", db.Name, db.Provider)
@@ -50,6 +51,11 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			return fmt.Errorf("gorm: database %q has the filters opt set but no go_module opt; "+
 				"the generated specs import the shared %q engine package by its import path, "+
 				"so set go_module to the import path of the gorm output directory", db.Name, filterxPkg)
+		}
+		if dbTelemetry(db) && dbGoModule(db) == "" {
+			return fmt.Errorf("gorm: database %q has the telemetry opt set but no go_module opt; "+
+				"the instrumented output imports the shared %q adapter package by its import path, "+
+				"so set go_module to the import path of the gorm output directory", db.Name, ormtelemetryPkg)
 		}
 		for _, s := range db.Schemas {
 			pkg := naming.GoPackage(s.Name)
@@ -77,7 +83,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 			// Opt-in: AIP-160 filter / AIP-132 order_by specs per schema, plus the
 			// shared filterx package once for the whole tree (the backend-neutral
 			// core with the chainable Gorm and Hasura engines, and — with the
-			// pulse opt — a pulse-go Observer adapter).
+			// telemetry opt — an opentelementry Observer adapter).
 			if dbFilters(db) && len(s.Tables) > 0 {
 				if view := filtersView(db, s, pkg); view != nil {
 					ff := p.NewGeneratedFile(fmt.Sprintf("%s/%s/filters.go", db.Name, pkg), "")
@@ -96,10 +102,10 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 								return fmt.Errorf("gorm: %s: %w", path, err)
 							}
 						}
-						if dbPulse(db) {
-							pf := p.NewGeneratedFile(filterxPkg+"/pulse.go", "")
-							if err := renderGo(pf, "filterx_pulse.go.tpl", fv); err != nil {
-								return fmt.Errorf("gorm: %s/pulse.go: %w", filterxPkg, err)
+						if dbTelemetry(db) {
+							pf := p.NewGeneratedFile(filterxPkg+"/opentelementry.go", "")
+							if err := renderGo(pf, "filterx_opentelementry.go.tpl", fv); err != nil {
+								return fmt.Errorf("gorm: %s/opentelementry.go: %w", filterxPkg, err)
 							}
 						}
 						filterxEmitted = true
@@ -124,6 +130,16 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 					}
 				}
 			}
+		}
+		// The SDK adapter package, once per tree: the stores' gormx.Telemetry
+		// implementation and the SQL-level gorm plugin Registry.Instrument
+		// installs. The only generated code importing the opentelementry SDK.
+		if dbTelemetry(db) && !ormtelemetryEmitted {
+			tf := p.NewGeneratedFile(ormtelemetryPkg+"/"+ormtelemetryPkg+".go", "")
+			if err := renderGo(tf, "ormtelemetry.go.tpl", ormtelemetryView(db)); err != nil {
+				return fmt.Errorf("gorm: %s/%s.go: %w", ormtelemetryPkg, ormtelemetryPkg, err)
+			}
+			ormtelemetryEmitted = true
 		}
 		// The migration aggregator imports each per-schema package by its full Go
 		// import path, so it can only be generated when go_module gives us the
@@ -157,9 +173,10 @@ func writeReadme(p *protogen.Plugin, db *schema.Database) error {
 			"`gormx/gormx.go` — the shared runtime every store imports: `ListOptions`, the generic `Store[M]` interface every store satisfies, a `GenericStore[M]` engine that runs CRUD for any model with no per-entity code, and `EnsureSchemas`. Lets one generic engine drive every entity.",
 		)
 	}
-	if dbOTel(db) {
+	if dbTelemetry(db) {
 		outputs = append(outputs,
-			"`Registry.Instrument(db)` in `migrate.go` — installs the OpenTelemetry GORM tracing plugin; on by default (set the `otel` opt false to omit), emitted with `go_module`. Requires `gorm.io/plugin/opentelemetry`.",
+			"`ormtelemetry/ormtelemetry.go` — the first-party opentelementry adapter: `New(o)` wraps an SDK handle as the `gormx.Telemetry` the stores observe through (`WithTelemetry(ormtelemetry.New(o))`), and `Plugin(o)` is the SQL-level gorm plugin. Emitted with the `telemetry` opt; requires `github.com/the-protobuf-project/opentelementry/opentelementry-go`.",
+			"`Registry.Instrument(db, o)` in `migrate.go` — installs the generated ormtelemetry gorm plugin so every query emits a span (and metric) through the SDK handle.",
 		)
 	}
 	md := docs.Render(db, docs.Meta{

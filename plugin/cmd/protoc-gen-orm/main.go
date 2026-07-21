@@ -104,17 +104,17 @@ func main() {
 		"gorm target only: also generate proto↔model converters per schema "+
 			"(<Model>ToProto / <Model>FromProto plus per-enum value mappers; introduces "+
 			"a dependency on the generated proto packages)")
-	otel := flags.Bool("otel", true,
-		"gorm target only: fold an OpenTelemetry tracing helper into the migration "+
-			"Registry (Instrument); on by default, takes effect with go_module. "+
-			"Set otel=false to omit it. orm.yaml otel: tunes it further")
+	telemetry := flags.Bool("telemetry", false,
+		"gorm target only: fold first-party opentelementry instrumentation into the "+
+			"generated output — instrumented stores (with stores), an ormtelemetry "+
+			"adapter/plugin package, a filterx observer (with filters), and "+
+			"Registry.Instrument. Requires go_module; generated consumers gain a "+
+			"github.com/the-protobuf-project/opentelementry/opentelementry-go dependency. "+
+			"orm.yaml telemetry: and (orm.v1.telemetry) annotations tune it further")
 	filters := flags.Bool("filters", false,
 		"gorm target only: also generate AIP-160 filter / AIP-132 order_by specs per "+
 			"schema plus the shared filterx engine packages (a backend-neutral core and "+
 			"gorm + hasura engines); requires go_module")
-	pulse := flags.Bool("pulse", false,
-		"gorm target only: with filters, also emit a pulse-go Observer adapter so the "+
-			"filterx list engines can trace and log through machanirobotics/pulse")
 	gormModule := flags.String("gorm_module", "",
 		"repository target only: Go import path of the generated gorm output the "+
 			"repository adapters compose (models, stores, filterx)")
@@ -145,7 +145,7 @@ func main() {
 		// buf selects exactly one target via opt: [target=...] and owns the output dir.
 		reg := wire.Registry(
 			protokit.Options{Target: *target, Strict: *strict, Version: v},
-			backend.New(cfg, *goModule, *stores, *otel, *converters, *filters, *pulse).
+			backend.New(cfg, *goModule, *stores, *telemetry, *converters, *filters).
 				WithRepositoryModules(*gormModule, *graphqlModule))
 
 		tgt, ok := reg.Targets[*target]
@@ -177,7 +177,7 @@ func runGraphQL(p *protogen.Plugin, configPath, goModuleOpt, version string) err
 	if cfg == nil || cfg.GraphQL == nil {
 		return fmt.Errorf("target=graphql needs a `graphql:` block in orm.yaml (set the config=<path> opt)")
 	}
-	validationReg := wire.Registry(protokit.Options{}, backend.New(nil, "", false, false, false, false, false))
+	validationReg := wire.Registry(protokit.Options{}, backend.New(nil, "", false, false, false, false))
 	if err := cfg.Validate(validationReg); err != nil {
 		return err
 	}

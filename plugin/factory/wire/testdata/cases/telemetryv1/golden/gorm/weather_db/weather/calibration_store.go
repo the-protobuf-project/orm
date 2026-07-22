@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-orm (unknown)
 // 	protoc (unknown)
-// source: telemetry.proto
+// source: telemetryv1.proto
 //
 // database: weather_db
 // schema:   weather
@@ -19,11 +19,11 @@ import (
 )
 
 // CalibrationStore provides typed CRUD access to Calibration records.
-// Calibration opts out of instrumentation entirely, proving a table-level (orm.v1.telemetry).enabled=false override wins over the tree-wide default.
+// Calibration opts out of instrumentation entirely, proving a table-level (telemetry.v1.telemetry).enabled=false override wins over the tree-wide default.
 type CalibrationStore struct {
 	DB *gorm.DB
 	// Telemetry observes every operation; nil is a no-op. Wire the generated
-	// adapter: NewCalibrationStore(db).WithTelemetry(ormtelemetry.New(o)).
+	// adapter: NewCalibrationStore(db).WithTelemetry(telemetry.New(o)).
 	Telemetry gormx.Telemetry
 }
 

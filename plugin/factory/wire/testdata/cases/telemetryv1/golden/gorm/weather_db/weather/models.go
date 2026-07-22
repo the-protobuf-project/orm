@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-orm (unknown)
 // 	protoc (unknown)
-// source: telemetry.proto
+// source: telemetryv1.proto
 //
 // database: weather_db
 // schema:   weather
@@ -11,7 +11,7 @@
 
 package weather
 
-// Reading exercises the telemetry emitter's default path: instrumented store methods with a default span prefix, and labeled fields carrying span attribute struct tags (one default name, one explicit override).
+// Reading exercises the telemetry emitter's default path: instrumented store methods with a default span prefix, and labeled fields carrying span attribute struct tags (one default name, one explicit override). Annotated with telemetry.v1's own (telemetry.v1.telemetry) / (telemetry.v1.telemetry_field) options — orm.v1 carries no telemetry extensions of its own.
 type Reading struct {
 	// Unique identifier for the record.
 	ID   string `gorm:"column:id;primaryKey;not null" json:"id"`
@@ -35,7 +35,7 @@ type Sensor struct {
 
 func (*Sensor) TableName() string { return "weather.sensors" }
 
-// Calibration opts out of instrumentation entirely, proving a table-level (orm.v1.telemetry).enabled=false override wins over the tree-wide default.
+// Calibration opts out of instrumentation entirely, proving a table-level (telemetry.v1.telemetry).enabled=false override wins over the tree-wide default.
 type Calibration struct {
 	// Unique identifier for the record.
 	ID    string  `gorm:"column:id;primaryKey;not null" json:"id"`

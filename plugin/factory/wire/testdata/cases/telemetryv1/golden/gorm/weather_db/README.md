@@ -34,14 +34,14 @@ erDiagram
 - Attach in main: `Default.EnsureSchemas(db)` then `Default.Migrate(db)`, or wire the structs into a `*gorm.DB` and run AutoMigrate yourself.
 - `<schema>/<model>_store.go` — a typed CRUD store per resource (Create, GetByID, List, Count, Update, DeleteByID, plus GetBy/ListBy finders for unique and foreign-key columns); emitted when the `stores` opt is set (which also requires `go_module`). Requires `gorm.io/gorm`.
 - `gormx/gormx.go` — the shared runtime every store imports: `ListOptions`, the generic `Store[M]` interface every store satisfies, a `GenericStore[M]` engine that runs CRUD for any model with no per-entity code, and `EnsureSchemas`. Lets one generic engine drive every entity.
-- `ormtelemetry/ormtelemetry.go` — the first-party opentelementry adapter: `New(o)` wraps an SDK handle as the `gormx.Telemetry` the stores observe through (`WithTelemetry(ormtelemetry.New(o))`), and `Plugin(o)` is the SQL-level gorm plugin. Emitted with the `telemetry` opt; requires `github.com/the-protobuf-project/opentelementry/opentelementry-go`.
-- `Registry.Instrument(db, o)` in `migrate.go` — installs the generated ormtelemetry gorm plugin so every query emits a span (and metric) through the SDK handle.
+- `telemetry/telemetry.go` — the first-party opentelementry adapter: `New(o)` wraps an SDK handle as the `gormx.Telemetry` the stores observe through (`WithTelemetry(telemetry.New(o))`), and `Plugin(o)` is the SQL-level gorm plugin. Emitted with the `telemetry` opt; requires `github.com/the-protobuf-project/opentelementry/opentelementry-go`.
+- `Registry.Instrument(db, o)` in `migrate.go` — installs the generated telemetry gorm plugin so every query emits a span (and metric) through the SDK handle.
 
 ## Schema `weather`
 
 ### `Reading` → `readings`
 
-Reading exercises the telemetry emitter's default path: instrumented store methods with a default span prefix, and labeled fields carrying span attribute struct tags (one default name, one explicit override).
+Reading exercises the telemetry emitter's default path: instrumented store methods with a default span prefix, and labeled fields carrying span attribute struct tags (one default name, one explicit override). Annotated with telemetry.v1's own (telemetry.v1.telemetry) / (telemetry.v1.telemetry_field) options — orm.v1 carries no telemetry extensions of its own.
 
 | Column | Type | Null |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ Sensor overrides the span prefix and disables its op metrics, keeping spans only
 
 ### `Calibration` → `calibrations`
 
-Calibration opts out of instrumentation entirely, proving a table-level (orm.v1.telemetry).enabled=false override wins over the tree-wide default.
+Calibration opts out of instrumentation entirely, proving a table-level (telemetry.v1.telemetry).enabled=false override wins over the tree-wide default.
 
 | Column | Type | Null |
 | --- | --- | --- |

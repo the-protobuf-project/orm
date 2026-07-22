@@ -260,10 +260,10 @@ const file_orm_v1_table_proto_rawDesc = "" +
 	"IdStrategy\x12\x1b\n" +
 	"\x17ID_STRATEGY_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10ID_STRATEGY_ULID\x10\x01\x12\x14\n" +
-	"\x10ID_STRATEGY_UUID\x10\x02BY\n" +
+	"\x10ID_STRATEGY_UUID\x10\x02B\x90\x01\n" +
 	"\n" +
 	"com.orm.v1B\n" +
-	"TableProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1b\x06proto3"
+	"TableProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1\xa2\x02\x03OXX\xaa\x02\x06Orm.V1\xca\x02\x06Orm\\V1\xe2\x02\x12Orm\\V1\\GPBMetadata\xea\x02\aOrm::V1b\x06proto3"
 
 var (
 	file_orm_v1_table_proto_rawDescOnce sync.Once

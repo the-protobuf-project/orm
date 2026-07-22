@@ -119,9 +119,9 @@ const file_orm_v1_datasource_proto_rawDesc = "" +
 	"\bdatabase\x18\x01 \x01(\tR\bdatabase\x12\x16\n" +
 	"\x06schema\x18\x02 \x01(\tR\x06schema\x12\x10\n" +
 	"\x03url\x18\x03 \x01(\tR\x03url\x12\x1a\n" +
-	"\bprovider\x18\x04 \x01(\tR\bproviderB^\n" +
+	"\bprovider\x18\x04 \x01(\tR\bproviderB\x95\x01\n" +
 	"\n" +
-	"com.orm.v1B\x0fDatasourceProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1b\x06proto3"
+	"com.orm.v1B\x0fDatasourceProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1\xa2\x02\x03OXX\xaa\x02\x06Orm.V1\xca\x02\x06Orm\\V1\xe2\x02\x12Orm\\V1\\GPBMetadata\xea\x02\aOrm::V1b\x06proto3"
 
 var (
 	file_orm_v1_datasource_proto_rawDescOnce sync.Once

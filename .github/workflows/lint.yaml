@@ -14,27 +14,55 @@ jobs:
     name: Lint (Go)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout orm
+        uses: actions/checkout@v7
+        with:
+          path: orm
+
+      - name: Checkout opentelementry (for the opentelementry-go replace)
+        uses: actions/checkout@v7
+        with:
+          repository: the-protobuf-project/opentelementry
+          path: opentelementry
+
+      - name: Checkout runtime-go (for the runtime-go/telemetry replace)
+        uses: actions/checkout@v7
+        with:
+          repository: the-protobuf-project/runtime-go
+          path: runtime-go
+
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version-file: orm/go.mod
+
       - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
+          working-directory: orm
 
   proto:
     name: Lint (Proto)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout orm
+        uses: actions/checkout@v7
+        with:
+          path: orm
+
       - uses: bufbuild/buf-setup-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: buf build
+        working-directory: orm
         run: buf build
+
       - name: buf lint
+        working-directory: orm
         run: buf lint
+
       - name: Generated stubs up to date
+        working-directory: orm
         run: |
           buf generate
           git diff --exit-code -- plugin/pb/ \

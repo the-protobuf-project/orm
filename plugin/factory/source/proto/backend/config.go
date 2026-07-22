@@ -10,6 +10,7 @@ package backend
 // handing protokit a fully-resolved Datasource.
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -37,7 +38,7 @@ type Config struct {
 	DedupeSchemaTable bool `yaml:"dedupe_schema_table"`
 
 	// Telemetry tunes the gorm target's first-party opentelementry
-	// instrumentation (instrumented stores, the ormtelemetry package, the
+	// instrumentation (instrumented stores, the telemetry package, the
 	// filterx observer, Registry.Instrument). Nil leaves the telemetry plugin
 	// opt in charge. Replaces the removed `otel:` block.
 	Telemetry *telemetryConfig `yaml:"telemetry"`
@@ -51,10 +52,10 @@ type telemetryConfig struct {
 	Enabled *bool `yaml:"enabled"`
 	// Metrics, when explicitly false, drops the per-operation ops counter +
 	// duration histogram tree-wide (spans and logs are unaffected). Defaults to
-	// true. Per-table (orm.v1.telemetry).metrics narrows it further.
+	// true. Per-table (telemetry.v1.telemetry).metrics narrows it further.
 	Metrics *bool `yaml:"metrics"`
 	// Logs, when explicitly false, drops the trace-correlated error logging the
-	// ormtelemetry adapter performs on failed operations. Defaults to true.
+	// telemetry adapter performs on failed operations. Defaults to true.
 	Logs *bool `yaml:"logs"`
 }
 
@@ -88,7 +89,9 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("read config %q: %w", path, err)
 	}
 	var c Config
-	if err := yaml.Unmarshal(b, &c); err != nil {
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	dec.KnownFields(true) // reject unknown keys instead of silently ignoring them
+	if err := dec.Decode(&c); err != nil {
 		return nil, fmt.Errorf("parse config %q: %w", path, err)
 	}
 	return &c, nil

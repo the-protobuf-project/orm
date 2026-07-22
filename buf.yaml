@@ -1,12 +1,19 @@
 version: v2
 
-# This buf.yaml defines a two-module workspace:
-#   protobuf/       — the publishable BSR module (buf.build/the-protobuf-project/orm)
-#   examples/proto/ — sample annotated protos that consume the options (local only)
+# This buf.yaml defines a workspace:
+#   protobuf/           — the publishable BSR module (buf.build/the-protobuf-project/orm)
+#   examples/proto/     — sample annotated protos that consume the options (local only)
 #
-# Only protobuf/ has a BSR name, so publish it with:
+# telemetry.v1 (import "telemetry/v1/*.proto") is no longer a local workspace path —
+# it's published as part of buf.build/the-protobuf-project/opentelementry (see deps:
+# below) and resolved like any other BSR dependency. The temporary
+# .telemetry-v1-workspace symlink workaround this repo used before that module was
+# published is gone; orm/go.mod's `replace` for the Go-side opentelementry-go module
+# is unrelated to this and still applies until that module is published too.
+#
+# Only protobuf/ has a BSR name, so publish with:
 #   buf push --exclude-unnamed
-# A bare `buf push` errors on the unnamed examples/proto module.
+# A bare `buf push` errors on the unnamed modules.
 modules:
   - path: protobuf
     name: buf.build/the-protobuf-project/orm
@@ -17,6 +24,7 @@ modules:
 
 deps:
   - buf.build/googleapis/googleapis # google.api.resource, field_behavior, resource_reference
+  - buf.build/the-protobuf-project/opentelementry # telemetry.v1 (tracing/metrics annotations)
 
 lint:
   use:

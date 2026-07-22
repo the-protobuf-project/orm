@@ -74,6 +74,6 @@ func aggregateView(db *schema.Database) map[string]any {
 		"Telemetry":            dbTelemetry(db),
 		"TelemetryMetrics":     dbTelemetryMetrics(db),
 		"OpentelementryImport": opentelementryModule,
-		"OrmTelemetryImport":   dbGoModule(db) + "/" + ormtelemetryPkg,
+		"TelemetryImport":      dbGoModule(db) + "/" + telemetryPkg,
 	}
 }

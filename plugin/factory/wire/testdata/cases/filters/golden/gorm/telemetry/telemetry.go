@@ -3,19 +3,19 @@
 // 	protoc-gen-orm (unknown)
 // 	protoc (unknown)
 //
-// database: weather_db
-// package:  ormtelemetry
+// database: v1
+// package:  telemetry
 //
 // First-party opentelementry adapter: the stores' gormx.Telemetry and the SQL-level gorm plugin.
 //
 // orm — https://github.com/the-protobuf-project/orm
 
-// Package ormtelemetry is the only generated package that imports the
+// Package telemetry is the only generated package that imports the
 // opentelementry SDK: it adapts an *opentelementry.Opentelementry handle into
 // the store-level gormx.Telemetry seam and provides a SQL-level gorm plugin,
 // so an application wires observability once and every generated store and
 // query goes through it.
-package ormtelemetry
+package telemetry
 
 import (
 	"context"
@@ -75,7 +75,7 @@ func (a adapter) RecordOp(ctx context.Context, table, op string, d time.Duration
 // Plugin returns a gorm.Plugin that emits a span and a query metric
 // for every query db.Use(Plugin(o)) runs, restoring the SQL-level visibility a
 // generic ORM plugin used to provide. A nil o is a no-op plugin. Wire it via
-// Registry.Instrument(db, o) or directly with db.Use(ormtelemetry.Plugin(o)).
+// Registry.Instrument(db, o) or directly with db.Use(telemetry.Plugin(o)).
 func Plugin(o *opentelementry.Opentelementry) gorm.Plugin {
 	return gormPlugin{o: o}
 }
@@ -84,7 +84,7 @@ type gormPlugin struct {
 	o *opentelementry.Opentelementry
 }
 
-func (gormPlugin) Name() string { return "ormtelemetry" }
+func (gormPlugin) Name() string { return "telemetry" }
 
 func (p gormPlugin) Initialize(db *gorm.DB) error {
 	if p.o == nil {
@@ -112,7 +112,7 @@ func (p gormPlugin) Initialize(db *gorm.DB) error {
 		{cb.Raw().After("gorm:raw"), p.after(), "after:raw"},
 	}
 	for _, h := range hooks {
-		if err := h.reg.Register("ormtelemetry:"+h.name, h.fn); err != nil {
+		if err := h.reg.Register("telemetry:"+h.name, h.fn); err != nil {
 			return err
 		}
 	}
@@ -123,8 +123,8 @@ func (p gormPlugin) Initialize(db *gorm.DB) error {
 // statement-scoped instance store, since gorm's Before/After hooks for one
 // query run against the same *gorm.DB, not a shared context.
 const (
-	spanKey  = "ormtelemetry:span"
-	startKey = "ormtelemetry:start"
+	spanKey  = "telemetry:span"
+	startKey = "telemetry:start"
 )
 
 func (p gormPlugin) before(name string) func(*gorm.DB) {

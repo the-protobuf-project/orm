@@ -19,15 +19,15 @@ func dbConverters(db *schema.Database) bool { return db.Opt("converters") == "tr
 
 // dbTelemetry reports whether to fold first-party opentelementry
 // instrumentation into the generated output (instrumented stores, the
-// ormtelemetry package, the filterx observer, Registry.Instrument).
+// telemetry package, the filterx observer, Registry.Instrument).
 func dbTelemetry(db *schema.Database) bool { return db.Opt("telemetry") == "true" }
 
 // dbTelemetryMetrics reports whether instrumented code records op metrics in
 // addition to spans (only meaningful when dbTelemetry is true; per-table
-// (orm.v1.telemetry).metrics narrows it further).
+// (telemetry.v1.telemetry).metrics narrows it further).
 func dbTelemetryMetrics(db *schema.Database) bool { return db.Opt("telemetry_metrics") == "true" }
 
-// dbTelemetryLogs reports whether the ormtelemetry adapter logs failed
+// dbTelemetryLogs reports whether the telemetry adapter logs failed
 // operations (only meaningful when dbTelemetry is true).
 func dbTelemetryLogs(db *schema.Database) bool { return db.Opt("telemetry_logs") == "true" }
 

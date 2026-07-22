@@ -21,7 +21,7 @@ import (
 	"github.com/the-protobuf-project/orm/examples/generated/gorm/bookstore_db/inventory"
 
 	"github.com/the-protobuf-project/opentelementry/opentelementry-go"
-	"github.com/the-protobuf-project/orm/examples/generated/gorm/ormtelemetry"
+	"github.com/the-protobuf-project/orm/examples/generated/gorm/telemetry"
 	"gorm.io/gorm"
 )
 
@@ -110,5 +110,5 @@ var Default = New().Register(
 //		log.Fatal(err)
 //	}
 func (*Registry) Instrument(db *gorm.DB, o *opentelementry.Opentelementry) error {
-	return db.Use(ormtelemetry.Plugin(o))
+	return db.Use(telemetry.Plugin(o))
 }

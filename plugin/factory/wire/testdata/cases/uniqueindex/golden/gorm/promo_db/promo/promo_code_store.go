@@ -23,7 +23,7 @@ import (
 type PromoCodeStore struct {
 	DB *gorm.DB
 	// Telemetry observes every operation; nil is a no-op. Wire the generated
-	// adapter: NewPromoCodeStore(db).WithTelemetry(ormtelemetry.New(o)).
+	// adapter: NewPromoCodeStore(db).WithTelemetry(telemetry.New(o)).
 	Telemetry gormx.Telemetry
 }
 

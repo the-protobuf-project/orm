@@ -262,9 +262,9 @@ const file_orm_v1_column_proto_rawDesc = "" +
 	"\x1bREFERENTIAL_ACTION_RESTRICT\x10\x02\x12\x1f\n" +
 	"\x1bREFERENTIAL_ACTION_SET_NULL\x10\x03\x12\"\n" +
 	"\x1eREFERENTIAL_ACTION_SET_DEFAULT\x10\x04\x12 \n" +
-	"\x1cREFERENTIAL_ACTION_NO_ACTION\x10\x05BZ\n" +
+	"\x1cREFERENTIAL_ACTION_NO_ACTION\x10\x05B\x91\x01\n" +
 	"\n" +
-	"com.orm.v1B\vColumnProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1b\x06proto3"
+	"com.orm.v1B\vColumnProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1\xa2\x02\x03OXX\xaa\x02\x06Orm.V1\xca\x02\x06Orm\\V1\xe2\x02\x12Orm\\V1\\GPBMetadata\xea\x02\aOrm::V1b\x06proto3"
 
 var (
 	file_orm_v1_column_proto_rawDescOnce sync.Once

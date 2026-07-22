@@ -23,7 +23,7 @@ import (
 type ShelfStore struct {
 	DB *gorm.DB
 	// Telemetry observes every operation; nil is a no-op. Wire the generated
-	// adapter: NewShelfStore(db).WithTelemetry(ormtelemetry.New(o)).
+	// adapter: NewShelfStore(db).WithTelemetry(telemetry.New(o)).
 	Telemetry gormx.Telemetry
 }
 

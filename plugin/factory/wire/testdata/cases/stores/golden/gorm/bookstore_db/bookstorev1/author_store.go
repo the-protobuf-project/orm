@@ -23,7 +23,7 @@ import (
 type AuthorStore struct {
 	DB *gorm.DB
 	// Telemetry observes every operation; nil is a no-op. Wire the generated
-	// adapter: NewAuthorStore(db).WithTelemetry(ormtelemetry.New(o)).
+	// adapter: NewAuthorStore(db).WithTelemetry(telemetry.New(o)).
 	Telemetry gormx.Telemetry
 }
 

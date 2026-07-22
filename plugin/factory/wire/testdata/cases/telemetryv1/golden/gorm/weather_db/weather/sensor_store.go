@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-orm (unknown)
 // 	protoc (unknown)
-// source: telemetry.proto
+// source: telemetryv1.proto
 //
 // database: weather_db
 // schema:   weather
@@ -23,7 +23,7 @@ import (
 type SensorStore struct {
 	DB *gorm.DB
 	// Telemetry observes every operation; nil is a no-op. Wire the generated
-	// adapter: NewSensorStore(db).WithTelemetry(ormtelemetry.New(o)).
+	// adapter: NewSensorStore(db).WithTelemetry(telemetry.New(o)).
 	Telemetry gormx.Telemetry
 }
 

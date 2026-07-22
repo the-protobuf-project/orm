@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 {{- if .Telemetry}}
 	"{{.OpentelementryImport}}"
-	"{{.OrmTelemetryImport}}"
+	"{{.TelemetryImport}}"
 {{- end}}
 )
 
@@ -103,6 +103,6 @@ var Default = New().Register(
 //		log.Fatal(err)
 //	}
 func (*Registry) Instrument(db *gorm.DB, o *opentelementry.Opentelementry) error {
-	return db.Use(ormtelemetry.Plugin(o))
+	return db.Use(telemetry.Plugin(o))
 }
 {{- end}}

@@ -32,10 +32,10 @@ const gormxPkg = "gormx"
 
 // Generate writes one Go package per schema into the plugin response.
 func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
-	gormxEmitted := false        // the shared runtime is emitted once for the whole tree
-	filterxEmitted := false      // likewise the shared filter engine packages
-	ormtelemetryEmitted := false // likewise the SDK adapter package
-	var pbIdx *pbIndex           // built lazily: only the converters emitter needs it
+	gormxEmitted := false     // the shared runtime is emitted once for the whole tree
+	filterxEmitted := false   // likewise the shared filter engine packages
+	telemetryEmitted := false // likewise the SDK adapter package
+	var pbIdx *pbIndex        // built lazily: only the converters emitter needs it
 	for _, db := range dbs {
 		if types.Provider(db.Provider) != types.Postgres {
 			return fmt.Errorf("gorm: database %q uses provider %q — the gorm target only supports postgres", db.Name, db.Provider)
@@ -55,7 +55,7 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 		if dbTelemetry(db) && dbGoModule(db) == "" {
 			return fmt.Errorf("gorm: database %q has the telemetry opt set but no go_module opt; "+
 				"the instrumented output imports the shared %q adapter package by its import path, "+
-				"so set go_module to the import path of the gorm output directory", db.Name, ormtelemetryPkg)
+				"so set go_module to the import path of the gorm output directory", db.Name, telemetryPkg)
 		}
 		for _, s := range db.Schemas {
 			pkg := naming.GoPackage(s.Name)
@@ -134,12 +134,12 @@ func (g *Generator) Generate(p *protogen.Plugin, dbs []*schema.Database) error {
 		// The SDK adapter package, once per tree: the stores' gormx.Telemetry
 		// implementation and the SQL-level gorm plugin Registry.Instrument
 		// installs. The only generated code importing the opentelementry SDK.
-		if dbTelemetry(db) && !ormtelemetryEmitted {
-			tf := p.NewGeneratedFile(ormtelemetryPkg+"/"+ormtelemetryPkg+".go", "")
-			if err := renderGo(tf, "ormtelemetry.go.tpl", ormtelemetryView(db)); err != nil {
-				return fmt.Errorf("gorm: %s/%s.go: %w", ormtelemetryPkg, ormtelemetryPkg, err)
+		if dbTelemetry(db) && !telemetryEmitted {
+			tf := p.NewGeneratedFile(telemetryPkg+"/"+telemetryPkg+".go", "")
+			if err := renderGo(tf, "telemetry.go.tpl", telemetryPkgView(db)); err != nil {
+				return fmt.Errorf("gorm: %s/%s.go: %w", telemetryPkg, telemetryPkg, err)
 			}
-			ormtelemetryEmitted = true
+			telemetryEmitted = true
 		}
 		// The migration aggregator imports each per-schema package by its full Go
 		// import path, so it can only be generated when go_module gives us the
@@ -175,8 +175,8 @@ func writeReadme(p *protogen.Plugin, db *schema.Database) error {
 	}
 	if dbTelemetry(db) {
 		outputs = append(outputs,
-			"`ormtelemetry/ormtelemetry.go` — the first-party opentelementry adapter: `New(o)` wraps an SDK handle as the `gormx.Telemetry` the stores observe through (`WithTelemetry(ormtelemetry.New(o))`), and `Plugin(o)` is the SQL-level gorm plugin. Emitted with the `telemetry` opt; requires `github.com/the-protobuf-project/opentelementry/opentelementry-go`.",
-			"`Registry.Instrument(db, o)` in `migrate.go` — installs the generated ormtelemetry gorm plugin so every query emits a span (and metric) through the SDK handle.",
+			"`telemetry/telemetry.go` — the first-party opentelementry adapter: `New(o)` wraps an SDK handle as the `gormx.Telemetry` the stores observe through (`WithTelemetry(telemetry.New(o))`), and `Plugin(o)` is the SQL-level gorm plugin. Emitted with the `telemetry` opt; requires `github.com/the-protobuf-project/opentelementry/opentelementry-go`.",
+			"`Registry.Instrument(db, o)` in `migrate.go` — installs the generated telemetry gorm plugin so every query emits a span (and metric) through the SDK handle.",
 		)
 	}
 	md := docs.Render(db, docs.Meta{

@@ -9,7 +9,7 @@ package {{.Package}}
 type {{.Store}} struct {
 	DB *gorm.DB
 	// Telemetry observes every operation; nil is a no-op. Wire the generated
-	// adapter: New{{.Store}}(db).WithTelemetry(ormtelemetry.New(o)).
+	// adapter: New{{.Store}}(db).WithTelemetry(telemetry.New(o)).
 	Telemetry gormx.Telemetry
 }
 {{- if .AssertStore}}

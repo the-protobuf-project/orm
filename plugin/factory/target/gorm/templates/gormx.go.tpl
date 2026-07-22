@@ -145,7 +145,7 @@ func quoteIdent(s string) string {
 }
 
 // Telemetry receives the instrumented stores' spans and per-operation metrics.
-// Wire the generated ormtelemetry adapter (ormtelemetry.New(o)) via each
+// Wire the generated telemetry adapter (telemetry.New(o)) via each
 // store's WithTelemetry, or implement it yourself; a nil store field is a
 // no-op (see OrNop). The interface names no SDK type, so this package — and
 // every models package — compiles without the SDK when telemetry is unused.
@@ -182,7 +182,7 @@ func OrNop(t Telemetry) Telemetry {
 	return t
 }
 
-// OpMetric is the per-operation measurement the ormtelemetry adapter records;
+// OpMetric is the per-operation measurement the telemetry adapter records;
 // the struct tags drive the SDK's metric registration (names are
 // service-prefixed by the SDK at record time).
 type OpMetric struct {

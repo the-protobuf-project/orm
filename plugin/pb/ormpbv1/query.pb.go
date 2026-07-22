@@ -111,10 +111,10 @@ const file_orm_v1_query_proto_rawDesc = "" +
 	"\bsortable\x18\x02 \x01(\bH\x01R\bsortable\x88\x01\x01\x12\x16\n" +
 	"\x06search\x18\x03 \x01(\bR\x06searchB\r\n" +
 	"\v_filterableB\v\n" +
-	"\t_sortableBY\n" +
+	"\t_sortableB\x90\x01\n" +
 	"\n" +
 	"com.orm.v1B\n" +
-	"QueryProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1b\x06proto3"
+	"QueryProtoP\x01Z=github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1\xa2\x02\x03OXX\xaa\x02\x06Orm.V1\xca\x02\x06Orm\\V1\xe2\x02\x12Orm\\V1\\GPBMetadata\xea\x02\aOrm::V1b\x06proto3"
 
 var (
 	file_orm_v1_query_proto_rawDescOnce sync.Once

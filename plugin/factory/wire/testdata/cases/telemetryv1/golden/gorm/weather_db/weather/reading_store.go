@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-orm (unknown)
 // 	protoc (unknown)
-// source: telemetry.proto
+// source: telemetryv1.proto
 //
 // database: weather_db
 // schema:   weather
@@ -20,11 +20,11 @@ import (
 )
 
 // ReadingStore provides typed CRUD access to Reading records.
-// Reading exercises the telemetry emitter's default path: instrumented store methods with a default span prefix, and labeled fields carrying span attribute struct tags (one default name, one explicit override).
+// Reading exercises the telemetry emitter's default path: instrumented store methods with a default span prefix, and labeled fields carrying span attribute struct tags (one default name, one explicit override). Annotated with telemetry.v1's own (telemetry.v1.telemetry) / (telemetry.v1.telemetry_field) options — orm.v1 carries no telemetry extensions of its own.
 type ReadingStore struct {
 	DB *gorm.DB
 	// Telemetry observes every operation; nil is a no-op. Wire the generated
-	// adapter: NewReadingStore(db).WithTelemetry(ormtelemetry.New(o)).
+	// adapter: NewReadingStore(db).WithTelemetry(telemetry.New(o)).
 	Telemetry gormx.Telemetry
 }
 

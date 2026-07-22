@@ -7,7 +7,6 @@ import "orm/v1/column.proto";
 import "orm/v1/datasource.proto";
 import "orm/v1/query.proto";
 import "orm/v1/table.proto";
-import "orm/v1/telemetry.proto";
 
 option go_package = "github.com/the-protobuf-project/orm/plugin/pb/ormpbv1;ormpbv1";
 option java_multiple_files = true;
@@ -22,6 +21,14 @@ option java_package = "com.orm.v1";
 // id/timestamp synthesis), and database rendering (types, sizing, indexes) all
 // live under orm.v1, so a user annotates entirely with orm.v1.* and imports
 // nothing else. Field numbers 50000-99999 are reserved for non-Google options.
+//
+// Telemetry annotations are not part of orm.v1 — they live in the standalone
+// telemetry.v1 module (see telemetry/v1/annotations.proto) so any codegen
+// target, not just orm's gorm target, can read them. Annotate with
+// (telemetry.v1.telemetry) / (telemetry.v1.telemetry_field) directly; orm.v1
+// carries no telemetry extensions of its own (no back-compat aliases either
+// — there was never a released consumer of the old orm.v1.telemetry* fields
+// to keep compiling).
 
 extend google.protobuf.FileOptions {
   // datasource groups the file's messages into a database and names its schema.
@@ -31,10 +38,6 @@ extend google.protobuf.FileOptions {
 extend google.protobuf.MessageOptions {
   // table overrides table-level generation: name, id strategy, timestamps, indexes.
   TableOptions table = 50001;
-
-  // telemetry tunes the first-party observability folded into the resource's
-  // generated store: spans, op metrics, and trace-correlated logs.
-  TelemetryOptions telemetry = 50004;
 }
 
 extend google.protobuf.FieldOptions {
@@ -44,8 +47,4 @@ extend google.protobuf.FieldOptions {
   // query tunes the field's generated list-query surface: AIP-160 filter,
   // AIP-132 order_by, and free-text search.
   QueryOptions query = 50003;
-
-  // telemetry_field projects the field into the emitted telemetry: a span
-  // attribute, a metric label, or a recorded domain-value metric.
-  TelemetryFieldOptions telemetry_field = 50005;
 }

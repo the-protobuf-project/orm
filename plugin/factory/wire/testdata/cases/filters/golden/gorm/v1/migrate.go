@@ -19,7 +19,7 @@ package v1
 import (
 	"example.com/test/gen/v1/venuev1"
 
-	"example.com/test/gen/ormtelemetry"
+	"example.com/test/gen/telemetry"
 	"github.com/the-protobuf-project/opentelementry/opentelementry-go"
 	"gorm.io/gorm"
 )
@@ -107,5 +107,5 @@ var Default = New().Register(
 //		log.Fatal(err)
 //	}
 func (*Registry) Instrument(db *gorm.DB, o *opentelementry.Opentelementry) error {
-	return db.Use(ormtelemetry.Plugin(o))
+	return db.Use(telemetry.Plugin(o))
 }

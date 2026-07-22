@@ -8,6 +8,7 @@ import "google/api/field_behavior.proto";
 import "google/api/resource.proto";
 import "google/protobuf/timestamp.proto";
 import "orm/v1/annotations.proto";
+import "telemetry/v1/annotations.proto";
 
 option java_multiple_files = true;
 option java_outer_classname = "BookstoreProto";
@@ -69,7 +70,7 @@ message Book {
 
   // span_prefix demonstrates overriding the generated telemetry span name
   // (takes effect only with the telemetry opt); defaults to "bookstore_v1.Book".
-  option (orm.v1.telemetry) = {span_prefix: "bookstore.Book"};
+  option (telemetry.v1.telemetry) = {span_prefix: "bookstore.Book"};
 
   // name: IDENTIFIER → PRIMARY KEY, VARCHAR(255).
   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
@@ -105,7 +106,7 @@ message Book {
   // (low-cardinality, so it's safe as a span attribute).
   Genre genre = 7 [
     (google.api.field_behavior) = REQUIRED,
-    (orm.v1.telemetry_field) = {label: true}
+    (telemetry.v1.telemetry_field) = {label: true}
   ];
 
   // create_time is set by the database on insert.
